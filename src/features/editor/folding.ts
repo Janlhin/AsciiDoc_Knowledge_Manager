@@ -1,0 +1,277 @@
+/**
+ * Heading/list folding (R17): codeFolding + foldGutter + a custom foldService
+ * implementing the frozen semantics from ARCHITECTURE.md "Round 17 additions",
+ * plus the standard fold keymap. Fold state lives in the EditorState, so a
+ * live<->source compartment reconfigure keeps it; a view rebuild drops it
+ * (explicit non-persistence, recorded in the contract).
+ *
+ * Frozen foldService semantics:
+ * - heading: an ATXHeading1-6 OR SetextHeading1-2 node at line start (syntaxTree —
+ *   headings inside fences are never parsed as headings) folds from the heading
+ *   line's end to the section end: the end of the line before the next line-start
+ *   heading (ATX or Setext) with level <= the current one, or doc end when there is
+ *   no successor. A Setext heading spans text + `===`/`---` underline but its fold
+ *   point is on the first (text) line, so folding it hides the underline + section
+ *   (R54 — Setext was deferred in R17, now in scope).
+ * - list item: a ListItem spanning more than one line folds from its first
+ *   line's end to node.to (covering nested children/continuation lines);
+ *   nested ListItems provide their own fold points on their own first lines.
+ */
+import {
+  codeFolding,
+  ensureSyntaxTree,
+  foldCode,
+  foldEffect,
+  foldGutter,
+  foldService,
+  foldedRanges,
+  syntaxTree,
+  unfoldAll,
+  unfoldCode,
+} from "@codemirror/language";
+import { type EditorState, type Extension, Prec } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { foldHeading } from "@core/appearance";
+
+const ATX_HEADING_RE = /^ATXHeading([1-6])$/;
+// R54: SetextHeading1/2 = a text line underlined by `===` (h1) / `---` (h2). The
+// node spans BOTH lines; its fold point sits on the first (text) line.
+const SETEXT_HEADING_RE = /^SetextHeading([12])$/;
+
+/** Heading level (1-6) for an ATX *or* Setext heading node, else null. Unifies
+ *  the two so a Setext heading both folds and terminates sections (R54). */
+function headingLevel(name: string): number | null {
+  const atx = ATX_HEADING_RE.exec(name);
+  if (atx) return Number(atx[1]);
+  const setext = SETEXT_HEADING_RE.exec(name);
+  if (setext) return Number(setext[1]);
+  return null;
+}
+
+type FoldRange = { from: number; to: number } | null;
+
+/** A heading node "owns" its line when only whitespace precedes it (ATX
+ *  headings may be indented up to 3 spaces; "- # x" inside a list does not
+ *  count — review fix: the previous exact line-start check made indented
+ *  headings unfoldable AND invisible as section terminators). */
+function ownsLine(state: EditorState, lineFrom: number, nodeFrom: number): boolean {
+  return (
+    state.doc.lineAt(nodeFrom).from === lineFrom &&
+    state.doc.sliceString(lineFrom, nodeFrom).trim() === ""
+  );
+}
+
+/**
+ * End offset of the frontmatter block ("---" first line .. closing "---"/"...")
+ * or 0 when the document has none. The markdown parser knows nothing about
+ * YAML — a "# comment" inside frontmatter parses as a real ATXHeading, and
+ * folding it would hide the whole body (review fix). Cached per doc identity
+ * (Text is immutable; the gutter queries many lines against the same doc).
+ */
+const fmCache = new WeakMap<object, number>();
+function frontmatterEnd(state: EditorState): number {
+  const doc = state.doc;
+  const cached = fmCache.get(doc);
+  if (cached !== undefined) return cached;
+  let end = 0;
+  if (doc.lines > 1 && doc.line(1).text === "---") {
+    for (let i = 2; i <= doc.lines; i++) {
+      const l = doc.line(i);
+      if (l.text === "---" || l.text === "...") {
+        end = l.to;
+        break;
+      }
+    }
+  }
+  fmCache.set(doc, end);
+  return end;
+}
+
+/**
+ * Section end for a heading of `level` whose line ends at `lineEnd`: the end
+ * of the line preceding the next line-owning heading (ATX *or* Setext, R54) with
+ * level <= `level`, or doc.length when no such heading follows. Cursor-based
+ * forward walk with a real early exit (tree.iterate cannot abort across siblings —
+ * on large documents that made every gutter query O(doc), review fix).
+ */
+function headingSectionEnd(state: EditorState, level: number, lineEnd: number): number {
+  const doc = state.doc;
+  const cursor = syntaxTree(state).cursorAt(lineEnd, 1);
+  do {
+    const lvl = headingLevel(cursor.name);
+    // cursor.from > lineEnd excludes the current heading; a Setext node's own
+    // HeaderMark (`===`) sits past lineEnd but headingLevel() returns null for it.
+    if (lvl !== null && cursor.from > lineEnd && lvl <= level) {
+      const line = doc.lineAt(cursor.from);
+      if (ownsLine(state, line.from, cursor.from)) {
+        return doc.lineAt(line.from - 1).to;
+      }
+    }
+  } while (cursor.next());
+  return doc.length;
+}
+
+/**
+ * A ListItem's node.to may land on the start of the following line (trailing
+ * newline included) — back up to the previous line's end so folding never
+ * swallows the next line.
+ */
+function trimTrailingNewline(state: EditorState, to: number): number {
+  return to > 0 && state.doc.lineAt(to).from === to ? state.doc.lineAt(to - 1).to : to;
+}
+
+/** The frozen foldService: heading sections (ATX + Setext, R54) + multi-line list
+ *  items. Exported so the always-on probe can assert the pure fold-range geometry.
+ *  R156: `foldHeadingOn` gates the heading branch (Obsidian "Fold heading"); default true →
+ *  3-arg callers (probe) keep the original behavior. (The list branch is NOT gated — see
+ *  the foldHeading note in appearance.ts for why "Fold indent" can't be done here.) */
+export function markdownFoldRange(
+  state: EditorState,
+  lineStart: number,
+  lineEnd: number,
+  foldHeadingOn = true,
+): FoldRange {
+  // frontmatter lines never fold — the parser sees YAML as markdown
+  if (lineStart < frontmatterEnd(state)) return null;
+  let result: FoldRange = null;
+  syntaxTree(state).iterate({
+    from: lineStart,
+    to: lineEnd,
+    enter: (n) => {
+      if (result) return false;
+      // ATX headings own a single line; a SetextHeading node spans text + underline
+      // but its `from` is on the (first) text line, so the same ownsLine + lineEnd
+      // fold-from point works for both. Section end walks ATX *and* Setext terminators.
+      const level = headingLevel(n.name);
+      if (foldHeadingOn && level !== null && ownsLine(state, lineStart, n.from)) {
+        const end = headingSectionEnd(state, level, lineEnd);
+        if (end > lineEnd) result = { from: lineEnd, to: end };
+        // a heading line folds as a section or not at all
+        return false;
+      }
+      // a ListItem whose first line is this line (n.from may sit after the
+      // line's indentation, hence >= lineStart instead of === lineStart)
+      if (n.name === "ListItem" && n.from >= lineStart) {
+        const end = trimTrailingNewline(state, n.to);
+        if (end > lineEnd) {
+          result = { from: lineEnd, to: end };
+          return false;
+        }
+        // single-line item — nothing nested on the same line reaches further
+        return false;
+      }
+      return undefined;
+    },
+  });
+  return result;
+}
+
+/** Gutter marker: a CSS chevron; `.is-folded` stays visible without hover. */
+function foldMarker(open: boolean): HTMLElement {
+  const el = document.createElement("span");
+  el.className = open ? "cm-fold-marker" : "cm-fold-marker is-folded";
+  return el;
+}
+
+/** R156: the frozen foldService, with the heading branch gated (Obsidian "Fold heading").
+ *  Lives in a Compartment (EditorPane reconfigures it on setting change), separate from
+ *  markdownFolding()'s static parts — mirrors R153's closeBracketsExtension(on). */
+export function markdownFoldService(foldHeadingOn: boolean): Extension {
+  // high precedence: consulted before any other foldService
+  return Prec.high(foldService.of((state, from, to) => markdownFoldRange(state, from, to, foldHeadingOn)));
+}
+
+/** codeFolding + foldGutter + fold keymap — the static parts (the foldService itself moved to
+ *  markdownFoldService() / its compartment in R156). The standard foldKeymap is NOT used: its
+ *  Ctrl-Alt-[ binding calls the library foldAll, which would also fold fences/blockquotes/tables
+ *  via the built-in foldNodeProp sources — the keyboard path must match editor:fold-all
+ *  (frozen semantics only, review fix). */
+export function markdownFolding(): Extension {
+  return [
+    codeFolding(),
+    foldGutter({
+      markerDOM: foldMarker,
+      // R156: the foldService lives in a Compartment (the foldHeading toggle reconfigures it).
+      // foldGutter's default only recomputes its chevrons on fold-STATE changes, so when the
+      // service reconfigures (foldability of heading lines flips) the gutter would show stale
+      // chevrons — recompute whenever the foldService facet itself changes.
+      foldingChanged: (update) => update.startState.facet(foldService) !== update.state.facet(foldService),
+    }),
+    keymap.of([
+      { key: "Ctrl-Shift-[", mac: "Cmd-Alt-[", run: foldCode },
+      { key: "Ctrl-Shift-]", mac: "Cmd-Alt-]", run: unfoldCode },
+      {
+        key: "Ctrl-Alt-[",
+        run: (view) => {
+          foldAllInView(view);
+          return true;
+        },
+      },
+      {
+        key: "Ctrl-Alt-]",
+        run: (view) => {
+          unfoldAllInView(view);
+          return true;
+        },
+      },
+    ]),
+  ];
+}
+
+/* ---------------- command entry points (App.tsx) ---------------- */
+
+/** "Fold all headings and lists": scan with the FROZEN semantics only — the
+ *  library foldAll would also fold fences/blockquotes/tables via the built-in
+ *  foldNodeProp sources, which Obsidian does not do. */
+export function foldAllInView(view: EditorView): void {
+  const { state } = view;
+  // the full-document scan needs a complete parse — syntaxTree() alone may
+  // stop at the viewport on large documents (review fix; bounded at 500ms)
+  ensureSyntaxTree(state, state.doc.length, 500);
+  // R156: fold-all respects the Fold heading setting too
+  const headingOn = foldHeading.get();
+  const folded = foldedRanges(state);
+  const effects = [];
+  for (let pos = 0; pos < state.doc.length; ) {
+    const line = state.doc.lineAt(pos);
+    const range = markdownFoldRange(state, line.from, line.to, headingOn);
+    if (range) {
+      let already = false;
+      folded.between(range.from, range.to, (f, t) => {
+        if (f === range.from && t === range.to) {
+          already = true;
+          return false;
+        }
+      });
+      if (!already) effects.push(foldEffect.of(range));
+    }
+    pos = line.to + 1;
+  }
+  if (effects.length) view.dispatch({ effects });
+}
+
+export function unfoldAllInView(view: EditorView): void {
+  unfoldAll(view);
+}
+
+/** Cursor line has a folded range -> unfold, otherwise fold. */
+export function toggleFoldAtCursor(view: EditorView): void {
+  const line = view.state.doc.lineAt(view.state.selection.main.head);
+  let folded = false;
+  foldedRanges(view.state).between(line.from, line.to, () => {
+    folded = true;
+    return false;
+  });
+  if (folded) unfoldCode(view);
+  else foldCode(view);
+}
+
+/** R188: "Fold" / "Unfold" the foldable region at the cursor (Obsidian editor:fold /
+ *  editor:unfold). Thin adapters over CM's foldCode/unfoldCode (Command → void) so the
+ *  App command layer stays @codemirror-free, mirroring toggleFoldAtCursor/foldAllInView. */
+export function foldAtCursor(view: EditorView): void {
+  foldCode(view);
+}
+export function unfoldAtCursor(view: EditorView): void {
+  unfoldCode(view);
+}

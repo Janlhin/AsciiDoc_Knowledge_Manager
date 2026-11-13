@@ -1,0 +1,28 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+*.local
+.DS_Store
+.playwright-mcp/
+bench-vault/
+# calibration harness — 测试脚本 + 基线数据入库（换机/CI 可复跑）；
+# 仅忽略安装依赖与每轮运行产物。详见 .calibration/README.md
+.calibration/node_modules/
+.calibration/**/*-results.md
+.calibration/__*/
+.calibration/*-vault/
+# local community-plugin bundles used during compatibility probes; do not publish
+# vendored plugin packages without an explicit license review.
+.calibration/calendar/
+.calibration/dataview/
+.calibration/tasks/
+.calibration/templater/
+# vendored Obsidian type defs / extracts — legal boundary: NEVER commit (OBSIDIAN-COMPAT.md §法律边界)
+.calibration/obsidian.d.ts
+.calibration/API-REFERENCE.md
+compat-vault/
+# updater signing keypair — NEVER commit the private key
+.tauri-keys/
+# local update-server fixtures for desktop verification
+.update-test/

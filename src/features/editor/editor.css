@@ -1,0 +1,1958 @@
+/* ============ editor pane layout ============ */
+
+.editor-pane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.editor-header-spacer {
+  flex: 1;
+}
+
+.editor-mode-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.editor-mode-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.editor-mode-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.editor-mode-btn.is-active {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+
+/* ============ states ============ */
+
+.editor-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  font-size: 14px;
+}
+
+.editor-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 24px;
+  text-align: center;
+}
+
+.editor-error-title {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.editor-error-detail {
+  font-size: 12px;
+  color: var(--text-faint);
+  max-width: 36em;
+  overflow-wrap: anywhere;
+}
+
+.editor-loading {
+  flex: 1;
+  /* R50: skeleton mirrors the editor body column → follow readable line length */
+  max-width: var(--readable-line-width, 46em);
+  width: 100%;
+  margin: 0 auto;
+  padding: 36px 32px;
+}
+
+/* R94: Obsidian "Show inline title" — the note's filename as a heading at the top of
+   the note. Aligns with the readable content column (live + reading share the cap). */
+.inline-title {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--readable-line-width, 46em);
+  margin: 0 auto;
+  padding: 28px 32px 0;
+  font-size: 1.9em;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
+/* R164: editable inline title — display span (click to rename) + edit input that
+   inherits the H1 typography so the field looks identical to the static title */
+.inline-title-text {
+  display: block;
+  cursor: text;
+}
+
+.inline-title-input {
+  width: 100%;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  outline: none;
+}
+
+.inline-title-input.is-invalid {
+  color: var(--danger);
+}
+
+.editor-skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  margin-bottom: 14px;
+  animation: editor-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.editor-skeleton-line.is-title {
+  height: 24px;
+  width: 45%;
+  margin-bottom: 22px;
+}
+
+.editor-skeleton-line.is-short {
+  width: 70%;
+}
+
+@keyframes editor-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ============ CodeMirror host ============ */
+
+.editor-cm-host {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-cm-host .cm-editor {
+  height: 100%;
+  /* R85 (㊺): text font for note prose; unset → inherit the interface font */
+  font-family: var(--font-text, var(--font-interface, "Segoe UI", -apple-system, system-ui, sans-serif));
+}
+
+/* R85 (㊺): reading-view prose shares the text font */
+.markdown-reading-view {
+  font-family: var(--font-text, var(--font-interface, "Segoe UI", -apple-system, system-ui, sans-serif));
+}
+
+/* --- markdown live-preview styling (classes from HighlightStyle) --- */
+
+.cm-md-h1 {
+  font-size: 1.6em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cm-md-h2 {
+  font-size: 1.3em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cm-md-h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cm-md-h4 {
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.cm-md-strong {
+  font-weight: 700;
+}
+
+.cm-md-em {
+  font-style: italic;
+}
+
+.cm-md-strike {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.cm-md-code {
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.05em 0.25em;
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  font-size: 0.9em;
+}
+
+.cm-md-quote {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cm-md-mark {
+  color: var(--accent);
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+.cm-md-link {
+  color: var(--accent);
+}
+
+.cm-md-url {
+  color: var(--accent);
+  opacity: 0.75;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-muted);
+}
+
+.cm-md-hr {
+  color: var(--text-faint);
+}
+
+/* --- code-block token colors (variable palette only) --- */
+
+.cm-tok-keyword {
+  color: var(--accent);
+}
+
+.cm-tok-string {
+  color: var(--text-muted);
+}
+
+.cm-tok-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.cm-tok-number {
+  color: var(--accent-hover);
+}
+
+.cm-tok-fn {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.cm-tok-type {
+  color: var(--accent-hover);
+}
+
+.cm-tok-prop {
+  color: var(--text-normal);
+}
+
+/* --- wikilinks + tags in the editor --- */
+
+.cm-wikilink {
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.cm-wikilink:hover {
+  text-decoration: underline;
+  background: var(--accent-muted);
+}
+
+.cm-wikilink-unresolved {
+  color: var(--link-unresolved);
+}
+
+.cm-hashtag {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: 999px;
+  padding: 0.05em 0.45em;
+  font-size: 0.85em;
+}
+
+/* ============ folding (R17, folding.ts) ============ */
+
+/* the editor had ZERO gutters before R17 — the fold gutter must not bring in
+   CM's default gutter chrome: transparent background, no border, no layout
+   surprises beyond its own narrow column */
+.editor-cm-host .cm-editor .cm-gutters {
+  background: transparent;
+  border-right: none;
+}
+
+.editor-cm-host .cm-editor .cm-foldGutter .cm-gutterElement {
+  width: 14px;
+  text-align: center;
+  line-height: 1.65;
+  cursor: pointer;
+}
+
+/* chevron marker: hidden until the editor is hovered; folded lines keep
+   their arrow visible at all times (Obsidian behaviour) */
+.cm-fold-marker {
+  display: inline-block;
+  position: relative;
+  width: 9px;
+  height: 9px;
+  vertical-align: middle;
+  opacity: 0;
+  transform: rotate(0deg);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.cm-fold-marker::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  /* pointing down = open/foldable */
+  transform: rotate(45deg);
+}
+
+.cm-editor:hover .cm-fold-marker {
+  opacity: 1;
+}
+
+.cm-fold-marker.is-folded {
+  opacity: 1;
+  /* pointing right = collapsed */
+  transform: rotate(-90deg);
+}
+
+.cm-fold-marker:hover::before {
+  border-color: var(--text-normal);
+}
+
+/* fold placeholder ("…") — variable palette only */
+.editor-cm-host .cm-editor .cm-foldPlaceholder {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  padding: 0 5px;
+  margin: 0 3px;
+  cursor: pointer;
+}
+
+.editor-cm-host .cm-editor .cm-foldPlaceholder:hover {
+  border-color: var(--border-strong);
+  color: var(--text-normal);
+}
+
+/* ============ live preview (livePreview.ts decorations) ============ */
+
+/* collapsed markdown [text](url) links */
+.cm-live-mdlink {
+  color: var(--accent);
+}
+
+.cm-live-mdlink:hover {
+  text-decoration: underline;
+}
+
+/* bullet widget replacing "-", "*", "+" list marks */
+.cm-live-bullet {
+  color: var(--accent);
+  display: inline-block;
+  min-width: 1ch;
+  text-align: center;
+}
+
+/* numbered list marks keep their numbers, accent-styled */
+.cm-live-listnum {
+  color: var(--accent);
+}
+
+/* blockquote lines: left bar + muted text */
+.cm-line.cm-live-quoteline {
+  border-left: 3px solid var(--accent-muted);
+  padding-left: 29px; /* 32px line padding − 3px border */
+  color: var(--text-muted);
+}
+
+/* fenced code block background across the region */
+.cm-line.cm-live-codeline {
+  background: var(--code-bg);
+}
+
+.cm-line.cm-live-codeline-first {
+  border-radius: 6px 6px 0 0;
+}
+
+.cm-line.cm-live-codeline-last {
+  border-radius: 0 0 6px 6px;
+}
+
+/* horizontal rule widget replacing "---" */
+.cm-live-hr {
+  display: inline-block;
+  width: 100%;
+  height: 0;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+/* task checkbox widget */
+.cm-live-checkbox {
+  appearance: none;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.45em 0 0;
+  vertical-align: -0.12em;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+
+.cm-live-checkbox:hover {
+  border-color: var(--accent);
+}
+
+.cm-live-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.cm-live-checkbox:checked::after {
+  content: "";
+  width: 0.55em;
+  height: 0.3em;
+  border-left: 2px solid var(--text-on-accent);
+  border-bottom: 2px solid var(--text-on-accent);
+  transform: rotate(-45deg) translate(5%, -10%);
+}
+
+.cm-line.cm-live-task-done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* image embed widget replacing ![[img]] (R11) */
+.cm-live-embed {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* R26 media/pdf embed widgets replacing ![[a.mp3]]/![[v.mp4]]/![[doc.pdf]].
+   audio/video inherit .cm-live-embed sizing; iframe needs explicit dims. */
+audio.cm-live-embed,
+video.cm-live-embed {
+  border: none;
+}
+
+iframe.geode-embed-pdf.cm-live-embed {
+  width: 100%;
+  height: min(600px, 80vh);
+}
+
+/* reveal flash (R14) — one-shot highlight on the revealed line after a
+   [[note#subpath]] navigation; low-opacity accent fading out over ~1.2s.
+   The decoration is cleared by EditorPane shortly after the animation ends. */
+.cm-line.cm-reveal-flash {
+  animation: reveal-flash-fade 1.2s ease-out forwards;
+}
+
+@keyframes reveal-flash-fade {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* reading-view reveal flash (R15) — same one-shot accent fade as
+   .cm-reveal-flash, applied to the located preview heading; EditorPane
+   removes the class ~1.2s later (timer held in a ref, cleared on unmount). */
+.preview-content .preview-reveal-flash {
+  animation: reveal-flash-fade 1.2s ease-out forwards;
+  border-radius: 4px;
+}
+
+/* frontmatter "Properties · n fields" pill (block widget) */
+.cm-live-frontmatter {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 32px 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cm-live-frontmatter:hover {
+  border-color: var(--border-strong);
+  color: var(--text-normal);
+}
+
+/* ============ reading view ============ */
+
+.editor-preview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.preview-content {
+  /* R50: readable line length — full width when --readable-line-width is "none" */
+  max-width: var(--readable-line-width, 46em);
+  margin: 0 auto;
+  padding: 28px 32px 120px;
+  font-size: var(--editor-font-size);
+  line-height: 1.65;
+  color: var(--text-normal);
+  overflow-wrap: break-word;
+}
+
+.preview-content > :first-child {
+  margin-top: 0;
+}
+
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  line-height: 1.3;
+  margin: 1.2em 0 0.4em;
+  font-weight: 700;
+}
+
+.preview-content h1 {
+  font-size: 1.6em;
+}
+
+.preview-content h2 {
+  font-size: 1.3em;
+}
+
+.preview-content h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.preview-content p {
+  margin: 0.6em 0;
+}
+
+.preview-content ul,
+.preview-content ol {
+  margin: 0.4em 0;
+  padding-left: 1.6em;
+}
+
+.preview-content li {
+  margin: 0.15em 0;
+}
+
+.preview-content li::marker {
+  color: var(--accent);
+}
+
+.preview-content blockquote {
+  margin: 0.8em 0;
+  padding: 0.1em 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+.preview-content code {
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  font-size: 0.875em;
+}
+
+.preview-content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+  /* R95: anchor the hover copy button (top-right) */
+  position: relative;
+}
+
+/* R95: code-fence copy button — hidden until the block is hovered (Obsidian) */
+.code-copy-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 8px;
+  font-size: 0.75em;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--bg-secondary, var(--code-bg));
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.preview-content pre:hover .code-copy-button,
+.code-copy-button:focus-visible {
+  opacity: 1;
+}
+.code-copy-button:hover {
+  color: var(--text-normal);
+}
+.code-copy-button.is-copied {
+  color: var(--accent);
+}
+
+.preview-content pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875em;
+}
+
+.preview-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.6em 0;
+}
+
+.preview-content table {
+  border-collapse: collapse;
+  margin: 0.8em 0;
+}
+
+.preview-content th,
+.preview-content td {
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+}
+
+.preview-content th {
+  background: var(--bg-panel-alt);
+  font-weight: 600;
+}
+
+/* R55 — live-preview rendered tables (liveTables.ts block widget); click to edit */
+.cm-live-table {
+  margin: 0.3em 0;
+  cursor: text;
+}
+.cm-live-table table {
+  border-collapse: collapse;
+}
+.cm-live-table th,
+.cm-live-table td {
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+}
+.cm-live-table th {
+  background: var(--bg-panel-alt);
+  font-weight: 600;
+}
+
+/* R56 — live-preview rendered mermaid diagrams (liveMermaid.ts block widget); click
+   to edit. The inner .geode-mermaid keeps its R19 reading-view styling. */
+.cm-live-mermaid {
+  margin: 0.3em 0;
+  cursor: text;
+}
+
+/* R57 — live-preview rendered $$ display math (liveMath.ts block widget); click to
+   edit. The inner .geode-math-block keeps its R18 reading-view KaTeX styling. */
+.cm-live-math {
+  margin: 0.3em 0;
+  cursor: text;
+}
+
+.preview-content img {
+  max-width: 100%;
+}
+
+/* image embeds from ![[img]] (R11) — hydrated asynchronously by embeds.ts */
+.preview-content img.geode-embed {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* binary read / image decode failed (class set by embeds.ts) */
+.geode-embed-failed {
+  opacity: 0.45;
+}
+
+/* ============ media/pdf embeds ![[a.mp3]]/![[v.mp4]]/![[doc.pdf]] (R26) ============ */
+
+/* reading-view span wrapper hydrated into a native player/viewer (core/embeds.ts) */
+.geode-embed-file {
+  display: block;
+  margin: 0.6em 0;
+}
+
+/* native <audio>/<video> players — keep within the content column */
+audio.geode-embed-media,
+video.geode-embed-media {
+  max-width: 100%;
+}
+
+video.geode-embed-media {
+  height: auto;
+}
+
+/* native PDF viewer (<iframe>) — full-width, sensible default height */
+iframe.geode-embed-pdf {
+  width: 100%;
+  height: min(600px, 80vh);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ============ note transclusion ![[note]] (R12, core/embeds.ts) ============ */
+
+/* embed container — Obsidian style: left border + indent. The placeholder is
+   an (empty) span so paragraphs survive; display:block once hydrated. */
+.geode-embed-note {
+  display: block;
+  margin: 0.6em 0;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border);
+}
+
+.geode-embed-note:hover {
+  border-left-color: var(--border-strong);
+}
+
+/* pre-hydration placeholder is an empty span — render nothing until filled */
+.geode-embed-note:empty {
+  margin: 0;
+  padding: 0;
+  border-left: none;
+}
+
+/* header: note name (+ #subpath), small + muted; link color on hover */
+.geode-embed-note-header {
+  display: block;
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-bottom: 0.25em;
+}
+
+.geode-embed-note-header a.internal-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.geode-embed-note-header a.internal-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.geode-embed-note-content {
+  display: block;
+}
+
+.geode-embed-note-content > :first-child {
+  margin-top: 0;
+}
+
+.geode-embed-note-content > :last-child {
+  margin-bottom: 0;
+}
+
+/* warning plates: circular embed / missing heading */
+.geode-embed-cycle,
+.geode-embed-missing {
+  display: block;
+  margin: 0.6em 0;
+  padding: 4px 10px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+/* live-preview widget container — same look as the reading view */
+.cm-live-embed-note {
+  display: block;
+  cursor: default;
+}
+
+.cm-live-embed-note .geode-embed-note {
+  margin: 2px 0;
+}
+
+.preview-content a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.preview-content a:hover {
+  text-decoration: underline;
+}
+
+.preview-content a.internal-link.is-unresolved {
+  color: var(--link-unresolved);
+}
+
+.preview-content .tag-pill {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: 999px;
+  padding: 0.05em 0.5em;
+  font-size: 0.85em;
+  white-space: nowrap;
+  cursor: pointer; /* R152: clickable → search the tag */
+}
+
+.preview-content .tag-pill:hover {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+/* --- task lists --- */
+
+.preview-content li.task-list-item {
+  list-style: none;
+  margin-left: -1.3em;
+}
+
+.preview-content li.task-list-item.is-checked {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.preview-content input.task-checkbox {
+  appearance: none;
+  width: 1em;
+  height: 1em;
+  margin: 0 0.45em 0 0;
+  vertical-align: -0.12em;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+
+.preview-content input.task-checkbox:hover {
+  border-color: var(--accent);
+}
+
+.preview-content input.task-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.preview-content input.task-checkbox:checked::after {
+  content: "";
+  width: 0.55em;
+  height: 0.3em;
+  border-left: 2px solid var(--text-on-accent);
+  border-bottom: 2px solid var(--text-on-accent);
+  transform: rotate(-45deg) translate(5%, -10%);
+}
+
+/* R76: custom task states — `data-task="<char>"` on the <li> (non-standard
+   markers like / - > <). The checkbox shows the marker char; themes/snippets
+   can target li[data-task="…"] for richer rendering. */
+.preview-content li.task-list-item[data-task] > input.task-checkbox {
+  border-color: var(--accent);
+  background: var(--bg-input);
+}
+.preview-content li.task-list-item[data-task] > input.task-checkbox::after {
+  color: var(--accent);
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1;
+}
+.preview-content li.task-list-item[data-task="/"] > input.task-checkbox::after { content: "╱"; }
+.preview-content li.task-list-item[data-task=">"] > input.task-checkbox::after { content: "›"; }
+.preview-content li.task-list-item[data-task="<"] > input.task-checkbox::after { content: "‹"; }
+.preview-content li.task-list-item[data-task="?"] > input.task-checkbox::after { content: "?"; }
+.preview-content li.task-list-item[data-task="!"] > input.task-checkbox::after { content: "!"; }
+.preview-content li.task-list-item[data-task="-"] > input.task-checkbox::after { content: "–"; }
+/* cancelled (-) reads like done but muted */
+.preview-content li.task-list-item[data-task="-"] {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.preview-content li.task-list-item[data-task="-"] > input.task-checkbox,
+.preview-content li.task-list-item[data-task="-"] > input.task-checkbox::after {
+  border-color: var(--text-faint);
+  color: var(--text-faint);
+}
+
+/* R77: block-reference copy toast (in-app feedback for copy-block-link) */
+.block-ref-notice {
+  position: fixed;
+  top: 44px;
+  right: 16px;
+  z-index: 1000;
+  max-width: 420px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-normal);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-modal);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ============ callouts (R18) ============ */
+
+/* Container — unscoped (like .geode-embed-note) so callouts inside hydrated
+   note transclusions and live-preview embed widgets pick up the styling too.
+   --callout-color defaults to the note triplet: unknown types fall back to
+   the note palette without any extra selector (contract口径). */
+.callout {
+  --callout-color: var(--callout-note);
+  margin: 0.8em 0;
+  padding: 10px 12px;
+  border-left: 3px solid rgb(var(--callout-color));
+  border-radius: 6px;
+  background: rgba(var(--callout-color), 0.08);
+  overflow-wrap: break-word;
+}
+
+.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  color: rgb(var(--callout-color));
+}
+
+.callout-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  background-color: rgb(var(--callout-color));
+  -webkit-mask: var(--callout-icon) no-repeat center / contain;
+  mask: var(--callout-icon) no-repeat center / contain;
+}
+
+.callout-title-inner {
+  flex: 1;
+  min-width: 0;
+}
+
+.callout-content {
+  margin-top: 6px;
+}
+
+.callout-content > :first-child {
+  margin-top: 0;
+}
+
+.callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+/* collapsible: pointer title + chevron; collapsed hides the content */
+.callout.is-collapsible > .callout-title {
+  cursor: pointer;
+  user-select: none;
+}
+
+.callout.is-collapsible > .callout-title::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+  border-right: 2px solid rgb(var(--callout-color));
+  border-bottom: 2px solid rgb(var(--callout-color));
+  /* pointing down = expanded */
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.callout.is-collapsed > .callout-title::after {
+  /* pointing right = collapsed */
+  transform: rotate(-45deg);
+}
+
+.callout.is-collapsed > .callout-content {
+  display: none;
+}
+
+/* R29: reading-view heading fold. Headings become clickable (collapse their
+   section); a subtle chevron appears on hover in the left margin (reserved
+   gutter via padding so the heading text never shifts). Scoped to the editor
+   pane's reading view (.markdown-reading-view) ONLY — NOT bare .markdown-rendered,
+   which hover-preview cards AND the compat MarkdownRenderer also use (the click
+   delegation is gated on previewContentRef → the affordance would be dead there).
+   Chevron mirrors the callout border-arrow idiom; rotates right→down when
+   collapsed. */
+.markdown-reading-view :is(h1, h2, h3, h4, h5, h6) {
+  cursor: pointer;
+  position: relative;
+}
+
+.markdown-reading-view :is(h1, h2, h3, h4, h5, h6)::before {
+  content: "";
+  position: absolute;
+  left: -1.1em;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  /* pointing down = expanded */
+  transform: rotate(45deg);
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    transform 0.15s ease;
+}
+
+.markdown-reading-view :is(h1, h2, h3, h4, h5, h6):hover::before,
+.markdown-reading-view :is(h1, h2, h3, h4, h5, h6).is-collapsed::before {
+  opacity: 1;
+}
+
+.markdown-reading-view :is(h1, h2, h3, h4, h5, h6).is-collapsed::before {
+  /* pointing right = collapsed */
+  transform: rotate(-45deg);
+}
+
+.geode-heading-folded {
+  display: none;
+}
+
+/* --- per-type colors (frozen palette; alias table frozen in the contract).
+   Selector lists cover the reading view (.callout) AND the live-preview
+   line decorations (.cm-callout-line) in one pass. The live default lives
+   here at (0,1,0) specificity so the (0,2,0) type mappings always win. --- */
+
+.cm-callout-line {
+  --callout-color: var(--callout-note);
+}
+
+.callout[data-callout="abstract"],
+.callout[data-callout="summary"],
+.callout[data-callout="tldr"],
+.cm-callout-line[data-callout="abstract"],
+.cm-callout-line[data-callout="summary"],
+.cm-callout-line[data-callout="tldr"] {
+  --callout-color: var(--callout-abstract);
+}
+
+.callout[data-callout="info"],
+.cm-callout-line[data-callout="info"] {
+  --callout-color: var(--callout-info);
+}
+
+.callout[data-callout="todo"],
+.cm-callout-line[data-callout="todo"] {
+  --callout-color: var(--callout-todo);
+}
+
+.callout[data-callout="tip"],
+.callout[data-callout="hint"],
+.callout[data-callout="important"],
+.cm-callout-line[data-callout="tip"],
+.cm-callout-line[data-callout="hint"],
+.cm-callout-line[data-callout="important"] {
+  --callout-color: var(--callout-tip);
+}
+
+.callout[data-callout="success"],
+.callout[data-callout="check"],
+.callout[data-callout="done"],
+.cm-callout-line[data-callout="success"],
+.cm-callout-line[data-callout="check"],
+.cm-callout-line[data-callout="done"] {
+  --callout-color: var(--callout-success);
+}
+
+.callout[data-callout="question"],
+.callout[data-callout="help"],
+.callout[data-callout="faq"],
+.cm-callout-line[data-callout="question"],
+.cm-callout-line[data-callout="help"],
+.cm-callout-line[data-callout="faq"] {
+  --callout-color: var(--callout-question);
+}
+
+.callout[data-callout="warning"],
+.callout[data-callout="caution"],
+.callout[data-callout="attention"],
+.cm-callout-line[data-callout="warning"],
+.cm-callout-line[data-callout="caution"],
+.cm-callout-line[data-callout="attention"] {
+  --callout-color: var(--callout-warning);
+}
+
+.callout[data-callout="failure"],
+.callout[data-callout="fail"],
+.callout[data-callout="missing"],
+.cm-callout-line[data-callout="failure"],
+.cm-callout-line[data-callout="fail"],
+.cm-callout-line[data-callout="missing"] {
+  --callout-color: var(--callout-failure);
+}
+
+.callout[data-callout="danger"],
+.callout[data-callout="error"],
+.cm-callout-line[data-callout="danger"],
+.cm-callout-line[data-callout="error"] {
+  --callout-color: var(--callout-danger);
+}
+
+.callout[data-callout="bug"],
+.cm-callout-line[data-callout="bug"] {
+  --callout-color: var(--callout-bug);
+}
+
+.callout[data-callout="example"],
+.cm-callout-line[data-callout="example"] {
+  --callout-color: var(--callout-example);
+}
+
+.callout[data-callout="quote"],
+.callout[data-callout="cite"],
+.cm-callout-line[data-callout="quote"],
+.cm-callout-line[data-callout="cite"] {
+  --callout-color: var(--callout-quote);
+}
+
+/* --- per-type icons: lucide-style single-color masks (self-drawn paths,
+   colored through --callout-color). Default (.callout base) = note/pencil,
+   which also covers unknown types. Aliases share their canonical icon. --- */
+/* R18-CALLOUT-ICONS-BEGIN */
+.callout,
+.cm-callout-line {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="abstract"],
+.callout[data-callout="summary"],
+.callout[data-callout="tldr"],
+.cm-callout-line[data-callout="abstract"],
+.cm-callout-line[data-callout="summary"],
+.cm-callout-line[data-callout="tldr"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='2' width='8' height='4' rx='1'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3Cpath d='M12 11h4'/%3E%3Cpath d='M12 16h4'/%3E%3Cpath d='M8 11h.01'/%3E%3Cpath d='M8 16h.01'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="info"],
+.cm-callout-line[data-callout="info"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="todo"],
+.cm-callout-line[data-callout="todo"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="tip"],
+.callout[data-callout="hint"],
+.callout[data-callout="important"],
+.cm-callout-line[data-callout="tip"],
+.cm-callout-line[data-callout="hint"],
+.cm-callout-line[data-callout="important"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="success"],
+.callout[data-callout="check"],
+.callout[data-callout="done"],
+.cm-callout-line[data-callout="success"],
+.cm-callout-line[data-callout="check"],
+.cm-callout-line[data-callout="done"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="question"],
+.callout[data-callout="help"],
+.callout[data-callout="faq"],
+.cm-callout-line[data-callout="question"],
+.cm-callout-line[data-callout="help"],
+.cm-callout-line[data-callout="faq"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="warning"],
+.callout[data-callout="caution"],
+.callout[data-callout="attention"],
+.cm-callout-line[data-callout="warning"],
+.cm-callout-line[data-callout="caution"],
+.cm-callout-line[data-callout="attention"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="failure"],
+.callout[data-callout="fail"],
+.callout[data-callout="missing"],
+.cm-callout-line[data-callout="failure"],
+.cm-callout-line[data-callout="fail"],
+.cm-callout-line[data-callout="missing"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="danger"],
+.callout[data-callout="error"],
+.cm-callout-line[data-callout="danger"],
+.cm-callout-line[data-callout="error"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="bug"],
+.cm-callout-line[data-callout="bug"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 2 1.88 1.88'/%3E%3Cpath d='M14.12 3.88 16 2'/%3E%3Cpath d='M9 7.13v-1a3 3 0 1 1 6 0v1'/%3E%3Cpath d='M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6'/%3E%3Cpath d='M12 20v-9'/%3E%3Cpath d='M6.53 9C4.6 8.8 3 7.1 3 5'/%3E%3Cpath d='M6 13H2'/%3E%3Cpath d='M3 21c0-2.1 1.7-3.9 3.8-4'/%3E%3Cpath d='M20.97 5c0 2.1-1.6 3.8-3.5 4'/%3E%3Cpath d='M22 13h-4'/%3E%3Cpath d='M17.2 17c2.1.1 3.8 1.9 3.8 4'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="example"],
+.cm-callout-line[data-callout="example"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 6h13'/%3E%3Cpath d='M8 12h13'/%3E%3Cpath d='M8 18h13'/%3E%3Cpath d='M3 6h.01'/%3E%3Cpath d='M3 12h.01'/%3E%3Cpath d='M3 18h.01'/%3E%3C/svg%3E");
+}
+
+.callout[data-callout="quote"],
+.callout[data-callout="cite"],
+.cm-callout-line[data-callout="quote"],
+.cm-callout-line[data-callout="cite"] {
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z'/%3E%3Cpath d='M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z'/%3E%3C/svg%3E");
+}
+/* R18-CALLOUT-ICONS-END */
+
+/* --- live-preview callout line decorations (livePreview.ts, R18) --- */
+
+.cm-line.cm-callout-line {
+  border-left: 3px solid rgb(var(--callout-color));
+  background: rgba(var(--callout-color), 0.08);
+  padding-left: 29px; /* 32px line padding − 3px border (quoteline口径) */
+}
+
+.cm-line.cm-callout-line-title {
+  font-weight: 600;
+  color: rgb(var(--callout-color));
+}
+
+/* title icon — CSS-only ::before mask, zero DOM injection (contract) */
+.cm-line.cm-callout-line-title::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 6px;
+  vertical-align: -0.15em;
+  background-color: rgb(var(--callout-color));
+  -webkit-mask: var(--callout-icon) no-repeat center / contain;
+  mask: var(--callout-icon) no-repeat center / contain;
+}
+
+/* ============ ==highlight== (R18) ============ */
+
+.preview-content mark,
+mark {
+  background: var(--text-highlight-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.cm-live-highlight {
+  background: var(--text-highlight-bg);
+  border-radius: 2px;
+}
+
+/* ============ footnotes (R18) ============ */
+
+.preview-content section.footnotes {
+  margin-top: 1.6em;
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.preview-content hr.footnotes-sep {
+  margin-bottom: 0.6em;
+}
+
+.preview-content sup.footnote-ref {
+  line-height: 1;
+}
+
+.preview-content a.footnote-backref {
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+/* live: [^id] reference mark — superscript style, nothing hidden */
+.cm-live-footnote-ref {
+  font-size: 0.8em;
+  vertical-align: super;
+  line-height: 1;
+  color: var(--accent);
+}
+
+/* ============ comments %%…%% (R18) ============ */
+
+/* cross-line comment-block lines: faint tint, content stays visible
+   (recorded deviation — Obsidian live preview hides them entirely) */
+.cm-line.cm-live-comment-line {
+  color: var(--text-faint);
+}
+
+/* ============ math (R18, KaTeX) ============ */
+
+.preview-content .geode-math-block,
+.geode-math-block {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+/* KaTeX-unsupported macros / render failures keep the raw TeX in red
+   (--danger is the existing red pair: #e06c75 dark / #d04848 light) */
+.geode-math-error {
+  color: var(--danger);
+}
+
+/* cross-line $$ block lines: monospace + faint, no widget (CM forbids
+   cross-line replaces from view plugins — recorded deviation) */
+.cm-line.cm-live-math-line {
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  color: var(--text-faint);
+}
+
+/* inline math widget placeholder (shows raw TeX until KaTeX loads) */
+.cm-live-math .katex-display {
+  margin: 0.3em 0;
+}
+
+/* ============ mermaid diagrams (R19, core/embeds.ts hydration) ============ */
+
+.editor-preview .geode-mermaid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: 1em 0;
+}
+
+.editor-preview .geode-mermaid svg {
+  max-width: 100%;
+}
+
+/* un-hydrated / load-failed fallback keeps the fence source readable */
+.editor-preview .geode-mermaid-source {
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  color: var(--text-faint);
+}
+
+/* render failure plate — --danger is the existing red pair (the contract's
+   --text-error name does not exist in app.css; .geode-math-error口径) */
+.editor-preview .geode-mermaid-error {
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* internal-link nodes (`class A internal-link;`) — clickable + accent text.
+   Both surfaces: SVG <text> labels take fill, foreignObject htmlLabel spans
+   take color (mermaid emits either depending on htmlLabels). */
+.editor-preview .geode-mermaid .internal-link {
+  cursor: pointer;
+}
+
+/* !important: mermaid inlines a <style> scoped by the svg's #id (e.g.
+   `#geode-mermaid-0 .label text, #geode-mermaid-0 span`), and an id-bearing
+   selector beats any pure class chain — without it the accent never applies
+   (R19 review fix; mermaid's own label rules carry no !important). */
+.editor-preview .geode-mermaid .internal-link text {
+  fill: var(--accent) !important;
+}
+
+.editor-preview .geode-mermaid .internal-link span {
+  color: var(--accent) !important;
+}
+
+/* ============ query embed (R75, ```query → result list) ============ */
+/* Unscoped (.geode-query*) so it renders identically in reading view and the
+   .cm-live-query live-preview widget. */
+.geode-query {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 0.5em 0;
+}
+.geode-query-source {
+  /* placeholder source shown only until hydrate swaps in results */
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  color: var(--text-faint);
+  margin: 0;
+}
+.geode-query-count {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.geode-query-file {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+.geode-query-filecount {
+  font-size: 0.8em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.geode-query-error {
+  color: var(--danger);
+  font-size: 0.9em;
+}
+
+/* ============ properties panel (R22, PropertiesPanel.tsx) ============ */
+
+/* Obsidian metadata-container density: 13px UI font, ~28px rows, muted key
+   column (~9em). All colors via app.css variables (contract). The same panel
+   renders in TWO hosts: the CM PropertiesHostWidget container (live preview)
+   and directly inside .editor-preview before .preview-content (reading view). */
+
+/* live-mode host container — block widget inside CM; match the editor's
+   32px line gutter (same as the legacy .cm-live-frontmatter pill).
+   CRITICAL (R22 review INT-1): vertical spacing must be PADDING, not margin
+   — collapsing margins escape the widget wrapper box, CM's heightmap then
+   under-measures the widget by ~16px and posAtCoords lands every mouse
+   click one line low in any note with frontmatter. The wrapper also gets
+   flow-root so the panel's own bottom margin cannot collapse out. */
+.properties-host {
+  display: block;
+  margin: 0 32px;
+  padding: 4px 0 12px;
+}
+
+.cm-properties-host {
+  display: flow-root;
+}
+
+/* reading view: align with .preview-content (readable-line column, 32px padding) —
+   follow the same --readable-line-width var so it stays aligned when readable line
+   length is toggled OFF (R50 review) */
+.editor-preview > .properties-panel {
+  max-width: var(--readable-line-width, 46em);
+  margin: 0 auto;
+  padding: 20px 32px 0;
+}
+
+.properties-panel {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.property-row {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+  border-radius: 5px;
+  position: relative;
+}
+
+.property-row:hover {
+  background: var(--bg-hover);
+}
+
+/* R210: properties fold toggle (Obsidian "toggle properties folding") */
+.properties-fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  margin: 0 0 2px -4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.properties-fold-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+.properties-fold-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.1s ease;
+}
+.properties-panel.is-collapsed .properties-fold-toggle svg {
+  transform: rotate(-90deg);
+}
+/* collapsed: hide everything except the toggle (rows stay in the DOM, just hidden) */
+.properties-panel.is-collapsed > :not(.properties-fold-toggle) {
+  display: none;
+}
+.properties-panel.is-collapsed {
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+/* R83 (㊼): keyboard-focused row (rows are a Tab stop; ↑/↓ move between them) */
+.property-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* key column: type icon + name input, fixed ~9em, muted */
+.property-key {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: 9em;
+  min-height: 28px;
+  gap: 2px;
+  color: var(--text-muted);
+}
+
+.property-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+/* shared icon button (type button / delete / chip remove) */
+.property-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.property-icon-btn:hover:not(:disabled) {
+  background: var(--bg-active);
+  color: var(--text-normal);
+}
+
+.property-icon-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* delete button: hover-revealed, pinned right */
+.property-delete {
+  position: absolute;
+  right: 2px;
+  top: 3px;
+  opacity: 0;
+}
+
+.property-row:hover .property-delete,
+.property-delete:focus-visible {
+  opacity: 1;
+}
+
+.property-row:hover .property-value {
+  padding-right: 24px; /* keep values clear of the revealed delete button */
+}
+
+/* key-name input: borderless, muted, takes the rest of the key column */
+.property-name-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  padding: 4px 2px;
+  outline: none;
+}
+
+.property-name-input:focus {
+  color: var(--text-normal);
+}
+
+/* value inputs: borderless until focus (Obsidian quiet look) */
+.property-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  padding: 3px 6px;
+  outline: none;
+}
+
+.property-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-input);
+}
+
+.property-input::placeholder,
+.property-name-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* native date/datetime pickers stay compact */
+.property-input-date {
+  flex: 0 1 auto;
+  color-scheme: dark light;
+}
+
+.property-checkbox {
+  width: 15px;
+  height: 15px;
+  margin: 6px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ---- chips (multitext / tags / aliases) ---- */
+
+.property-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 0;
+}
+
+.property-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 1px 4px 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.property-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* R83 (㊼): a tags-chip is a clickable button that runs `#tag` in search */
+.property-chip-search {
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.property-chip-search:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.property-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.property-chip-remove:hover {
+  opacity: 1;
+  background: var(--bg-active);
+}
+
+.property-chip-input {
+  flex: 1;
+  min-width: 6em;
+  padding: 2px 4px;
+}
+
+/* ---- type menu ---- */
+
+.property-type-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.property-type-menu {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  z-index: 30;
+  min-width: 11em;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-modal);
+}
+
+.property-type-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.property-type-item:hover {
+  background: var(--bg-hover);
+}
+
+.property-type-item.is-active {
+  color: var(--accent);
+}
+
+/* ---- opaque rows: read-only raw source, monospace, never editable ---- */
+
+.property-row-opaque {
+  align-items: center;
+  padding: 2px 6px;
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.property-opaque-raw {
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- add row ---- */
+
+.property-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.property-add:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.property-row-add {
+  padding: 0 2px;
+}
+
+.property-add-name {
+  max-width: 14em;
+}
+
+/* R154: linked mentions at the bottom of the reading view (Obsidian "Backlink in
+   document"). Lives inside .editor-preview, below .preview-content, so it scrolls with
+   the note. Read-only — click a row to open the source note. Aligns with the readable-line
+   column like the .properties-panel sibling above (tracks --readable-line-width, 32px inset);
+   carries the note's bottom scroll breathing room now that it's the last element. */
+.editor-preview > .embedded-backlinks {
+  max-width: var(--readable-line-width, 46em);
+  margin: 0 auto;
+  padding: 16px 32px 120px;
+  border-top: 1px solid var(--border);
+}
+
+/* when the backlinks section follows the note body, the body no longer owns the bottom
+   breathing room — tighten it so the divider sits a sensible gap below the last line.
+   (:has degrades gracefully to the full 120px gap on engines without support.) */
+.preview-content:has(+ .embedded-backlinks) {
+  padding-bottom: 24px;
+}
+
+.embedded-backlinks-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.embedded-backlinks-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--bg-panel-alt);
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.embedded-backlinks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* R157: the unlinked-mentions section sits below the linked one, with a faint divider when
+   both are present (it has no divider as the sole section — :first-child drops the border). */
+.embedded-unlinked {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.embedded-unlinked:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.ebl-source-title {
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 5px;
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ebl-source-title:hover {
+  background: var(--bg-hover);
+}
+
+.ebl-snippet {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel-alt);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.ebl-snippet:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-normal);
+}
+
+.ebl-source-title:focus-visible,
+.ebl-snippet:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

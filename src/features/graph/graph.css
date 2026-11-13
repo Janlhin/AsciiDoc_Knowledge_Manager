@@ -1,0 +1,294 @@
+/* ============ Graph view ============ */
+
+.graph-view {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.graph-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* ---- toolbar (top-left; small box — must not block canvas drag elsewhere) ---- */
+
+.graph-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.graph-mode-toggle {
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.graph-mode-toggle button {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.graph-mode-toggle button:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.graph-mode-toggle button.is-active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.graph-depth-select {
+  padding: 2px 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.graph-fit-btn {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.graph-fit-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.graph-legend {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.92;
+}
+
+/* the show-all toggle stays clickable inside the otherwise inert legend */
+.graph-legend-btn {
+  pointer-events: auto;
+  margin-left: 4px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text-normal);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-legend-btn:hover {
+  background: var(--bg-active);
+}
+
+.graph-legend-sep {
+  color: var(--text-faint);
+}
+
+.graph-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.graph-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.graph-empty-card svg {
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.graph-empty-title {
+  font-weight: 600;
+}
+
+.graph-empty-hint {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/* R78: graph settings (forces + display) — gear button + floating panel */
+.graph-settings-btn {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.graph-settings-btn:hover,
+.graph-settings-btn.is-active {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.graph-settings-panel {
+  position: absolute;
+  top: 44px;
+  left: 12px;
+  z-index: 5;
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-modal);
+}
+
+.graph-settings-group {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.graph-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.graph-slider-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.graph-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.graph-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.graph-toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.graph-settings-reset {
+  margin-top: 2px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.graph-settings-reset:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+/* R90: graph colour groups — each row = colour swatch + query + remove */
+.graph-group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.graph-group-color {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+}
+.graph-group-query {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  color: var(--text-normal);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.graph-group-remove {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.graph-group-remove:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
+}
+.graph-group-add {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.graph-group-add:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}

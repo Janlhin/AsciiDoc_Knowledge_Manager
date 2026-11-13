@@ -1,0 +1,454 @@
+/* Obsidian compat layer chrome — notices, modal sizing, setting rows.
+   Colors ONLY via the host variables in src/styles/app.css. */
+
+/* ---------------- notices ---------------- */
+
+.geode-notice-container {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.geode-notice {
+  pointer-events: auto;
+  max-width: 380px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-normal);
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-modal);
+  cursor: pointer;
+  word-break: break-word;
+}
+
+/* ---------------- compat modal (reuses .modal-overlay/.modal-panel) ---------------- */
+
+.geode-compat-modal {
+  min-width: 360px;
+  max-width: min(620px, 86vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.geode-compat-modal .modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 10px;
+}
+
+.geode-compat-modal .modal-content {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+/* ---------------- suggest modals (SuggestModal / FuzzySuggestModal) ---------------- */
+
+.geode-compat-prompt .modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.geode-compat-prompt .prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 14px;
+  color: var(--text-normal);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.geode-compat-prompt .prompt-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.geode-compat-prompt .prompt-results {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.geode-compat-prompt .suggestion-item {
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.geode-compat-prompt .suggestion-item.is-selected {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.geode-compat-prompt .suggestion-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------------- menu (compat Menu popup) ---------------- */
+
+.geode-compat-menu {
+  position: fixed;
+  z-index: 10001;
+  min-width: 160px;
+  max-width: 320px;
+  padding: 4px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: var(--shadow-modal);
+}
+
+.geode-compat-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-normal);
+  cursor: pointer;
+  user-select: none;
+}
+
+.geode-compat-menu .menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.geode-compat-menu .menu-item.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.geode-compat-menu .menu-item.is-disabled:hover {
+  background: transparent;
+}
+
+.geode-compat-menu .menu-item.is-warning {
+  color: var(--danger);
+}
+
+.geode-compat-menu .menu-item.is-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: default;
+}
+
+.geode-compat-menu .menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 16px;
+  color: var(--text-muted);
+}
+
+.geode-compat-menu .menu-item-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.geode-compat-menu.no-icon .menu-item-icon {
+  display: none;
+}
+
+.geode-compat-menu .menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* ---------------- setting rows ---------------- */
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.setting-item:first-child {
+  border-top: none;
+}
+
+.setting-item.setting-item-heading {
+  border-top: none;
+  padding-bottom: 4px;
+}
+
+.setting-item.setting-item-heading .setting-item-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.setting-item-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.setting-item-name {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.setting-item-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.setting-item-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.setting-item-control input[type="text"],
+.setting-item-control input[type="search"],
+.setting-item-control textarea,
+.setting-item-control select.dropdown {
+  font-size: 13px;
+  color: var(--text-normal);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  min-width: 160px;
+}
+
+.setting-item-control input:focus,
+.setting-item-control textarea:focus,
+.setting-item-control select.dropdown:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.setting-item-control button {
+  font-size: 13px;
+  color: var(--text-normal);
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.setting-item-control button:hover {
+  background: var(--bg-hover);
+}
+
+.setting-item-control button.mod-cta {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.setting-item-control button.mod-cta:hover {
+  background: var(--accent-hover);
+}
+
+.setting-item-control button.mod-destructive {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.setting-item-error {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 4px;
+}
+
+/* toggle */
+.checkbox-container {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  flex-shrink: 0;
+}
+
+.checkbox-container::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  transition: transform 0.12s ease;
+}
+
+.checkbox-container.is-enabled {
+  background: var(--accent);
+}
+
+.checkbox-container.is-enabled::after {
+  transform: translateX(16px);
+}
+
+.checkbox-container.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* slider */
+.setting-item-control input[type="range"].slider {
+  accent-color: var(--accent);
+  min-width: 140px;
+}
+
+/* extra (icon) buttons */
+.extra-setting-button,
+.clickable-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.extra-setting-button:hover,
+.clickable-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+/* search */
+.search-input-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-input-clear-button {
+  position: absolute;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  color: var(--text-faint);
+}
+
+.search-input-clear-button::before {
+  content: "×";
+  font-size: 13px;
+  line-height: 14px;
+}
+
+/* ---------------- editor suggest popup (EditorSuggest, real since R6) ---------------- */
+
+.geode-suggest-popup {
+  position: fixed;
+  z-index: 10001;
+  min-width: 180px;
+  max-width: 360px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: var(--shadow-modal);
+}
+
+.geode-suggest-popup .suggestion-item {
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-normal);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.geode-suggest-popup .suggestion-item.is-selected {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+/* ---------------- instructions bar (setInstructions, official class names) ---------------- */
+/* Shared by the EditorSuggest popup and SuggestModal — themes target these. */
+
+.prompt-instructions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 9px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.prompt-instruction {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.prompt-instruction-command {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+/* inside the compat modal the bar sits below the scrolling results */
+.geode-compat-prompt .prompt-instructions {
+  margin-top: 8px;
+}
+
+/* ---------------- custom view panels (registerView side leaves) ---------------- */
+
+.geode-compat-view-panel {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+/* ---------------- ribbon / status bar contributions ---------------- */
+
+.geode-compat-ribbon {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.geode-compat-ribbon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.geode-compat-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
