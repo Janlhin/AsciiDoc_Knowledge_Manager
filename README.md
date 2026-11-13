@@ -1,219 +1,137 @@
-# Geode
+# ADKM
 
-[![CI](https://github.com/AlexHercules/geode/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexHercules/geode/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+**Local-first desktop knowledge base for AsciiDoc and Markdown.**
 
-Geode is an open-source, Obsidian-like, local-first markdown knowledge base and note-taking app. It is built as a desktop app with Tauri, React, TypeScript, and CodeMirror 6.
+A working rebuild on top of [Geode](https://github.com/AlexHercules/geode) (Apache-2.0). Early stage,
+private repository, not ready for external use.
 
-The core promise is simple: your notes are plain `.md` files in a folder you own. Geode indexes and visualizes them, but it does not lock them into a database.
+> 工作代号 ADKM，产品名未定。本仓库是 Geode 的深度改造分支，当前处于改造初期。
 
-> Status: active alpha. Geode is already usable for local vaults and plugin-compatibility experiments, but APIs and packaging are still moving quickly.
+---
 
-![Geode desktop screenshot](docs/screenshots/geode-desktop-final.png)
+## 这个项目要做什么
 
-## Why Geode exists
+市面上的本地知识库都以 Markdown 为前提，因此都没有 AsciiDoc 的语义。AsciiDoc 用户真正依赖的东西——属性别名、交叉引用、include 组装、条件包含——在 `[[wikilink]]` 的世界里没有对应物。
 
-Obsidian has proven that plain files plus a great interaction model can feel better than a traditional note database. Geode explores that same local-first direction as an open-source Obsidian alternative with a desktop codebase, a plugin runtime, and a compatibility layer for Obsidian-style plugins.
+ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Obsidian 式的界面里，提供一套文档工程的校验能力**：
 
-Geode is not affiliated with Obsidian or Dynalist Inc. Obsidian is a trademark of its respective owner. The compatibility work in this repository is a clean-room implementation intended to help users keep their markdown vaults portable.
-
-## Highlights
-
-- Local-first vaults: open any folder and keep notes as regular markdown files.
-- Live preview editor: CodeMirror 6 renders markdown in place while keeping syntax editable.
-- Reading view: rendered markdown, task checkboxes, links, embeds, callouts, footnotes, math, Mermaid, and more.
-- Graph view: force-directed global and local graph views with filters, groups, tags, attachments, and Obsidian-style circular layout tuning.
-- Backlinks and outgoing links: navigate linked mentions, unlinked mentions, tags, footnotes, outline, and file properties.
-- File explorer: tree view, create/rename/delete/move, context menus, reveal, attachment folder helpers, and ignored-file affordances.
-- Workspace model: tabs, split panes, draggable tabs, persistent workspace layouts, bookmarks, sidebars, and command routing.
-- Command palette and hotkeys: keyboard-first command registry with custom hotkeys.
-- Search and quick switcher: full-text search, tag search, fast file switching, and create-on-miss.
-- Plugin system: built-in and external plugins loaded from `<vault>/.geode/plugins/*.js`.
-- Obsidian compatibility layer: a growing shim for Obsidian community plugins, including vault/workspace/metadata APIs, settings UI, modals, menus, notices, markdown rendering, and CodeMirror integration.
-- Desktop shell: Tauri 2 backend for filesystem access, file watching, dialogs, updater plumbing, and native desktop packaging.
-- Performance work: 10k-note benchmark mode, virtualized explorer, render caps, graph sampling, and documented perf probes.
-
-## Current feature map
-
-| Area | Status |
-| --- | --- |
-| Plain markdown vaults | Implemented |
-| Live preview / source / reading modes | Implemented |
-| Wikilinks, markdown links, block refs, headings | Implemented |
-| Backlinks, outgoing links, tags, footnotes, outline | Implemented |
-| Graph view, local graph, graph filters/groups | Implemented |
-| File properties / frontmatter | Implemented |
-| Attachments and embeds | Implemented |
-| Export HTML / print-to-PDF | Implemented |
-| External Geode plugins | Implemented |
-| Obsidian plugin compatibility | In progress |
-| Full commercial release packaging | In progress |
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/OBSIDIAN_REPLICA_GAP_AUDIT.md](docs/OBSIDIAN_REPLICA_GAP_AUDIT.md) for the living roadmap and fidelity audit.
-
-## Screenshots
-
-| Editor | Graph | Settings |
+| 能力 | Markdown 工具 | ADKM 目标 |
 | --- | --- | --- |
-| ![Editor](docs/screenshots/geode-editor.png) | ![Graph](docs/screenshots/geode-graph.png) | ![Settings](docs/screenshots/r8-browser-zh-settings.png) |
+| 引用 | `[[Note]]`，按文件名模糊匹配 | `xref:` 宏与 `<<>>` 简写，含属性别名展开 |
+| 失效检测 | 断链提示 | 三态：有效 / 断链 / **属性未定义** |
+| 版本一致性 | 无 | 中英双语章节对齐、行数偏差 |
+| 组装 | 无 | `include::` 归属与递归 |
+| 图谱 | 笔记级关系 | 文档级关系 + 组装关系 |
 
-## Quick start
+## 当前状态
 
-### Requirements
+**这是改造初期。** 下表是实情，不是路线图。
 
-- Node.js 20 or newer
-- npm
-- Rust stable and Cargo
-- Tauri system dependencies for your OS
+### 已经能用的
 
-For Tauri setup, follow the official Tauri prerequisites for your platform: <https://tauri.app/start/prerequisites/>.
+- 打开本地文件夹作为 vault（Markdown）
+- 编辑器三模式：实时预览 / 源码 / 阅读
+- 关系图谱：全局与局部、过滤、分组
+- 反向链接、出链、大纲、搜索、命令面板、多标签与分屏
+- **Obsidian 插件与主题兼容层**（约 10,400 行），从 `.obsidian/` 加载
+- 样式体系已转 SCSS（22 个文件，编译产物与改造前逐条等价）
 
-### Run in browser mode
+### 还不能用的
 
-Browser mode uses an in-memory demo vault. It is fast to start and is the easiest way to inspect the UI or run browser E2E tests.
+| 能力 | 状态 |
+| --- | --- |
+| AsciiDoc 进入文件树与图谱 | **未接线**。解析器已写（`src/core/parsers/asciidoc.ts`，193 行），但索引入口尚未分派 |
+| AsciiDoc 编辑 | 无语言模式，仅纯文本 |
+| xref 校验 | 未开始 |
+| 双语对齐 | 未开始 |
+| Canvas（`.canvas`） | 未开始。设置里有开关，门后是空的 |
+| Git 集成 | 未开始。无任何 git 调用 |
+
+**换句话说：现在打开一个 vault，只有 `.md` 会被索引。** 如果你打开一个以 adoc 为主的文件夹，会看到空目录。
+
+## 技术栈
+
+| 层 | 选型 | 版本 |
+| --- | --- | --- |
+| 桌面壳 | Tauri | 2.x |
+| 界面 | React | 18.3 |
+| 语言 | TypeScript | 5.7 |
+| 编辑器 | CodeMirror | 6.x |
+| 构建 | Vite | 6.x |
+| 样式 | SCSS（`sass`） | 1.108 |
+
+Rust 侧很薄（约 800 行），只负责文件系统、监听、对话框与打包。业务逻辑全在 TypeScript。
+
+## 环境要求
+
+- Node.js 20 或更高（实测 26.13）
+- Rust stable + Cargo（实测 1.99.1）
+- Windows：Visual Studio 2022 的 C++ 工具链 + WebView2 运行时
+- Tauri 各平台依赖见 <https://tauri.app/start/prerequisites/>
+
+## 构建
 
 ```sh
-npm install
-npm run dev
-```
+git clone https://github.com/Janlhin/adkm.git
+cd adkm
 
-Then open <http://localhost:1420>.
+# 依赖锁文件中记录了镜像地址，需要显式放行
+npm install --allow-remote=all
 
-### Run as a desktop app
-
-```sh
-npm run tauri dev
-```
-
-Desktop mode uses the real filesystem through the Tauri backend. On macOS/Linux development machines, you can also run the release binary directly against a vault path after building.
-
-### Build
-
-```sh
-npm run typecheck
+# 前端：类型检查 + 打包
 npm run build
-npm run tauri build
+
+# 只出可执行文件，最快（增量约 1 分钟，首次编译约 2 分钟）
+npx tauri build --no-bundle
+
+# 出 NSIS 安装包
+npx tauri build
 ```
 
-The current bundle configuration targets Windows NSIS installers. Other platforms are developed from source and can be added as release targets later.
+产物：
 
-## Common commands
-
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start Vite dev server at `http://localhost:1420` |
-| `npm run typecheck` | Run TypeScript strict checks |
-| `npm run build` | Typecheck and produce the web build in `dist/` |
-| `npm run tauri dev` | Start the Tauri desktop app in development mode |
-| `npm run tauri build` | Build the desktop bundle |
-
-## Keyboard shortcuts
-
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl+P` / `Cmd+P` | Command palette |
-| `Ctrl+O` / `Cmd+O` | Quick switcher |
-| `Ctrl+N` / `Cmd+N` | New note |
-| `Ctrl+E` / `Cmd+E` | Toggle edit / reading view |
-| `Ctrl+G` / `Cmd+G` | Graph view |
-| `Ctrl+D` / `Cmd+D` | Open today's daily note |
-| `Ctrl+W` / `Cmd+W` | Close tab |
-| `Ctrl+\` / `Cmd+\` | Split pane right |
-| `Ctrl+Shift+\` / `Cmd+Shift+\` | Split pane down |
-| `Ctrl+,` / `Cmd+,` | Settings |
-
-Hotkeys are customizable in Settings.
-
-## Project structure
-
-```text
-src/core/       Framework-free app model: vault, metadata, workspace, commands, stores
-src/app/        React shell: layout, context, app-level command wiring
-src/features/   User-facing feature modules: editor, explorer, graph, search, settings, panels
-src/plugins/    Built-in Geode plugins
-src/compat/     Obsidian compatibility layer
-src/styles/     Shared application CSS
-src-tauri/      Rust/Tauri backend
-docs/           Architecture, roadmap, compatibility notes, performance docs
-.calibration/   Local and CI-oriented regression harnesses
+```
+src-tauri/target/release/geode.exe                              约 7.6 MB
+src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 ```
 
-The architecture contract is intentionally strict: `core` does not import React feature code, features do not import each other, and compatibility code is isolated from first-party feature modules. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+`tauri build` 结束时会出现 `A public key has been found, but no private key` 错误。那是自动更新签名缺少私钥，**安装包已经生成**，不影响本地使用。要消除需设置 `TAURI_SIGNING_PRIVATE_KEY`。
 
-## Plugin development
+## 开发时的一条硬规矩
 
-Geode supports two plugin paths:
-
-- Native Geode plugins, authored against Geode's public plugin API.
-- Obsidian-style plugin compatibility, where Geode provides a growing `obsidian` shim.
-
-External Geode plugins can be placed in:
-
-```text
-<vault>/.geode/plugins/*.js
-```
-
-Start with [docs/PLUGINS.md](docs/PLUGINS.md). Obsidian compatibility details and boundaries live in [docs/OBSIDIAN-COMPAT.md](docs/OBSIDIAN-COMPAT.md).
-
-## Testing and calibration
-
-Geode has a large regression harness accumulated during development. The most common local checks are:
+样式改动提交前请先跑构建，并确认编译后的 CSS 规则集合没有意外变化：
 
 ```sh
-npm run typecheck
 npm run build
 ```
 
-For browser E2E checks, start the dev server and run calibration scripts directly:
+两个文件**永远保持 `.css`**，不要转 SCSS：`src/compat/obsidian/theme-bridge.css`、`src/features/export/export.css`。它们通过 Vite `?raw` 以原文注入，转成 SCSS 会拿到未编译源码。
 
-```sh
-npm run dev
-node .calibration/r23-e2e.mjs
-node .calibration/r24-e2e.mjs
+调色板（`:root` 与 `html[data-theme]`）保持 CSS 自定义属性，不要变量化为编译期常量——Obsidian 主题会在运行时覆盖它们。
+
+## 目录结构
+
+```
+src/
+├── core/           文档模型、解析、索引、i18n
+│   └── parsers/    asciidoc.ts（待接线）
+├── features/       各功能面板（图谱、反链、大纲、编辑器…）
+├── compat/         Obsidian 插件与主题兼容层
+├── app/            应用装配、布局、状态
+└── styles/         全局样式与主题令牌
+src-tauri/          Rust 壳（文件系统、监听、打包）
+PROVENANCE.adoc     来源、改动清单、许可义务
 ```
 
-The CI workflow currently runs typecheck, production build, and a small browser regression slice. The broader calibration suite is used during focused development rounds.
+## 来源与许可
 
-Performance benchmarking is documented in [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Use `?bench=10000` to seed a deterministic large in-memory vault:
+本项目基于 [Geode](https://github.com/AlexHercules/geode)，Apache License 2.0。
 
-```text
-http://localhost:1420/?bench=10000
-```
+- 上游基线：提交 `7a8ce22`（2026-07-04）
+- 完整来源说明、改动清单与许可义务履行情况见 [PROVENANCE.adoc](PROVENANCE.adoc)
+- 商标：「Geode」名称与图标不在 Apache-2.0 授权范围内，本项目不以该名义发布
+- 与 Obsidian、Dynalist Inc. 无关联；「Obsidian」为其权利人商标
 
-## Documentation
+## 状态说明
 
-| Document | Contents |
-| --- | --- |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup, development discipline, verification notes |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, core APIs, component contracts, round contracts |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Product mission, completed rounds, next work |
-| [docs/PLUGINS.md](docs/PLUGINS.md) | Geode plugin authoring guide |
-| [docs/OBSIDIAN-COMPAT.md](docs/OBSIDIAN-COMPAT.md) | Obsidian compatibility strategy and test matrix |
-| [docs/OBSIDIAN_REPLICA_GAP_AUDIT.md](docs/OBSIDIAN_REPLICA_GAP_AUDIT.md) | Fidelity audit against Obsidian surfaces |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | 10k-note benchmark methodology and optimization notes |
-| [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | Packaging and updater notes |
-| [docs/HANDOFF.md](docs/HANDOFF.md) | Continuation notes for development rounds |
-
-Some historical planning notes are in Chinese because the project has been developed through Chinese-language design rounds. The public-facing README is in English so new contributors can orient quickly.
-
-## Contributing
-
-Contributions are welcome, especially bug reports, focused compatibility fixes, documentation improvements, and small UI fidelity patches.
-
-Before opening a large PR, please read:
-
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
-Important boundaries:
-
-- Do not commit private vault contents, local signing keys, or vendored community plugin bundles.
-- Do not copy Obsidian proprietary code or assets.
-- Keep compatibility work clean-room and document behavior using public APIs, user-observable behavior, or locally authored tests.
-
-## License
-
-Geode is licensed under the [Apache License 2.0](LICENSE).
-
-I chose Apache-2.0 because Geode is intended to be permissive and commercially usable while also giving contributors and downstream users an explicit patent grant. That is a better fit for a desktop application and plugin compatibility layer than a minimal license with no explicit patent language.
+本仓库为私有工作副本，功能不完整，接口与数据格式随时可能变化。当前不接收外部贡献，也不提供使用支持。
