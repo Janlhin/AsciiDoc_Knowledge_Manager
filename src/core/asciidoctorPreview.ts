@@ -1,0 +1,125 @@
+/**
+ * ADKM L3: AsciiDoc reading-view renderer.
+ *
+ * The index path deliberately does NOT use Asciidoctor (see
+ * docs/plans/L2-asciidoc-indexing.md, P3) — it is a pure regex scan so the
+ * vault stays fast. The READING view needs full AsciiDoc semantics, so it
+ * loads the official browser build lazily on the first `.adoc` preview.
+ *
+ * Verified 2026-11-13: `@asciidoctor/core@4.2.1` exposes
+ * `exports["."].browser = build/browser/index.js`. It has NAMED exports only
+ * (no default), and Vite externalizes its `node:fs`/`node:path` imports; those
+ * code paths are never hit by `convert(source, ...)`.
+ */
+
+interface AdocModule {
+  convert(source: string, options?: Record<string, unknown>): Promise<string> | string;
+}
+
+let modulePromise: Promise<AdocModule> | null = null;
+
+function loadAsciidoctor(): Promise<AdocModule> {
+  if (!modulePromise) {
+    modulePromise = import("@asciidoctor/core")
+      .then((m) => m as unknown as AdocModule)
+      .catch((err: unknown) => {
+        // allow a later retry after a transient chunk-load failure
+        modulePromise = null;
+        throw err;
+      });
+  }
+  return modulePromise;
+}
+
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Asciidoctor's HTML backend assumes published `.html` files, so
+ * `xref:Foo.adoc[]` becomes `href="Foo.html"` and the link is dead inside the
+ * vault. `outfilesuffix: ".adoc"` (set below) keeps source suffixes intact;
+ * this pass then rewrites every vault-local anchor into the same
+ * `a.internal-link[data-target]` shape the Markdown pipeline emits, so the
+ * existing click handler in EditorPane can open it (and `#anchor` becomes
+ * `data-subpath`).
+ *
+ * External schemes, protocol-relative URLs and `data:`/`javascript:` links are
+ * left alone (or neutralised by sanitizeHtml).
+ */
+function localizeLinks(html: string): string {
+  return html.replace(/<a\s+[^>]*?href="([^"]+)"[^>]*>/gi, (full, href: string) => {
+    // scheme or protocol-relative → external, keep as-is
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return full;
+
+    const hash = href.indexOf("#");
+    const path = hash >= 0 ? href.slice(0, hash) : href;
+    const subpath = hash >= 0 ? href.slice(hash + 1) : "";
+    // decode nothing: Asciidoctor already emits the raw target for .adoc with
+    // outfilesuffix, and `resolveMarkdownLink` handles %xx when needed.
+    const attrs = [
+      'class="internal-link"',
+      `data-target="${escapeAttr(path)}"`,
+      subpath ? `data-subpath="${escapeAttr(subpath)}"` : "",
+      'href="#"',
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return `<a ${attrs}>`;
+  });
+}
+
+/** Minimal hardening before the fragment is assigned to innerHTML.
+ *  `safe: "secure"` already disables includes; this covers raw HTML passthrough. */
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/href\s*=\s*"javascript:[^"]*"/gi, 'href="#"')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, "");
+}
+
+export interface AsciiDocPreviewResult {
+  html: string;
+  /** conversion + post-processing time, for the perf probe */
+  elapsedMs: number;
+}
+
+let lastSource: string | null = null;
+let lastHtml: string | null = null;
+
+/** Render one AsciiDoc source string into an HTML fragment for the reading view. */
+export async function renderAsciiDocPreview(source: string): Promise<AsciiDocPreviewResult> {
+  if (source === lastSource && lastHtml !== null) {
+    return { html: lastHtml, elapsedMs: 0 };
+  }
+  const t0 = performance.now();
+  const mod = await loadAsciidoctor();
+  const raw = await mod.convert(source, {
+    standalone: false,
+    // "secure" disables include:: and file-reading attributes. The browser
+    // build has node:fs externalized anyway, so include could never work here.
+    safe: "secure",
+    attributes: {
+      // show the `= Title` as an <h1> in the fragment (standalone:false omits it)
+      showtitle: true,
+      // keep .adoc targets instead of rewriting them to .html
+      outfilesuffix: ".adoc",
+      icons: "font",
+      sectanchors: false,
+    },
+  });
+  const html = localizeLinks(sanitizeHtml(String(raw)));
+  lastSource = source;
+  lastHtml = html;
+  return { html, elapsedMs: performance.now() - t0 };
+}
+
+/** True when the path should use the AsciiDoc reading-view pipeline. */
+export function isAsciiDocPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".adoc");
+}

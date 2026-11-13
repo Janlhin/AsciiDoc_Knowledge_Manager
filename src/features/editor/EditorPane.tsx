@@ -52,6 +52,7 @@ import { hydrateEmbeds } from "./embeds";
 import { hydrateCodeCopy } from "./codeCopy";
 import { runMarkdownPostProcessors } from "./markdownPostProcess";
 import { renderPreview, toggleTaskOnLine } from "./preview";
+import { isAsciiDocPath, renderAsciiDocPreview } from "@core/asciidoctorPreview";
 import { markdownFoldService } from "./folding";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { BacklinksInDocument } from "./BacklinksInDocument";
@@ -348,6 +349,9 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
   const [loadError, setLoadError] = useState<string | null>(null);
   /** bumped when the handle's text changes while we are in reading view */
   const [previewBump, setPreviewBump] = useState(0);
+  /** ADKM L3: AsciiDoc reading view is rendered asynchronously (the converter
+   *  is lazy-loaded); Markdown stays on the synchronous renderPreview path. */
+  const [adocResult, setAdocResult] = useState<{ html: string; error?: string } | null>(null);
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -876,8 +880,45 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
 
   /* ---------- preview rendering + interactions ---------- */
 
+  // ADKM L3: lazily convert .adoc with Asciidoctor.js. The Markdown pipeline
+  // stays synchronous; only .adoc pays the async + dynamic-import cost.
+  useEffect(() => {
+    if (tab.mode !== "preview" || !handle || !isAsciiDocPath(handle.path)) {
+      setAdocResult(null);
+      return;
+    }
+    let cancelled = false;
+    const source = handle.getText();
+    void renderAsciiDocPreview(source)
+      .then(({ html }) => {
+        if (!cancelled) setAdocResult({ html });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setAdocResult({
+            html: "",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // previewBump/metaRevision/strict mirror the Markdown memo's render triggers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab.mode, handle, previewBump, metaRevision, strict]);
+
   const previewHtml = useMemo(() => {
     if (tab.mode !== "preview" || !handle) return "";
+    if (isAsciiDocPath(handle.path)) {
+      const esc = (v: string) =>
+        v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      if (adocResult?.error) {
+        return `<div class="adoc-render-error">${esc(t("editor.adocRenderFailed", { error: adocResult.error }))}</div>`;
+      }
+      if (adocResult) return adocResult.html;
+      return `<div class="adoc-render-loading">${esc(t("editor.adocRendering"))}</div>`;
+    }
     return renderPreview(
       handle.getText(),
       (target) => app.metadata.resolveLink(target, handle.path),
@@ -894,7 +935,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     );
     // metaRevision/previewBump are render triggers, not direct inputs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app, tab.mode, handle, metaRevision, previewBump, strict]);
+  }, [app, t, tab.mode, handle, metaRevision, previewBump, strict, adocResult]);
 
   /* ---------- hydrate image + note embeds after each preview render ---------- */
 
@@ -1215,7 +1256,11 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
           />
         )}
         <div
-          className={"preview-content markdown-preview-view markdown-rendered" + cssSuffix}
+          className={
+            "preview-content markdown-preview-view markdown-rendered" +
+            (handle && isAsciiDocPath(handle.path) ? " adoc-preview-view" : "") +
+            cssSuffix
+          }
           data-testid="preview"
           dir={rtl ? "rtl" : "ltr"} /* R226: RTL reading view (visual only — previewHtml bytes untouched) */
           ref={previewContentRef}

@@ -172,3 +172,20 @@
   - *禁止同名不同格式共存*：否决理由——需要在文件创建/重命名时拦截，属于 L3 的编辑期校验，且会否掉 `README.md` + `README.adoc` 这类合理布局。
 - **影响范围**：`MetadataIndex.resolveLink`；图谱、反链、出链、链接重写全部经由它。
 - **复审条件**：若出现「同名不同格式 + 引用方格式不是期望目标」的真实案例，改为在 UI 上显式呈现歧义（列出候选），而不是继续加优先级规则。
+
+---
+
+## D-012 阅读视图按格式分派，Asciidoctor 只在预览侧懒加载
+
+- **日期**：2026-11-13
+- **决策**：`.adoc` 的阅读视图使用 `@asciidoctor/core@4.2.1` 官方浏览器构建渲染；`.md` 继续走同步的 `renderMarkdownToHtml()`。解析器用动态 `import()` 按需加载，不进入主 chunk。
+- **背景**：L2 让 adoc 进入索引后，阅读视图仍按 Markdown 渲染，`= 标题` 与 `|===` 表格显示错误。使用者实测发现。
+- **被采纳方案**：索引与渲染两条路径继续分离（沿用 L2 计划 P3）。索引保持纯扫描（Blueprint 399 篇 67 ms），预览付出一次约 1.3 MB 的懒加载成本换取完整 AsciiDoc 语义。
+- **被否决的替代方案**：
+  - *索引也改用 Asciidoctor*：否决理由——全异步、体积大，会让文件级增量索引变成整文档批处理；ADR-0001 已实测过。
+  - *把 Asciidoctor 打进主包*：否决理由——主 chunk 已 1.8 MB，再加 1.3 MB 会拖慢每个用户的冷启动，而多数 vault 没有 adoc。
+  - *用 Rust 侧 CLI 渲染再回传 HTML*：否决理由——需要在每个平台分发 Ruby/CLI 运行时，且跨 IPC 传输大 HTML，复杂度远高于浏览器内转换。
+  - *暂不渲染、只显示源码*：否决理由——使用者明确要求阅读视图正确，且 adoc 的核心价值就是结构化呈现。
+- **配套决定**：`safe: "secure"`（禁用 include）、`outfilesuffix: ".adoc"`（保留源文件后缀以便应用内跳转）、链接后处理复用 `a.internal-link[data-target]`、样式隔离在 `.adoc-preview-view` 下。
+- **影响范围**：`src/core/asciidoctorPreview.ts`（新增）、`src/features/editor/EditorPane.tsx`、`src/styles/adoc-preview.scss`（新增）、`src/main.tsx`、`package.json`。Markdown 预览路径零改动。
+- **复审条件**：若需要展开 `include::`，引入自定义 IncludeProcessor 并同步确定 ADR-0002 的片段归属语义；若插件依赖 `data-line`，用 AST sourcemap 补齐。详见 `docs/plans/L3-asciidoc-preview.md` §4。

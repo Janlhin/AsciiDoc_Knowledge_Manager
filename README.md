@@ -39,18 +39,22 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
   - 四种引用写法都识别：`xref:path[]`、`<<path,text>>`、`link:path[]`、`include::path[]`
   - 属性别名在文档头内求值，`xref:{spec}[]` 能解析到真实文件
   - 实测 Blueprint 语料：130 篇 adoc、220 条引用、0 条未解析、全量索引 67 ms
+- **AsciiDoc 阅读视图**：用官方 Asciidoctor.js 浏览器构建渲染，标题、表格、admonition、代码块、目录都正确
+  - 按需动态加载（独立 chunk，约 1.3 MB，不拖慢首屏）；`xref:` 链接转成应用内可点链接
+  - 实测 `AI_Engineering_Gate.adoc`：67 KB 源码 → 94 个章节、212 条内部链接、38 ms
+  - 边界：`include::` 在预览里不展开，`data-line` 源码定位暂缺，编辑器仍是纯文本高亮（见 `docs/plans/L3-asciidoc-preview.md`）
 
 ### 还不能用的
 
 | 能力 | 状态 |
 | --- | --- |
-| AsciiDoc 阅读视图 | **按 Markdown 渲染**。adoc 能打开、能编辑、能进图谱，但阅读模式会把它当 Markdown 处理，标题和表格显示不对。语言模式与预览分派是 L3 |
+| AsciiDoc 编辑器语言模式 | 阅读视图已正确，但编辑器里仍是纯文本 + Markdown 高亮；折叠、结构化导航也还依赖 Markdown 语法树 |
 | xref 校验 | 索引已能判定每条引用解析到哪，但**没有校验界面**。断链清单、悬空锚点、属性未定义分类都还没做 |
 | 双语对齐 | 未开始 |
 | Canvas（`.canvas`） | 未开始。设置里有开关，门后是空的 |
 | Git 集成 | 未开始。无任何 git 调用 |
 
-**换句话说：adoc 现在能进图、能参与反链，但读起来还不对。** 想核对索引结果跑：
+**换句话说：adoc 现在能进图、能参与反链、阅读视图也正常，剩下的主要缺口是编辑器内的语言支持与校验界面。** 想核对索引结果跑：
 
 ```sh
 node scripts/adoc-index-report.mjs "D:/你的文件夹" --min-adoc 1
@@ -66,6 +70,7 @@ node scripts/adoc-index-report.mjs "D:/你的文件夹" --min-adoc 1
 | 编辑器 | CodeMirror | 6.43 |
 | 构建 | vite-plus（内含 Vite 8 + Rolldown） | 1.6 |
 | 样式 | Sass（SCSS） | 1.108 |
+| AsciiDoc 渲染 | @asciidoctor/core（浏览器构建） | 4.2.1 |
 | 样式 | SCSS（`sass`） | 1.108 |
 
 Rust 侧很薄（约 800 行），只负责文件系统、监听、对话框与打包。业务逻辑全在 TypeScript。
