@@ -202,13 +202,13 @@
   - 扩展点落在 `AttachmentView` 而非 Markdown 编辑器：二进制文件（docx/pdf/xlsx）本就路由到 `fileViewType() → "attachment"`，且不应进入 CodeMirror 缓冲区与自动保存路径，故在其「other」分支挂载格式预览组件。
   - 数据安全保障：二进制内容只经 `app.vault.readBinary(path)` 进出；XLSX 的编辑改动**仅**在用户点「保存」时经 `vault.modifyBinary` 写回，绝不走 autosave。
   - 复用 vscode-office 的库清单并做版本钉选：`mammoth@^1.13`、`xlsx@^0.18.5`（SheetJS 官方 npm 最后版）、`x-data-spreadsheet@^1.1.9`、`jszip@^3.10`、`epubjs@^0.3.93`，并补 `less` 作为 devDep 供 x-data-spreadsheet 的 `index.less` 导入。
-  - 新增 `scripts/verify-format-libs.mjs`：用真实库在 Node 侧回归核心逻辑（mammoth docx→HTML、xlsx 解析↔回写往返、pptx 文本+图片经 rels 抽取），4 项全 PASS。
+  - 新增 `scripts/verify-format-libs.ts`：用真实库在 Node 侧回归核心逻辑（mammoth docx→HTML、xlsx 解析↔回写往返、pptx 文本+图片经 rels 抽取），4 项全 PASS。
 - **被否决的替代方案**：
   - *直接并入 vscode-office 的扩展代码*：否决理由——其代码深度绑定 `vscode.*` API（命令、Webview、文件系统），无法在 geode 的 React/Tauri 上下文运行；真正可复用的是库选型，不是脚手架。
   - *DOCX/PPTX/EPUB 也做成可编辑*：否决理由——纯前端没有干净的可往返编辑器：docxjs 偏单向且样式保真有限；pptx 无成熟 Web 编辑器；epub 编辑超出本次范围。只有 XLSX 有成熟可编辑网格（x-data-spreadsheet）+ 稳定序列化（SheetJS），故仅 XLSX 支持编辑。DOCX 真编辑列为 phase-2（引入 docxjs 往返）。
   - *放进 Markdown 编辑器（CodeMirror）预览*：否决理由——二进制文件进入文本缓冲区会污染 autosave 与 diff 链路；既有 AttachmentView 路由已是正确归宿。
   - *把重型库打进主包*：否决理由——合计 >1 MB，会拖慢无此类文件的 vault 的冷启动；动态 `import()` 按需加载代价更低（多数 vault 无 office 文件）。
-- **影响范围**：`src/features/attachment/formatPreview.ts`（新增）、`DocxPreview.tsx`、`PptxPreview.tsx`、`EpubPreview.tsx`、`XlsxPreview.tsx`（新增）、`AttachmentView.tsx`（编辑）、`src/styles/app.scss`（编辑）、`src/core/i18n/dict.views.ts`（编辑，新增 `attachment.rendering/save/saved/xlsxHint`）、`src/format-shims.d.ts`（新增，mammoth 缺类型声明）、`package.json`（依赖）、`scripts/verify-format-libs.mjs`（新增）。Markdown/adoc 预览路径零改动。
+- **影响范围**：`src/features/attachment/formatPreview.ts`（新增）、`DocxPreview.tsx`、`PptxPreview.tsx`、`EpubPreview.tsx`、`XlsxPreview.tsx`（新增）、`AttachmentView.tsx`（编辑）、`src/styles/app.scss`（编辑）、`src/core/i18n/dict.views.ts`（编辑，新增 `attachment.rendering/save/saved/xlsxHint`）、`src/format-shims.d.ts`（新增，mammoth 缺类型声明）、`package.json`（依赖）、`scripts/verify-format-libs.ts`（新增）。Markdown/adoc 预览路径零改动。
 - **复审条件**：
   - 若确需 DOCX 真编辑，引入 docxjs 往返并新增可编辑分支（phase-2）。
   - 若 x-data-spreadsheet 停更，评估 Luckysheet / Univer 替代。
