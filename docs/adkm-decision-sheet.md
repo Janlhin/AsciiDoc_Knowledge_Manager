@@ -443,11 +443,12 @@
 > - 与 `Janlhin/adkm` 仓内的 `docs/` **零重叠** —— 仓里没有 charter / baseline / route-evaluation，也没有 `technical-decisions/` 目录。
 > - `nul`（38KB）**是 `CHANGELOG.adoc` 的渲染产物**：实测 `asciidoctor -o nul CHANGELOG.adoc` 重跑一遍得到一模一样的 38455 字节。成因是 Windows 上 `nul` 是空设备名，`asciidoctor -o nul` 没把它当特殊设备，于是写出真文件。这就是 T-010「清除根目录 nul」那条待办的本体。
 
-- [ ] **A** 整个并入 `Janlhin/adkm` 的 `docs/`（零重叠，可直接落）；顺带删掉 `nul` 这个渲染产物
-- [ ] **B** 新建独立私有仓 `Janlhin/adkm-docs` 放这批文档（与代码分离）
-- [ ] **C** 只提交今天改过的两个文件（`geode-baseline.adoc` + `obsidian-reverse-engineering.adoc`），其余留在本地
-- [ ] **D** 暂不处理
-- ☑ **我的建议：A** —— 章程是这项目的战略文档，与代码同仓才便于协作；而 nqble 的 write 权限已经在 `adkm` 仓上，文档并进去他才能一起改（否则他得先接受另一个库的邀请）
+- [x] **A** 整个并入 `Janlhin/adkm` 的 `docs/` —— **已执行（2026-11-13）**
+
+> 执行结果：11 个文件全部落位（`CHANGELOG.adoc` → 仓根；5 份 `.adoc` → `docs/`；4 份 ADR → `docs/technical-decisions/`；决策单 → `docs/adkm-decision-sheet.md`），**+4438 −4**，提交 `ae0a696`，PR #10。
+> 顺带修了 7 处引用：`DECISIONS.md` ×2 与 `TASKS.md` ×2 的 `ADKM/docs/…` → `docs/…`；`obsidian-clone-report.adoc` ×2 的 `geode/src/…` → `src/…`。全仓复查 `ADKM/docs` / `Desktop/ADKM` / `geode/src` 均 **0 处残留**。
+> `nul` **未入库**（`CHANGELOG.adoc` 的渲染产物，重跑 `asciidoctor -o nul CHANGELOG.adoc` 可逐字节复现 38455 字节）。
+> 10 个 AsciiDoc 文件全部渲染零警告；全部 LF、无 BOM；与仓内既有 docs 零同名冲突。
 
 **备注**：
 
@@ -494,6 +495,18 @@
 - [ ] **C** 整个入库
 
 ☑ **我的建议：A** —— spike 的结论早已固化进 `src/core/asciidoctorPreview.ts`，脚本本身是推导过程的脚手架，不是交付物
+
+**备注**：
+
+### D-37　桌面 `ADKM` 目录怎么处理（入库后的新问题）
+
+> 入库后**权威副本已在仓库**，但桌面目录仍然保留 —— 于是同一份文档存在两处，即我们前面反复警惕的「多真源漂移」：以后在桌面改，仓库不会跟着。
+
+- [ ] **A** 删掉桌面目录（内容已完整入库，且桌面那份的 `nul` 是垃圾）
+- [ ] **B** 改名为 `ADKM-archived` 留作备份，并放一个 `MOVED.md` 指向仓库位置
+- [ ] **C** 原样保留，你自己心里清楚哪份是准的
+
+☑ **我的建议：B** —— 删掉不可逆（虽然仓库里有），留个指向说明既消除歧义又不丢东西
 
 **备注**：
 
