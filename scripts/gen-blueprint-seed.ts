@@ -3,7 +3,7 @@
  * 把真实工作区的 AsciiDoc 注入 Geode 的内存 vault，
  * 用于在不编译 Rust 的前提下验证「adoc 能否进入索引与图谱」。
  *
- * 用法：node scripts/gen-blueprint-seed.mjs [工作区路径]
+ * 用法：node scripts/gen-blueprint-seed.ts [工作区路径]
  * 产物：src/core/blueprint-seed.ts
  */
 import { readFileSync, readdirSync, writeFileSync, statSync } from "node:fs";
@@ -14,9 +14,18 @@ const OUT = "src/core/blueprint-seed.ts";
 const SKIP = new Set([".git", "node_modules", ".obsidian", "dist", "build"]);
 const MAX_BYTES = 400 * 1024;
 
-const files = [];
+interface SeedFile {
+  /** 相对 ROOT 的 POSIX 路径，作为 seed 的键 */
+  path: string;
+  /** 绝对路径，用于读取内容 */
+  abs: string;
+  /** 字节数，用于汇总统计 */
+  size: number;
+}
 
-function walk(dir) {
+const files: SeedFile[] = [];
+
+function walk(dir: string): void {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
       if (SKIP.has(e.name)) continue;
@@ -40,7 +49,7 @@ const entries = files.map((f) => {
 
 const totalBytes = files.reduce((s, f) => s + f.size, 0);
 const banner = [
-  "// 本文件由 scripts/gen-blueprint-seed.mjs 自动生成，请勿手工编辑。",
+  "// 本文件由 scripts/gen-blueprint-seed.ts 自动生成，请勿手工编辑。",
   `// 来源工作区：${ROOT}`,
   `// 文件数：${files.length}（仅 .adoc，单文件上限 ${MAX_BYTES / 1024} KB）`,
   `// 原始体积：${(totalBytes / 1048576).toFixed(2)} MB`,

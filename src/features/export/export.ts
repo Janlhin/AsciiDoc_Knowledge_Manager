@@ -4,7 +4,7 @@
  * no extra dependency).
  *
  * The exported document is fully self-contained: inline <style> from
- * export.css (light, print-friendly, theme-independent), no scripts —
+ * export.scss (light, print-friendly, theme-independent), no scripts —
  * wikilinks become non-navigating styled text (href="#").
  */
 import type { GeodeApp } from "@app/AppContext";
@@ -13,7 +13,7 @@ import { saveTextFile } from "@core/export";
 import { t } from "@core/i18n";
 import { mimeForPath, renderMarkdownToHtml } from "@core/markdown";
 import { strictLineBreaks } from "@core/appearance";
-import exportCss from "./export.css?raw";
+import exportCss from "./export.scss?raw";
 import "./notice.scss";
 
 /** How long the print root may outlive a print dialog whose `afterprint`
@@ -73,7 +73,7 @@ async function inlineEmbeds(app: GeodeApp, notePath: string, bodyHtml: string): 
     // no KaTeX CSS or fonts. Both the HTML export and the print (PDF) path
     // render through this single inlineEmbeds call site (via renderActiveNote).
     mathOutput: "mathml",
-    // R19: exported/printed documents are always light (export.css is a
+    // R19: exported/printed documents are always light (export.scss is a
     // self-contained light palette), so diagrams must not follow the app
     // theme. Same single call site keeps both paths in sync.
     mermaidTheme: "default",
@@ -94,7 +94,7 @@ export interface StandaloneHtmlOptions {
 
 /**
  * Wrap rendered note HTML in a complete standalone document: title, charset,
- * inline <style> (export.css via Vite `?raw`), disabled task checkboxes.
+ * inline <style> (export.scss via Vite `?raw`), disabled task checkboxes.
  */
 export function buildStandaloneHtml({ title, bodyHtml }: StandaloneHtmlOptions): string {
   return `<!doctype html>

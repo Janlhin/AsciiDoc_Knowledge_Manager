@@ -172,3 +172,68 @@
   - *禁止同名不同格式共存*：否决理由——需要在文件创建/重命名时拦截，属于 L3 的编辑期校验，且会否掉 `README.md` + `README.adoc` 这类合理布局。
 - **影响范围**：`MetadataIndex.resolveLink`；图谱、反链、出链、链接重写全部经由它。
 - **复审条件**：若出现「同名不同格式 + 引用方格式不是期望目标」的真实案例，改为在 UI 上显式呈现歧义（列出候选），而不是继续加优先级规则。
+
+---
+
+## D-012 阅读视图按格式分派，Asciidoctor 只在预览侧懒加载
+
+- **日期**：2026-11-13
+- **决策**：`.adoc` 的阅读视图使用 `@asciidoctor/core@4.2.1` 官方浏览器构建渲染；`.md` 继续走同步的 `renderMarkdownToHtml()`。解析器用动态 `import()` 按需加载，不进入主 chunk。
+- **背景**：L2 让 adoc 进入索引后，阅读视图仍按 Markdown 渲染，`= 标题` 与 `|===` 表格显示错误。使用者实测发现。
+- **被采纳方案**：索引与渲染两条路径继续分离（沿用 L2 计划 P3）。索引保持纯扫描（Blueprint 399 篇 67 ms），预览付出一次约 1.3 MB 的懒加载成本换取完整 AsciiDoc 语义。
+- **被否决的替代方案**：
+  - *索引也改用 Asciidoctor*：否决理由——全异步、体积大，会让文件级增量索引变成整文档批处理；ADR-0001 已实测过。
+  - *把 Asciidoctor 打进主包*：否决理由——主 chunk 已 1.8 MB，再加 1.3 MB 会拖慢每个用户的冷启动，而多数 vault 没有 adoc。
+  - *用 Rust 侧 CLI 渲染再回传 HTML*：否决理由——需要在每个平台分发 Ruby/CLI 运行时，且跨 IPC 传输大 HTML，复杂度远高于浏览器内转换。
+  - *暂不渲染、只显示源码*：否决理由——使用者明确要求阅读视图正确，且 adoc 的核心价值就是结构化呈现。
+- **配套决定**：`safe: "secure"`（禁用 include）、`outfilesuffix: ".adoc"`（保留源文件后缀以便应用内跳转）、链接后处理复用 `a.internal-link[data-target]`、样式隔离在 `.adoc-preview-view` 下。
+- **影响范围**：`src/core/asciidoctorPreview.ts`（新增）、`src/features/editor/EditorPane.tsx`、`src/styles/adoc-preview.scss`（新增）、`src/main.tsx`、`package.json`。Markdown 预览路径零改动。
+- **复审条件**：若需要展开 `include::`，引入自定义 IncludeProcessor 并同步确定 ADR-0002 的片段归属语义；若插件依赖 `data-line`，用 AST sourcemap 补齐。详见 `docs/plans/L3-asciidoc-preview.md` §4。
+
+---
+
+## D-013 复用 vscode-office 的库选型，扩展只读 AttachmentView 支持 office 多格式
+
+- **日期**：2026-11-13
+- **决策**：以 `cweijan/vscode-office` 验证过的「纯前端 DOM 库选型」为蓝本，在既有的**只读** `AttachmentView` 上扩展四种格式预览：Word（`.docx/.dotx`）用 mammoth 转语义 HTML；PowerPoint（`.pptx/.pptm`）用 jszip 解 OOXML 抽取每页文本与图片；EPUB（`.epub`）用 epub.js 分页阅读器；Excel（`.xlsx/.xlsm/.xls`）用 x-data-spreadsheet 提供**可编辑**表格，并通过 SheetJS 做解析/回写，显式「保存」才写回 `vault.modifyBinary`。
+- **背景**：用户要求「融入 vscode-office 的代码支持各种格式」。核查发现 vscode-office 的价值在于它替我们验证过一套可复用的纯前端库组合（pdf.js / mammoth / pptxviewjs / SheetJS / epub.js），这些库本身是 Web 库、与 VS Code 运行时无关，可直接搬进 geode 的 Web 上下文，而它的扩展脚手架（依赖 `vscode` API）无法复用。
+- **被采纳方案**：
+  - 新增 `src/features/attachment/formatPreview.ts` 作为**格式→预览组件**注册表：小写扩展名映射到 `{ label, Component }`，组件内部用动态 `import()` 懒加载重型库，使其不进入主 chunk（已实测代码分割：xlsx ~424 KB、asciidoctor browser ~374 KB 各自独立分块）。
+  - 扩展点落在 `AttachmentView` 而非 Markdown 编辑器：二进制文件（docx/pdf/xlsx）本就路由到 `fileViewType() → "attachment"`，且不应进入 CodeMirror 缓冲区与自动保存路径，故在其「other」分支挂载格式预览组件。
+  - 数据安全保障：二进制内容只经 `app.vault.readBinary(path)` 进出；XLSX 的编辑改动**仅**在用户点「保存」时经 `vault.modifyBinary` 写回，绝不走 autosave。
+  - 复用 vscode-office 的库清单并做版本钉选：`mammoth@^1.13`、`xlsx@^0.18.5`（SheetJS 官方 npm 最后版）、`x-data-spreadsheet@^1.1.9`、`jszip@^3.10`、`epubjs@^0.3.93`，并补 `less` 作为 devDep 供 x-data-spreadsheet 的 `index.less` 导入。
+  - 新增 `scripts/verify-format-libs.ts`：用真实库在 Node 侧回归核心逻辑（mammoth docx→HTML、xlsx 解析↔回写往返、pptx 文本+图片经 rels 抽取），4 项全 PASS。
+- **被否决的替代方案**：
+  - *直接并入 vscode-office 的扩展代码*：否决理由——其代码深度绑定 `vscode.*` API（命令、Webview、文件系统），无法在 geode 的 React/Tauri 上下文运行；真正可复用的是库选型，不是脚手架。
+  - *DOCX/PPTX/EPUB 也做成可编辑*：否决理由——纯前端没有干净的可往返编辑器：docxjs 偏单向且样式保真有限；pptx 无成熟 Web 编辑器；epub 编辑超出本次范围。只有 XLSX 有成熟可编辑网格（x-data-spreadsheet）+ 稳定序列化（SheetJS），故仅 XLSX 支持编辑。DOCX 真编辑列为 phase-2（引入 docxjs 往返）。
+  - *放进 Markdown 编辑器（CodeMirror）预览*：否决理由——二进制文件进入文本缓冲区会污染 autosave 与 diff 链路；既有 AttachmentView 路由已是正确归宿。
+  - *把重型库打进主包*：否决理由——合计 >1 MB，会拖慢无此类文件的 vault 的冷启动；动态 `import()` 按需加载代价更低（多数 vault 无 office 文件）。
+- **影响范围**：`src/features/attachment/formatPreview.ts`（新增）、`DocxPreview.tsx`、`PptxPreview.tsx`、`EpubPreview.tsx`、`XlsxPreview.tsx`（新增）、`AttachmentView.tsx`（编辑）、`src/styles/app.scss`（编辑）、`src/core/i18n/dict.views.ts`（编辑，新增 `attachment.rendering/save/saved/xlsxHint`）、`src/format-shims.d.ts`（新增，mammoth 缺类型声明）、`package.json`（依赖）、`scripts/verify-format-libs.ts`（新增）。Markdown/adoc 预览路径零改动。
+- **复审条件**：
+  - 若确需 DOCX 真编辑，引入 docxjs 往返并新增可编辑分支（phase-2）。
+  - 若 x-data-spreadsheet 停更，评估 Luckysheet / Univer 替代。
+  - 真实浏览器/Tauri 运行下复核 x-data-spreadsheet 网格渲染与 epub.js 阅读器（当前仅构建+逻辑验证，DOM 渲染未目视确认）——首次 Tauri 起服时复核。
+  - 这些库解析不可信文件，需持续关注 mammoth/xlsx/jszip/epubjs 的安全更新，必要时加 `safe`/净化。
+
+---
+
+## D-014 用 REA 逆向 Obsidian 本体作为 ADKM 的学习来源，且只学优先逻辑
+
+- **日期**：2026-11-13
+- **决策**：ADKM（以 geode 为底座）的后续完善，引入 **REA 逆向 Obsidian 本体** 作为学习来源，但学习范围**严格限定**为九条优先项——软件逻辑五条、代码逻辑四条；每条结论必须挂 REA Evidence ID、区分「观察/推断/未知」，且必须映射到 ADKM 的具体落点，**不可映射的结论不进 ADR**。
+- **背景**：ADKM 此前从未逆向过 Obsidian 本体。既有 `ADKM/docs/obsidian-clone-report.adoc` 核查的是 Opensidian / Geode / Lokus / Otterly / Mdit / Cherit 六个**社区开源模仿品**，回答的是「别人怎么模仿 Obsidian」，不是「Obsidian 自己怎么实现」。缺的是本体证据——缓存与增量策略、插件契约、模块边界、状态真源、失效边界，恰是 ADKM 完善时最容易踩坑处（如本项目已出现的「重计算全堵 UI 主线程」「多真源漂移」问题）。
+- **分析目标（已核实）**：`主程序资源包`。同目录 `启动壳资源包`**仅是 Electron 启动壳，不是分析目标**——选错文件会导致整轮分析作废。
+- **学习范围（只学优先项）**：
+  - *软件逻辑*：① 文件/元数据缓存与增量更新策略；② 插件 API 契约与生命周期；③ 解析上下文与跨格式引用解析分层；④ 编辑视图与阅读视图分离；⑤ 大库下的性能调度（虚拟化、惰性加载）。
+  - *代码逻辑*：⑥ 模块边界与依赖方向；⑦ 事件总线/订阅模型；⑧ 状态单一真源与持久化时机；⑨ 缓存失效与重算边界。
+  - *明确不学*：UI 像素级实现、主题皮肤细节、与 ADKM 定位无关的边缘功能、第三方许可代码的逐行搬运。
+- **被否决的替代方案**：
+  - *继续只做开源模仿品核查*：否决理由——社区项目的实现水平参差（报告自身已做可信度分级），能借鉴的是产品形态而非工程实现深度；且社区项目天然只覆盖 Obsidian 的公开功能面，无法回答「它内部为何这样设计」。
+  - *直接读 Obsidian 官方文档与公开 API*：否决理由——公开面只给契约，不给实现策略（缓存失效时机、事件总线拓扑、状态真源位置），而 ADKM 缺的正是后者。
+  - *全量逆向并追求像素级复刻*：否决理由——与 ADKM「专业文档工程」定位冲突（像素级复刻是 D-002 已否定的路线）；且第三方许可代码不可搬运，只取思想不复制代码。
+- **影响范围**：新增 `ADKM/docs/technical-decisions/ADR-0005-*.adoc`；geode 侧 `TASKS.md` 新增 T-025（拆解任务本身），落地实现待办为 T-026 及之后。本决策不改任何运行时代码。
+- **复审条件**：
+  - 若 REA MCP 在重启后仍不加载工具，改用 `REA 分析子命令` CLI 兜底（该路径不需要 MCP 注册，且同样返回 Evidence 记录）。
+  - 若 Obsidian 升级导致 asar 结构变化，重新确认分析目标指纹后再下结论，避免结论套用到新版本。
+  - 若某条优先项经查证在 Obsidian 中并无对应实现，记为「不适用 + 理由」而非强行凑结论。
+

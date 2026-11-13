@@ -23,7 +23,7 @@
 
 | 名称 | 来源 | 校验值 | 用途 | 许可结论 |
 | --- | --- | --- | --- | --- |
-| Blueprint 样本数据 | 本地脚本 `scripts/gen-blueprint-seed.mjs` 生成 | 生成后可复算 | 已废弃并从源码移除（1.3 MB 死代码） | 自有内容，不涉及第三方许可 |
+| Blueprint 样本数据 | 本地脚本 `scripts/gen-blueprint-seed.ts` 生成 | 生成后可复算 | 已废弃并从源码移除（1.3 MB 死代码） | 自有内容，不涉及第三方许可 |
 | `app-icon.png` | 上游随仓库提供 | `assets/app-icon.png` | 应用图标素材 | 随上游 Apache-2.0 一并授权；若对外发布需替换为自有图标，避免商标风险 |
 
 ---

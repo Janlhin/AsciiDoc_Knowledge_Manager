@@ -15,7 +15,7 @@
 
 ```bash
 npm run verify            # 退出码 0
-node scripts/adoc-index-report.mjs "C:/Users/Janlhin/Desktop/Blueprint"
+node scripts/adoc-index-report.ts "C:/Users/Janlhin/Desktop/Blueprint"
 # 输出 adoc 文档数 >= 130，links 总数 >= 200，未解析数可枚举
 ```
 
@@ -113,7 +113,7 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 
 ### 提交 3：验证脚本与报告
 
-- 新增 `scripts/adoc-index-report.mjs`：对指定目录跑解析，输出文档数 / 链接数 / 未解析数 / 耗时
+- 新增 `scripts/adoc-index-report.ts`：对指定目录跑解析，输出文档数 / 链接数 / 未解析数 / 耗时
 - 完成判据：对 Blueprint 运行，adoc 文档数 ≥ 130
 
 ---
@@ -162,7 +162,7 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 - [x] 三项提交合并，`npm run verify` 退出码 0
 - [x] Blueprint 的 130 篇 adoc 出现在文件树与图谱
 - [x] md 部分的图谱结果与接入前完全一致
-- [x] `scripts/adoc-index-report.mjs` 可复跑并给出耗时
+- [x] `scripts/adoc-index-report.ts` 可复跑并给出耗时
 - [x] `README.md` 的「还不能用的」表格中，移除「AsciiDoc 进入文件树与图谱」一行
 - [x] `TASKS.md` T-012 移入已决
 
@@ -171,7 +171,7 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 ## 9. 实测结果（2026-11-13）
 
 ```
-node scripts/adoc-index-report.mjs "C:/Users/Janlhin/Desktop/Blueprint" --min-adoc 130
+node scripts/adoc-index-report.ts "C:/Users/Janlhin/Desktop/Blueprint" --min-adoc 130
   扫描      269 md · 130 adoc · 跳过 16 个大文件（>200 KB）
   索引      399 文档 · 67 ms
   图谱      399 节点 · 86 边

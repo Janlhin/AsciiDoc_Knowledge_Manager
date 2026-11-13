@@ -3,7 +3,7 @@
  * by compat/obsidian/themes.ts (read via Vite `?raw`). NOT linked statically.
  *
  * SYNC OBLIGATION: every literal between the OBSIDIAN-BRIDGE-PALETTE-BEGIN/END
- * markers below is a verbatim copy of the Geode palette in src/styles/app.css
+ * markers below is a verbatim copy of the Geode palette in src/styles/app.scss
  * (:root/html[data-theme="dark"] and html[data-theme="light"] blocks). Any
  * change to those app.css values MUST be mirrored here (and vice versa) —
  * the layer promises ZERO visual change while no Obsidian theme is installed.

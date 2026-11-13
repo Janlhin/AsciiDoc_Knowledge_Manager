@@ -115,6 +115,7 @@ import { setNewNoteLocation, setNewNoteFolder, resolveNewNoteFolder, createNewNo
 import type { ThemeKind } from "@core/types";
 import { BUILTIN_PLUGINS } from "./plugins";
 import "./styles/app.scss";
+import "./styles/adoc-preview.scss";
 
 /* ---------------- top-level error boundary ---------------- */
 

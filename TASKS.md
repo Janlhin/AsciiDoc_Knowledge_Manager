@@ -94,6 +94,25 @@
 - **解决**：—
 - **完成判据**：`.nvmrc` 存在且内容为有效版本号；`README.md` 中出现该文件名。
 
+### T-025 用 REA 拆解 Obsidian，仅学习优先软件逻辑与代码逻辑以完善 ADKM
+
+- **提出**：2026-11-13
+- **问题**：ADKM（Geode 底座）已有 D-013 等对上游库的复用决策，但从未逆向过 Obsidian 本体。既有 `ADKM/docs/obsidian-clone-report.adoc` 走的是「社区开源模仿品」路线（Opensidian/Geode/Lokus/Otterly/Mdit/Cherit 六个项目的公开信息核查），查的是**别人怎么模仿 Obsidian**，不是 Obsidian 自己怎么实现——缺的是本体证据（如缓存/增量策略、插件契约、模块边界、状态真源），恰是 ADKM 完善时最容易踩坑处。
+- **方法**：用 REA 逆向 Obsidian 的 ASAR 包，分三阶段推进。
+  - **阶段一 · 连接与就绪**：REA MCP 已在 `本机 REA 服务注册项` 注册为 `rea`（REA 服务），但当前会话未加载其工具 → 需重启 WorkBuddy 客户端使注册生效；**不依赖 MCP 的兜底路径**：`REA 分析子命令`（CLI 直接返回 Evidence 记录）。目标文件：`主程序资源包`；同目录 `启动壳资源包`仅 Electron 启动壳，非分析目标。
+  - **阶段二 · 静态地图**：以 `detail: "summary"` 起步取得 Evidence 与模块图，再凭 `parent_evidence_id` 分页取模块视图；沿「入口 → 数据与状态变更 → 结果」路径推进，只在 summary 留下具体缺口时才下钻，避免重复分析。
+  - **阶段三 · 结论落地**：写 `ADKM/docs/technical-decisions/ADR-0005-*.adoc`，并在 geode 侧登记 T-026+ 实现待办。
+- **学习范围（严格限定，只学优先项）**：
+  - *软件逻辑*：① 文件/元数据缓存与增量更新策略；② 插件 API 契约与生命周期；③ 解析上下文与跨格式引用解析分层；④ 编辑视图与阅读视图分离；⑤ 大库下的性能调度（虚拟化、惰性加载）。
+  - *代码逻辑*：⑥ 模块边界与依赖方向；⑦ 事件总线/订阅模型；⑧ 状态单一真源与持久化时机；⑨ 缓存失效与重算边界。
+  - *明确不学*：UI 像素级实现、主题皮肤细节、与 ADKM 定位无关的边缘功能、第三方许可代码的逐行搬运——**只取思想，不复制代码**。
+- **输出纪律**：每条结论必须挂 REA Evidence ID，明确区分「观察 / 推断 / 未知」；且必须映射到 ADKM 的具体落点（geode 的 `src/core/`、`src/features/` 对应模块）。**不可映射到 ADKM 落点的结论不进 ADR**，避免把逆向笔记堆成与项目无关的赏析。
+- **解决**：—
+- **完成判据**：
+  1. `REA 分析子命令` 退出码 0，且输出含 Evidence 记录与模块图；
+  2. ADKM 仓库存在 `docs/technical-decisions/ADR-0005-*.adoc`，其中「优先学习」9 项逐项有结论或明确的「不适用 + 理由」，每项挂 Evidence ID；
+  3. geode/TASKS.md 新增 T-026 及之后的实现待办，每条注明其来源 ADR-0005 的条目号。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
@@ -111,3 +130,12 @@
 | T-014 | 2026-11-13 | 根目录散文文件迁移；`CLAUDE.md` 降为单行引用 |
 | T-015 | 2026-11-13 | vite-plus 引入后的视觉核对：主界面与改造前无可辨差异（仅主界面，其余页面未逐一核对） |
 | T-012 | 2026-11-13 | L2 完成：`.adoc` 与 `.md` 同索引。Blueprint 实测 130 篇 adoc、220 条引用、0 条未解析、全量 67 ms；md 子图接入前后逐字段一致 |
+| T-017 | 2026-11-13 | L3 阅读视图：adoc 用懒加载 Asciidoctor 渲染；`xref:` 可点；真实文档 67 KB→38 ms / 94 章节 / 212 链接；md 预览零改动 |
+| T-018 | 2026-11-13 | L4 阅读视图：复用 vscode-office 库选型，扩展只读 AttachmentView 支持 docx/pptx/epub 只读预览 + xlsx 可编辑（mammoth/jszip/epubjs/x-data-spreadsheet+SheetJS，懒加载代码分割）；`scripts/verify-format-libs.ts` 4 项全 PASS，`npm run build` 通过 |
+| T-019 | 2026-11-13 | 设置→编辑器：把「默认视图模式（编辑/阅读）」下拉改造成独立的「默认打开预览模式」开关（R272 reskin）；底层仍复用 `defaultNewTabMode` 单一真源（preview ⇄ 记忆的 live/source），与 Ctrl+E 循环命令同源、自动同步；清理废弃的 `viewEditing`/`viewReading`/旧 `defaultNewTabMode` i18n 键。`npm run build` 通过 |
+| T-020 | 2026-11-13 | 修标题栏 X 关闭失效（**最终根因 = Tauri v2 的 Rust 侧默认阻止关闭**，此前三次修法全部误判）：读 `tauri-2.12.5/src/manager/window.rs` 确认——`WindowEvent::CloseRequested` 分支中 `if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) { api.prevent_close(); }`，即**只要前端注册了 close 监听器，Rust 就放弃自动关窗，关窗责任 100% 交给 JS 的 `destroy()`**；而本项目实测 JS 的 `invoke('plugin:window|destroy')` 链路从未生效（`plugin:window|destroy` 在 2.12.5 确有注册，故非命令名问题，而是该链路本身不可靠），于是 X 永久失效。前三次修法（改 preventDefault / 加超时 race / 手动 destroy）**全都在 JS 侧**，故全部无效。**终版：在 Rust 侧接管**——`src-tauri/src/main.rs` 新增 `.on_window_event()`，收到 `CloseRequested` 时 `api.prevent_close()`，再起线程 sleep 600ms（给 webview 留 flush 时间）→ `window.destroy()` → 再 `app_handle().exit(0)` 兜底；JS 侧 handler 退化为纯 flush（不调 preventDefault、不调 destroy），并给动态 import 补 `.catch` 使注册失败不再静默。验证方式：新增 Python+ctypes 自动化测试，给窗口发原生 `WM_CLOSE` 后检查进程是否退出，**连续 3 次 PASS**，且实测耗时 ~600ms 反证正是 Rust 兜底路径生效（即 JS 路径确实无效） |
+| T-021 | 2026-11-13 | 排查「打开不流畅」：geode.exe 自身健康（~33 MB）；卡顿元凶是早期 L3 验证遗留的 ~50 个失控 chrome 自动化孤儿进程（累计烧 800+ CPU 秒、占 1.3 GB RAM，无窗口、带 remote-debugging 标记），已自行退出；950 MB 的 node 9172 是用户本机 OpenClaw Gateway（`openclaw-session-host.exe` 子进程），非遗留、不动。前端重型库全部动态 import，未泄漏进启动路径，无代码层性能回归 |
+| T-022 | 2026-11-13 | CSS→SCSS 收尾：`src/` 内仅剩的 2 个 `.css` 改名为 `.scss`（`compat/obsidian/theme-bridge.css`→`.scss`、`features/export/export.css`→`.scss`），同步更新 `themes.ts` / `export.ts` 的 `?raw` 导入路径，并在 `src/raw-import.d.ts` 补 `*.scss?raw` 模块声明（否则 `tsc --noEmit` 报 TS2307）；另修正两处指向已不存在的 `app.css` / `theme-bridge.css` 的过期注释。SCSS 是 CSS 超集，无需改语法。验收：`src` 内 `.css` 归零（23→25 个 `.scss`），`npm run build` 通过 |
+| T-023 | 2026-11-13 | JS→TS 收尾：`scripts/` 下 4 个 `.mjs`（adoc-index-report / gen-blueprint-seed / gen-icon / verify-format-libs）全部转为 `.ts` 并补齐类型（NodeNext ESM；`xlsx` 经 `createRequire` 取 CJS 运行时同时保留 `typeof import("xlsx")` 类型；`mammoth` 用 `scripts/shims.d.ts` 补声明）；新增 `scripts/tsconfig.json` 独立类型检查（`npm run typecheck:scripts`，已并入 `npm run verify`），根 tsconfig 加 `"types": []` 避免 `@types/node` 污染浏览器端；同步更新 package.json 与 README/MANIFEST/DECISIONS/TASKS/docs 中的脚本路径。验收：`node scripts/verify-format-libs.ts` 4 项全 PASS（与原 `.mjs` 一致）。**刻意保留的 JS**：`compat-fixtures/*/main.js` 与 `demo-vault/.geode/plugins/hello-status.js` 是运行时经 `new Function()` 求值的 Obsidian 插件载荷，必须是 JS，转 TS 会破坏兼容性测试的真实性 |
+| T-024 | 2026-11-13 | 待办体系：JS→TS / CSS→SCSS / CPU 多线程 三项待办已登记。CPU 多线程经用户确认先做**性能画像**再决定并行化范围——现状是 Rust 后端极薄（仅 main.rs 一处 `std::thread::spawn`、无 rayon/tokio），前端 5.3 万行 TS 的解析/图谱(416 节点)/索引/重写全跑在 UI 主线程且无任何 Web Worker，重计算堵在 UI 线程是早前「卡顿」的潜在根因 |
+

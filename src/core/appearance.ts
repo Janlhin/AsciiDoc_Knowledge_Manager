@@ -264,6 +264,15 @@ export function setDefaultNewTabMode(mode: NewTabMode): void {
   if (mode === "live" || mode === "source") setDefaultEditMode(mode);
 }
 
+/** R272: convenience writer for the Settings → Editor "默认打开预览模式" switch.
+ *  ON → open new notes in Reading view (the combined `defaultNewTabMode` collapses
+ *  to "preview"); OFF → fall back to the remembered edit mode (live/source). The
+ *  combined `defaultNewTabMode` remains the single source of truth consumed by
+ *  workspace.openFile, so this never diverges from the Ctrl+E cycle command. */
+export function setDefaultPreviewMode(on: boolean): void {
+  setDefaultNewTabMode(on ? "preview" : defaultEditMode.get());
+}
+
 /** R234: Obsidian native Note composer "Replace selection with" (笔记重组「替代原文的方式」).
  *  After extracting a selection/heading section to a new note, what to leave in the source:
  *  a link `[[note]]` (default), an embed `![[note]]`, or nothing ("none"). Consumed by
