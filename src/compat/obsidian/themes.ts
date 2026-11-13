@@ -28,7 +28,7 @@ import type { EventBus } from "@core/events";
 import type { Workspace } from "@core/workspace";
 import { Store } from "@core/store";
 import { obsidianLoadReport } from "./loader";
-import bridgeCss from "./theme-bridge.css?raw";
+import bridgeCss from "./theme-bridge.scss?raw";
 
 export interface ObsidianCssTheme {
   /** folder name under .obsidian/themes */
