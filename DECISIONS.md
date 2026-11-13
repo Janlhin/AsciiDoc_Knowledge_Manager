@@ -112,3 +112,32 @@
 - **被否决的替代方案**：*立即删除 `.claude/`*。否决理由：其中 hooks 可能仍被本地工具链读取，删除前需确认无工具依赖。
 - **影响范围**：AI 协作规则的一致性、脚本入口统一性。
 - **复审条件**：L2 交付时强制复审。
+
+---
+
+## D-008 引入 vite-plus 作为构建与工具链入口
+
+- **日期**：2026-11-13
+- **决策**：以 `vite-plus@1.6.0` 取代裸 Vite，作为 dev / build / preview 的入口。
+- **背景**：项目需接入 lint、format、test 三通道（TASKS.md T-001 至 T-003）。vite-plus 将 Vite、Vitest、Oxlint、Oxfmt、Rolldown 打包为单一工具链，可一次到位；实测构建耗时由 7.29 秒降至 1.48–2.09 秒。
+- **被采纳方案**：`vp migrate --no-interactive --no-agent --no-editor --no-hooks` 完成迁移，产生三处改动：`scripts` 改为 `vp dev|build|preview`；`vite` 通过 `overrides` 别名为 `@voidzero-dev/vite-plus-core@1.6.0`；`vite.config.ts` 的 `defineConfig` 改为从 `vite-plus` 导入。
+- **被否决的替代方案**：
+  - *维持 Vite 6，仅单独引入 oxlint + oxfmt*（原建议）：否决理由由用户裁定——需要统一的单入口，避免多套工具并存导致的规则冲突。**本条记录保留意见：该方案风险最低，若下列风险触发，回退到此路径。**
+  - *等待 oxfmt 发布 1.0 再引入*：否决理由同上。
+- **保留的风险（必须逐项验证）**：
+  1. **隐式引入 Vite 8 与 Rolldown**。`vp toolchain` 显示实际为 `vite@8.3.7` + `rolldown@1.2.18` + `oxc@0.156.0`。这是一次未单独提案的主版本升级，与规范 §版本策略 存在张力，故在此留痕。
+  2. **`@vitejs/plugin-react` 4.7.0 的 peer 依赖不匹配**（要求 vite ^6/^7，实际为 1.6.0 的 core 包）。**已于 2026-11-13 实测 dev 模式**：服务器 264 ms 就绪，`/` 与 `/@vite/client` 均 200；`main.tsx` 转换产出 `jsxDEV` 调用并注入 `@react-refresh`；改 SCSS 与改 TSX 均触发 `hmr update`，回滚同样触发。功能可用。
+   遗留三条告警，均不阻断：
+   - `[vite:react-babel] esbuild option deprecated, use oxc instead`
+   - `Invalid key: "jsx"` —— Babel 插件把 `jsx` 选项传给 Rolldown，被拒但 Babel 路径仍生效
+   - `optimizeDeps.rollupOptions deprecated` —— 上游插件所设，非本项目配置
+
+   告警建议改用 `@vitejs/plugin-react-oxc`，**已核查不可行**：该包最新为 `0.4.3`（发布于 2025-11-12，已一年未更新），peer 仅声明 `vite ^6.3.0 || ^7.0.0`，不覆盖当前的 core 1.6.0（vite 8）。换用它会把一个 0.x 且滞后的包引入主构建链路，风险高于现有告警。
+  3. **CSS 产物被 lightningcss 重新规范化**。比对结果：选择器 976 → 975，规则 989 → 988；135 处声明差异（`background:transparent` → `background:0 0`、`var()` 逗号后空格移除、自动补 `-webkit-` 前缀），11 处选择器写法差异（属性选择器转义、规则合并）。判定为等价规范化。
+     **2026-11-13 已做视觉核对**：以浏览器模式加载改造后构建，**主界面**与改造前无可辨差异（使用者判定）。
+     范围限定：仅主界面；设置页、图谱页、编辑器独立视图未逐一核对。结论：已核范围内无视觉回归，其余页面的回归风险依据「135 处差异全部定性为压缩器规范化」推断为低，但未经目视确认。
+  4. **构建配置项更名**：`build.rollupOptions` → `build.rolldownOptions`。当前配置未使用该字段，无影响。
+  5. **oxfmt 仍为 0.78.0**（未到 1.0），格式器行为可能变化。
+- **附带收益**：Rolldown 的 `IMPORT_IS_UNDEFINED` 检查暴露了一处此前静默的兼容层限制——`src/compat/obsidian/loader.ts` 引用的 `tokenClassNodeProp` 在新版 `@codemirror/language` 中已不存在，代码以 `?? new NodeProp()` 兜底（源码注释已说明）。该限制为上游既有行为，非本次引入，但此前无人可见。
+- **影响范围**：构建入口、依赖树、CSS 产物、Tauri 的 `beforeBuildCommand` 链路。
+- **复审条件**：出现任一项即回退到「裸 Vite 6 + 独立 oxlint/oxfmt」——dev 模式 HMR 异常；CSS 视觉回归经确认；`vp` 升级导致构建不稳定。

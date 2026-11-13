@@ -119,3 +119,4 @@
 | T-000 | 2026-11-13 | 五个必备文档建立：README.md、AGENTS.md、DECISIONS.md、TASKS.md、MANIFEST.md |
 | T-013 | 2026-11-13 | 规范原文 vendor 至 `README.md` |
 | T-014 | 2026-11-13 | 根目录散文文件迁移；`CLAUDE.md` 降为单行引用 |
+| T-015 | 2026-11-13 | vite-plus 引入后的视觉核对：主界面与改造前无可辨差异（仅主界面，其余页面未逐一核对） |
