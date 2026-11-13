@@ -13,7 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -813,6 +813,31 @@ fn main() {
             http_request,
             export_write
         ])
+        .on_window_event(|window, event| {
+            // Tauri v2 calls `api.prevent_close()` whenever the frontend has a
+            // listener for the close-requested event, so the window NEVER
+            // closes by itself — the JS side has to explicitly destroy it.
+            // If that JS path breaks for any reason (the listener is never
+            // delivered, the IPC invoke fails, the webview is busy), the
+            // title-bar X becomes a permanent no-op and the app is unkillable
+            // from the UI. That is exactly the bug we hit.
+            //
+            // So we own the close here, on the Rust side, where it does not
+            // depend on the webview at all: stop the default handling, give
+            // the webview a moment to flush unsaved edits, then destroy the
+            // window natively. The trailing exit(0) is the hard guarantee
+            // that the process actually goes away.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let win = window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_millis(600));
+                    let _ = win.destroy();
+                    std::thread::sleep(Duration::from_millis(150));
+                    let _ = win.app_handle().exit(0);
+                });
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running Geode");
 }

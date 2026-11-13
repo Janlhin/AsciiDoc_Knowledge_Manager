@@ -1152,13 +1152,35 @@ export function App() {
     if (isTauri()) {
       // dynamic import so the browser build never loads the Tauri module
       void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
-        const unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
-          event.preventDefault();
-          await app.workspace.flushAll();
-          void getCurrentWindow().destroy();
+        const win = getCurrentWindow();
+        // Tauri v2 close semantics: `api.prevent_close()` is called by the
+        // framework whenever the frontend has a close-requested listener, so
+        // the window never closes by itself — the JS side owns it. We proved
+        // that the JS `destroy()` path is inert here, so the Rust side
+        // (src-tauri/src/main.rs on_window_event) is the real backstop that
+        // tears the window down; it waits ~600ms for us to flush.
+        //
+        // Therefore this handler's only job is to flush unsaved edits, and it
+        // must NEVER throw: a rejected handler makes the @tauri-apps wrapper
+        // skip its own window.destroy(). Guard every call (optional chaining +
+        // .catch) and cap the wait so a missing or stalling workspace can
+        // never block the close.
+        const unlisten = await win.onCloseRequested(async () => {
+          try {
+            await Promise.race([
+              Promise.resolve(app?.workspace?.flushAll?.()).catch(() => {}),
+              new Promise<void>((r) => setTimeout(r, 300)),
+            ]).catch(() => {});
+          } catch {
+            /* never block the close */
+          }
         });
         if (disposed) unlisten();
         else unlistenClose = unlisten;
+      }).catch((err) => {
+        // Never fail silently: a registration failure here is what leaves the
+        // title-bar X dead, so it must be visible in the console.
+        console.error("[geode] failed to register the close handler", err);
       });
     }
 
