@@ -99,11 +99,25 @@ npx tauri build
 产物：
 
 ```
-src-tauri/target/release/geode.exe                              约 7.6 MB
+src-tauri/target/release/geode.exe                              约 5.1 MB
 src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 ```
 
 `tauri build` 结束时会出现 `A public key has been found, but no private key` 错误。那是自动更新签名缺少私钥，**安装包已经生成**，不影响本地使用。要消除需设置 `TAURI_SIGNING_PRIVATE_KEY`。
+
+> **不要只跑 `cargo build --release`。** exe 里嵌入的 `dist/` 资源由 `tauri build` 链路刷新；只编译 Rust 侧会得到一个能启动、但**界面全白**的 exe（窗口标题在、Local Storage 也在写，就是没有 UI）。2026-11-13 实测踩过：改成 `npx tauri build --no-bundle` 重编一次即恢复。改完前端代码必须走完整链路。
+
+## 启动
+
+双击 `run-adkm.ps1`（右键 →「使用 PowerShell 运行」），或直接：
+
+```sh
+src-tauri/target/release/geode.exe "C:\Users\Janlhin\Desktop\Blueprint"
+```
+
+第一个参数会被当成 vault 根目录，跳过文件夹选择对话框。省略参数则恢复上次打开的库。
+
+首次打开 `Blueprint` 时，`.obsidian/` 里的四个插件会被兼容层加载，设置弹窗可能自动出现；点右上角 × 关掉即可看到图谱。
 
 ## 开发时的一条硬规矩
 
