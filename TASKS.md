@@ -97,10 +97,8 @@
 ### T-012 L2：AsciiDoc 接入索引（主线）
 
 - **提出**：2026-11-13
-- **问题**：`src/core/parsers/asciidoc.ts`（193 行）已写未接线。adoc 不出现在文件树与图谱中，README 声明的核心能力尚不可用。
-- **方法**：① `src/core/metadata.ts` 的 4 处扩展名判断改为 `isIndexable()` 分派；② `src/core/vault.ts` 的 `getMarkdownFiles()` 改名 `getIndexableFiles()`；③ 用 Blueprint 的 130 篇 adoc 验证产出的 `NoteMetadata`。
-- **解决**：—
-- **完成判据**：以 Blueprint 作为 vault 启动，图谱节点数包含 adoc 文档（`/api/graph` 或等价调试输出中 `.adoc` 计数 ≥ 130），且 `npm run verify` 退出码 0。
+- **计划**：[`docs/plans/L2-asciidoc-indexing.md`](docs/plans/L2-asciidoc-indexing.md)
+- **完成判据**：`npm run verify` 退出码 0；对 Blueprint 运行 `scripts/adoc-index-report.mjs`，adoc 文档数 ≥ 130；md 部分的图谱节点数与边数接入前后完全一致。
 
 ---
 
