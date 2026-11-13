@@ -3,7 +3,7 @@
 - **层**：L2（解析与索引）
 - **前置**：ADR-0004 七层结构；ADR-0001 解析分层；ADR-0002 解析上下文
 - **任务编号**：`TASKS.md` T-012
-- **状态**：计划中
+- **状态**：已完成（2026-11-13）
 
 ---
 
@@ -37,11 +37,11 @@ node scripts/adoc-index-report.mjs "C:/Users/Janlhin/Desktop/Blueprint"
 | 标签 | 文档头 `:tags:` | 逗号分隔 |
 | 块内屏蔽 | `----` / `....` / `////` 等分隔符 | 块内不扫引用 |
 
-**已知缺陷**（本层不修，登记于 §6）：
+**实施中发现并已修的三处缺陷**（提交 1，原计划外）：
 
-- 所有链接的 `kind` 一律写 `"markdown"`
-- 行偏移用 `+1` 估算换行，遇 CRLF 会累积错位
-- `include` 与普通链接无法区分
+- `kind` 一律写 `"markdown"` → 新增可选字段 `syntax` 区分四类宏（见 P4）
+- `content.split("\n")` 在 CRLF 文件上让每行留一个尾随 `\r`，导致 `$` 锚定的块定界符永不匹配，清单块内的引用漏进扫描 → 改为按真实索引切分行并保留精确偏移
+- `====` / `****` / `____` / `--` 被当成逐字块。它们其实是示例 / 侧栏 / 引用 / 开放块，内部仍是正常 AsciiDoc。`AI_Engineering_Gate.adoc` 整节包在 `[WARNING]\n====…====` 里，因此有 1 条 xref（18 条中的第 18 条）被静默丢弃
 
 ---
 
@@ -159,9 +159,35 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 
 ## 8. 完成定义
 
-- [ ] 三项提交合并，`npm run verify` 退出码 0
-- [ ] Blueprint 的 130 篇 adoc 出现在文件树与图谱
-- [ ] md 部分的图谱结果与接入前完全一致
-- [ ] `scripts/adoc-index-report.mjs` 可复跑并给出耗时
-- [ ] `README.md` 的「还不能用的」表格中，首行「AsciiDoc 进入文件树与图谱」改为已可用
-- [ ] `TASKS.md` T-012 移入已决
+- [x] 三项提交合并，`npm run verify` 退出码 0
+- [x] Blueprint 的 130 篇 adoc 出现在文件树与图谱
+- [x] md 部分的图谱结果与接入前完全一致
+- [x] `scripts/adoc-index-report.mjs` 可复跑并给出耗时
+- [x] `README.md` 的「还不能用的」表格中，移除「AsciiDoc 进入文件树与图谱」一行
+- [x] `TASKS.md` T-012 移入已决
+
+---
+
+## 9. 实测结果（2026-11-13）
+
+```
+node scripts/adoc-index-report.mjs "C:/Users/Janlhin/Desktop/Blueprint" --min-adoc 130
+  扫描      269 md · 130 adoc · 跳过 16 个大文件（>200 KB）
+  索引      399 文档 · 67 ms
+  图谱      399 节点 · 86 边
+  adoc 链接 220 条
+  按语法    xref 155 · xref-short 59 · link-macro 6 · include 0
+  未解析    0 条
+```
+
+**性能**：67 ms / 399 篇，远低于 §5 定的「130 篇 < 50 ms 的线」按比例折算值，也远快于 Asciidoctor 全量解析的 705 ms。索引走正则扫描这条路成立。
+
+**P1 的待验证项有答案了**：220 条 adoc 引用中，属性占位符残留 **0** 条。也就是说所有 `xref:{alias}` 所在的文档都自行定义了该别名，「只认文档头」的裁决不会让任何一条引用失效，10% 的复核阈值未被触发。
+
+**P2 在当前语料上是零影响**：真实存在的 `include::` 指令为 0（Blueprint 里两处 `include::` 都在行内代码里，是讨论该语法本身，不是指令）。
+
+**md 回归**：用 `main` 的 worktree 作基线，同一批 md 文件跑两版索引，节点 / 边 / 反链 / 每条链接的解析结果**逐字段相同**。混合模式（md + adoc）下取出 md 子图再比一次，同样相同。
+
+### 实施中新增的一条规则
+
+**无扩展名的链接优先匹配引用方自身的格式。** 原设计未提，但夹具暴露出问题：`Amb.md` 与 `Amb.adoc` 并存时，按字典序会落到 `.adoc`，于是"只是新增了一个 adoc 文件"就把既有 Markdown 链接改了指向。改为按引用方格式优先后，`Welcome.md` 的 `[[Amb]]` 永远指向 `Amb.md`，`gate.adoc` 的 `xref:Amb[]` 指向 `Amb.adoc`。显式写了后缀的链接仍以后缀为准。
