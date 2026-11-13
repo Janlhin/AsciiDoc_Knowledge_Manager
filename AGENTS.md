@@ -50,6 +50,7 @@
 | [`MANIFEST.md`](MANIFEST.md) | 第三方来源登记 |
 | [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单、许可义务 |
 | [`README.md`](README.md) | 本规范原文 |
+| [`docs/plans/`](docs/plans/) | 各层实施计划（L2 起） |
 
 ## 禁止事项
 

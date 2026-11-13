@@ -128,7 +128,8 @@ docs/               项目文档与规范原文
 ├── PROVENANCE.adoc         来源与许可义务
 ├── CONTRIBUTING.md         协作约定
 ├── SECURITY.md             安全策略
-└── mtx.config.md           工具配置说明
+├── mtx.config.md           工具配置说明
+└── plans/                  各层实施计划
 ```
 
 顶层目录的职责在上一节声明；`git diff` 中出现声明范围外的路径即为需要解释的信号。
