@@ -4,7 +4,7 @@
  * .calibration/API-REFERENCE.md (T0 + T1 + T1.5 per docs/OBSIDIAN-COMPAT.md);
  * out-of-tier APIs are warn-stubs recorded in the loader's gap report.
  */
-import "./compat.css";
+import "./compat.scss";
 import { installDomAugmentation } from "./dom";
 
 // prototypes must exist before any plugin code touches the DOM

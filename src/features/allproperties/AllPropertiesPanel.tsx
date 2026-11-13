@@ -14,7 +14,7 @@ import {
   type PropertyValue,
 } from "@core/properties";
 import { renamePropertyAcrossVault } from "@core/propertyRewrite";
-import "./allproperties.css";
+import "./allproperties.scss";
 
 /** Type-icon SVG paths — kept in sync with PropertiesPanel's TypeIcon (a
  *  feature must not import another feature, so the small map is duplicated). */

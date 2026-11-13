@@ -10,7 +10,7 @@ import { Icon } from "@app/icons";
 import { useI18n } from "@core/i18n";
 import { useStore } from "@core/store";
 import { renameTagAcrossVault, isValidTagName } from "@core/tagRewrite";
-import "./tags.css";
+import "./tags.scss";
 
 interface MenuState {
   x: number;

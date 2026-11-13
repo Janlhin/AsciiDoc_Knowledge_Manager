@@ -17,7 +17,7 @@ import { buildOpenUri } from "@core/obsidianUri";
 import { findActiveTab } from "@core/workspace";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
-import "./explorer.css";
+import "./explorer.scss";
 
 const EXPANDED_KEY = "geode.explorer.expanded";
 

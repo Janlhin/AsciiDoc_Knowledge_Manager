@@ -10,7 +10,7 @@ import {
   type TemplateInfo,
 } from "@core/templates";
 import { fuzzyMatch, toSegments } from "@core/fuzzy";
-import "./palette.css";
+import "./palette.scss";
 
 /**
  * Template selector modal (R23) — QuickSwitcher-shaped picker for the

@@ -58,7 +58,7 @@ import { BacklinksInDocument } from "./BacklinksInDocument";
 import { openWikilink } from "./wikilinks";
 import { handleObsidianUri } from "./obsidianUriHandler";
 import { uriLinksEnabled } from "@core/obsidianUri";
-import "./editor.css";
+import "./editor.scss";
 
 /**
  * Best-effort selection/scroll restoration across live|source ↔ preview (R11).

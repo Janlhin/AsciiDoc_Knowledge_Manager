@@ -7,7 +7,7 @@ import type { LinkRef } from "@core/types";
 import { findActiveTab } from "@core/workspace";
 import { sortAndFilterLinks, type LinkSortKey } from "@core/linkPanel";
 import { createNewNote } from "@core/newNote";
-import "./outgoinglinks.css";
+import "./outgoinglinks.scss";
 
 type OutEntry = { link: LinkRef; resolvedPath: string | null };
 

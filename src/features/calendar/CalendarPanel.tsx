@@ -9,7 +9,7 @@ import { locale, useI18n } from "@core/i18n";
 import { useStore } from "@core/store";
 import { dailyNoteFolder, dailyNoteFormat, dailyNotePath, monthGrid, openOrCreateDailyNote, sameDay } from "@core/dailyNote";
 
-import "./calendar.css";
+import "./calendar.scss";
 
 export function CalendarPanel() {
   const app = useApp();

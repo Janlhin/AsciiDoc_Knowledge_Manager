@@ -5,7 +5,7 @@ import { useI18n } from "@core/i18n";
 import { findActiveTab } from "@core/workspace";
 import type { DocumentHandle } from "@core/documents";
 import { PropertiesPanel } from "./PropertiesPanel";
-import "./fileproperties.css";
+import "./fileproperties.scss";
 
 /**
  * R86 (㊼): the active note's properties as a right-sidebar pane (Obsidian's

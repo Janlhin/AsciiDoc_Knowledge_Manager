@@ -7,7 +7,7 @@ import { getCommandName, formatHotkey } from "@core/commands";
 import type { Command } from "@core/types";
 import { fuzzyMatch, toSegments, type FuzzyMatch } from "@core/fuzzy";
 import { loadRecentCommands, recordRecentCommand, loadPinnedCommands } from "@core/commandMru";
-import "./palette.css";
+import "./palette.scss";
 
 interface Row {
   cmd: Command;

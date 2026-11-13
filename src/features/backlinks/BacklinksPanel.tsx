@@ -16,7 +16,7 @@ import {
   type MentionLinkResult,
   type MentionSpan,
 } from "@core/unlinkedMentions";
-import "./backlinks.css";
+import "./backlinks.scss";
 
 type OutgoingEntry = { link: LinkRef; resolvedPath: string | null };
 

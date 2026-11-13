@@ -26,7 +26,7 @@ import { renderMarkdownToHtml } from "@core/markdown";
 import { strictLineBreaks } from "@core/appearance";
 import { useStore } from "@core/store";
 import { createHoverController } from "./hoverController";
-import "./hover.css";
+import "./hover.scss";
 
 /* ============ private blob-URL cache (mirrors features/editor/embeds.ts) ====
  * The hover feature must not import the editor's blob cache (layering), so it

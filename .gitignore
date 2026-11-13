@@ -26,3 +26,8 @@ compat-vault/
 .tauri-keys/
 # local update-server fixtures for desktop verification
 .update-test/
+
+# local secrets
+.env
+.env.local
+.env.*.local

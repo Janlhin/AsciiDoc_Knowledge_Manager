@@ -9,7 +9,7 @@ import {
   restoreSnapshot,
   type Snapshot,
 } from "@core/snapshots";
-import "./recovery.css";
+import "./recovery.scss";
 
 /**
  * File recovery modal (R49) — browse and restore version snapshots taken of the

@@ -14,7 +14,7 @@ import { t } from "@core/i18n";
 import { mimeForPath, renderMarkdownToHtml } from "@core/markdown";
 import { strictLineBreaks } from "@core/appearance";
 import exportCss from "./export.css?raw";
-import "./notice.css";
+import "./notice.scss";
 
 /** How long the print root may outlive a print dialog whose `afterprint`
  *  never fires (stubbed print in browser E2E, odd WebView behavior). */

@@ -15,7 +15,7 @@ import { strictLineBreaks } from "@core/appearance";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { splitSlides } from "./slides";
-import "./slides.css";
+import "./slides.scss";
 
 export function SlidesOverlay(): JSX.Element | null {
   const app = useApp();

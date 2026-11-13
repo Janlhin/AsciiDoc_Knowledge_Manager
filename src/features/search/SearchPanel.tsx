@@ -8,7 +8,7 @@ import type { I18nKey } from "@core/i18n";
 import { parseSearchQuery, evaluateSearch } from "@core/search";
 import { excludedRaw, isExcluded } from "@core/excludedFiles";
 import type { SearchInput, SearchMatchRange, SearchParseErrorCode } from "@core/search";
-import "./search.css";
+import "./search.scss";
 
 interface LineHit {
   lineNo: number;

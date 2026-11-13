@@ -5,7 +5,7 @@ import { useI18n } from "@core/i18n";
 import { findActiveTab } from "@core/workspace";
 import { parseFootnoteDefinitions } from "@core/metadata";
 import type { DocumentHandle } from "@core/documents";
-import "./footnotes.css";
+import "./footnotes.scss";
 
 /**
  * Footnotes pane (R65, ㉘) — Obsidian 1.9's "Footnotes view" core plugin: a

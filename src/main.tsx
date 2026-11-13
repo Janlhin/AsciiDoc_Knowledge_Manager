@@ -114,7 +114,7 @@ import { sortAndFilterLinks } from "@core/linkPanel";
 import { setNewNoteLocation, setNewNoteFolder, resolveNewNoteFolder, createNewNote } from "@core/newNote";
 import type { ThemeKind } from "@core/types";
 import { BUILTIN_PLUGINS } from "./plugins";
-import "./styles/app.css";
+import "./styles/app.scss";
 
 /* ---------------- top-level error boundary ---------------- */
 

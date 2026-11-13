@@ -5,7 +5,7 @@ import { useStore } from "@core/store";
 import { useI18n } from "@core/i18n";
 import type { HeadingRef } from "@core/types";
 import { findActiveTab } from "@core/workspace";
-import "./outline.css";
+import "./outline.scss";
 
 interface OutlineRow {
   /** index into the original headings array — used as collapse key */

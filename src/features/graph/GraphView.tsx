@@ -39,7 +39,7 @@ import {
   type GraphPrefs,
 } from "./graphPrefs";
 import { createNewNote } from "@core/newNote";
-import "./graph.css";
+import "./graph.scss";
 
 /** Apply the current force prefs to a (possibly running) simulation in place. */
 function applyForces(sim: Simulation<SimNode, SimLink>, f: GraphForces): void {

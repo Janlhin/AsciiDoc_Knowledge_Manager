@@ -10,7 +10,7 @@ import {
   saveWorkspaceLayout,
   deleteWorkspaceLayout,
 } from "@core/workspaces";
-import "./workspaces.css";
+import "./workspaces.scss";
 
 /**
  * Workspaces manager modal (R45) — save / load / delete named layout snapshots.

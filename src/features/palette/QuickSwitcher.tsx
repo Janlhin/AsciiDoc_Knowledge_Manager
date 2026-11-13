@@ -14,7 +14,7 @@ import { createNewNote } from "@core/newNote";
 import { fuzzyMatch, toSegments } from "@core/fuzzy";
 import { searchHeadings, searchBlocks, switcherMode, stripSigil } from "@core/switcherSearch";
 import { mergeTargetMode, mergeNotes } from "@core/noteMerge";
-import "./palette.css";
+import "./palette.scss";
 
 type Row =
   | { kind: "create"; name: string }
