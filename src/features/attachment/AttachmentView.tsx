@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
 import { mediaKind, mediaMime, fileExtension } from "@core/attachments";
+import { formatPreviewer } from "./formatPreview";
 import type { TabState } from "@core/types";
 
 export function AttachmentView({ tab }: { tab: TabState }) {
@@ -53,6 +54,8 @@ export function AttachmentView({ tab }: { tab: TabState }) {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const ext = fileExtension(path);
 
+  const formatEntry = path !== null ? formatPreviewer(path) : null;
+
   let body: ReactNode = null;
   if (failed) {
     // only reached when readBinary itself rejects (file gone / unreadable). A media element
@@ -63,14 +66,14 @@ export function AttachmentView({ tab }: { tab: TabState }) {
         <span>{t("attachment.loadFailed")}</span>
       </div>
     );
-  } else if (!previewable) {
+  } else if (kind !== "other" && url === null) {
+    // a media kind (image/audio/video/pdf) is still loading its blob URL
     body = (
-      <div className="attachment-placeholder" data-testid="attachment-placeholder">
-        <span className="attachment-name">{name}</span>
-        <span className="attachment-meta">{t("attachment.noPreview", { ext: ext || "?" })}</span>
+      <div className="attachment-placeholder">
+        <span>{t("attachment.rendering")}</span>
       </div>
     );
-  } else if (url !== null) {
+  } else if (kind !== "other" && url !== null) {
     if (kind === "image") {
       // an <img> has no native error UI → fall back to the placeholder if it can't decode
       body = <img className="attachment-image" data-testid="attachment-image" src={url} alt={name} onError={() => setFailed(true)} />;
@@ -82,10 +85,28 @@ export function AttachmentView({ tab }: { tab: TabState }) {
       // pdf — <embed> renders natively in Chromium + macOS WKWebView (PDFKit)
       body = <embed className="attachment-pdf" data-testid="attachment-pdf" src={url} type="application/pdf" />;
     }
+  } else if (formatEntry) {
+    // structured multi-format preview (docx / xlsx / pptx / epub …) — each
+    // component lazy-loads its own heavy library and reads bytes itself
+    const FormatComponent = formatEntry.Component;
+    body = <FormatComponent path={path} />;
+  } else {
+    body = (
+      <div className="attachment-placeholder" data-testid="attachment-placeholder">
+        <span className="attachment-name">{name}</span>
+        <span className="attachment-meta">{t("attachment.noPreview", { ext: ext || "?" })}</span>
+      </div>
+    );
   }
 
   return (
-    <div className="attachment-view" data-testid="attachment-view" data-attachment-path={path} data-media-kind={kind}>
+    <div
+      className="attachment-view"
+      data-testid="attachment-view"
+      data-attachment-path={path}
+      data-media-kind={kind}
+      data-format={formatEntry?.label ?? undefined}
+    >
       {body}
     </div>
   );

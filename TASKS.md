@@ -112,3 +112,4 @@
 | T-015 | 2026-11-13 | vite-plus 引入后的视觉核对：主界面与改造前无可辨差异（仅主界面，其余页面未逐一核对） |
 | T-012 | 2026-11-13 | L2 完成：`.adoc` 与 `.md` 同索引。Blueprint 实测 130 篇 adoc、220 条引用、0 条未解析、全量 67 ms；md 子图接入前后逐字段一致 |
 | T-017 | 2026-11-13 | L3 阅读视图：adoc 用懒加载 Asciidoctor 渲染；`xref:` 可点；真实文档 67 KB→38 ms / 94 章节 / 212 链接；md 预览零改动 |
+| T-018 | 2026-11-13 | L4 阅读视图：复用 vscode-office 库选型，扩展只读 AttachmentView 支持 docx/pptx/epub 只读预览 + xlsx 可编辑（mammoth/jszip/epubjs/x-data-spreadsheet+SheetJS，懒加载代码分割）；`scripts/verify-format-libs.mjs` 4 项全 PASS，`npm run build` 通过 |
