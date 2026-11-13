@@ -17,9 +17,16 @@ import * as dictViews from "./i18n/dict.views";
  *
  * This module is the second hooks exception in core besides store.ts
  * (one React hook, no components).
+ *
+ * ADKM: 语言「偏好」与「生效语言」分离。`localePref` 是用户可选项（含
+ * 「跟随系统」），`locale` 始终是解析后的具体语言（"en" | "zh"），因此
+ * 50+ 处消费方无需感知 "system"。未来做完整 I18N 改造时，扩展 `Locale`
+ * 联合类型并只改 `resolveLocale()` 即可，其余调用链保持不变。
  */
 
 export type Locale = "en" | "zh";
+/** ADKM: 用户可选的偏好；"system" 为默认值 */
+export type LocalePref = "system" | Locale;
 
 const en = {
   ...dictApp.en,
@@ -46,30 +53,57 @@ export type I18nKey = keyof typeof en;
 
 const STORAGE_KEY = "geode.locale";
 
-function detectInitialLocale(): Locale {
+/** ADKM: 系统语言 → 当前支持的具体语言。未来新增语种只改这里。 */
+export function resolveLocale(pref: LocalePref): Locale {
+  if (pref !== "system") return pref;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "en" || stored === "zh") return stored;
+    const lang = (navigator.language ?? "").toLowerCase();
+    return lang.startsWith("zh") ? "zh" : "en";
   } catch {
-    // storage unavailable — fall through to navigator detection
+    // 非浏览器环境（测试 / SSR）
+    return "en";
   }
-  try {
-    if ((navigator.language ?? "").toLowerCase().startsWith("zh")) return "zh";
-  } catch {
-    // no navigator (non-browser context) — default en
-  }
-  return "en";
 }
 
-/** Current UI locale. Subscribe via useStore / useI18n to re-render on switch. */
-export const locale = new Store<Locale>(detectInitialLocale());
-
-export function setLocale(l: Locale): void {
-  locale.set(l);
+function detectInitialPref(): LocalePref {
   try {
-    localStorage.setItem(STORAGE_KEY, l);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    // 历史值 "en" / "zh" 仍有效（用户显式选过则尊重）；
+    // 没有存储时默认跟随系统，不再硬编码任何语言。
+    if (stored === "en" || stored === "zh" || stored === "system") return stored;
+  } catch {
+    // storage unavailable — fall through to system detection
+  }
+  return "system";
+}
+
+/** ADKM: 用户偏好（可为 "system"）。设置页下拉绑定它。 */
+export const localePref = new Store<LocalePref>(detectInitialPref());
+
+/** Current UI locale. Subscribe via useStore / useI18n to re-render on switch. */
+export const locale = new Store<Locale>(resolveLocale(localePref.get()));
+
+export function setLocale(pref: LocalePref): void {
+  const next: LocalePref =
+    pref === "en" || pref === "zh" || pref === "system" ? pref : "system";
+  localePref.set(next);
+  locale.set(resolveLocale(next));
+  try {
+    localStorage.setItem(STORAGE_KEY, next);
   } catch {
     // storage unavailable — locale stays session-local
+  }
+}
+
+/** ADKM: 系统语言变化时重算「跟随系统」偏好。启动时调用一次。 */
+export function watchSystemLocale(): void {
+  try {
+    window.addEventListener("languagechange", () => {
+      if (localePref.get() !== "system") return;
+      locale.set(resolveLocale("system"));
+    });
+  } catch {
+    /* no window (non-browser context) */
   }
 }
 
