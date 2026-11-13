@@ -133,7 +133,9 @@
    - `optimizeDeps.rollupOptions deprecated` —— 上游插件所设，非本项目配置
 
    告警建议改用 `@vitejs/plugin-react-oxc`，**已核查不可行**：该包最新为 `0.4.3`（发布于 2025-11-12，已一年未更新），peer 仅声明 `vite ^6.3.0 || ^7.0.0`，不覆盖当前的 core 1.6.0（vite 8）。换用它会把一个 0.x 且滞后的包引入主构建链路，风险高于现有告警。
-  3. **CSS 产物被 lightningcss 重新规范化**。比对结果：选择器 976 → 975，规则 989 → 988；135 处声明差异（`background:transparent` → `background:0 0`、`var()` 逗号后空格移除、自动补 `-webkit-` 前缀），11 处选择器写法差异（属性选择器转义、规则合并）。判定为等价规范化，**但未做视觉回归验证**。
+  3. **CSS 产物被 lightningcss 重新规范化**。比对结果：选择器 976 → 975，规则 989 → 988；135 处声明差异（`background:transparent` → `background:0 0`、`var()` 逗号后空格移除、自动补 `-webkit-` 前缀），11 处选择器写法差异（属性选择器转义、规则合并）。判定为等价规范化。
+     **2026-11-13 已做视觉核对**：以浏览器模式加载改造后构建，**主界面**与改造前无可辨差异（使用者判定）。
+     范围限定：仅主界面；设置页、图谱页、编辑器独立视图未逐一核对。结论：已核范围内无视觉回归，其余页面的回归风险依据「135 处差异全部定性为压缩器规范化」推断为低，但未经目视确认。
   4. **构建配置项更名**：`build.rollupOptions` → `build.rolldownOptions`。当前配置未使用该字段，无影响。
   5. **oxfmt 仍为 0.78.0**（未到 1.0），格式器行为可能变化。
 - **附带收益**：Rolldown 的 `IMPORT_IS_UNDEFINED` 检查暴露了一处此前静默的兼容层限制——`src/compat/obsidian/loader.ts` 引用的 `tokenClassNodeProp` 在新版 `@codemirror/language` 中已不存在，代码以 `?? new NodeProp()` 兜底（源码注释已说明）。该限制为上游既有行为，非本次引入，但此前无人可见。
