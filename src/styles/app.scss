@@ -5,6 +5,20 @@
    value below changes, update the OBSIDIAN-BRIDGE-PALETTE block in
    src/compat/obsidian/theme-bridge.css to match. */
 
+/* ADKM: native controls (scrollbars, selects, inputs) follow the resolved
+   OS/app theme. This adds no palette literal, so the R20 sync obligation
+   above is untouched — brand colors are deliberately NOT repointed to OS
+   accents (see docs/product-placeholders.md). */
+:root {
+  color-scheme: light dark;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 :root,
 html[data-theme="dark"] {
   --bg-app: #1e1e1e;

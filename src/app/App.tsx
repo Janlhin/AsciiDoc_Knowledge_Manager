@@ -66,6 +66,7 @@ import { updateSupported } from "@core/update";
 import { mergeTargetMode } from "@core/noteMerge";
 import { bookmarks } from "@core/bookmarks";
 import { t, useI18n, locale } from "@core/i18n";
+import { PRODUCT } from "@core/product";
 import { loadObsidianPlugins } from "@compat/obsidian/loader";
 
 const LAST_VAULT_KEY = "geode.lastVaultPath";
@@ -2275,8 +2276,9 @@ function VaultPicker() {
   return (
     <div className="vault-picker" data-testid="vault-picker">
       <div className="vault-picker-card">
-        <h1>💎 Geode</h1>
-        <p>{t("app.vaultTagline")}</p>
+        {/* ADKM: identity strings from the single placeholder source */}
+        <h1>{PRODUCT.logo} {PRODUCT.name}</h1>
+        <p>{PRODUCT.tagline}</p>
         <button className="btn-accent" onClick={() => void openVaultFlow(app)}>
           {t("app.openVaultButton")}
         </button>

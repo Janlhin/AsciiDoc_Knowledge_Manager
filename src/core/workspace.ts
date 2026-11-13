@@ -311,7 +311,8 @@ function defaultState(): WorkspaceState {
     leftWidth: 270,
     rightWidth: 290,
     modal: null,
-    theme: "dark",
+    // ADKM: follow the OS color scheme out of the box (R79 resolveTheme already supports it)
+    theme: "system",
     fontSize: 16,
   };
 }
@@ -1552,9 +1553,9 @@ function sanitizeState(saved: unknown): WorkspaceState {
     leftWidth: width(s.leftWidth, base.leftWidth),
     rightWidth: width(s.rightWidth, base.rightWidth),
     modal: null,
-    // R79: accept the new "system" kind; legacy "dark"/"light" unchanged, any
-    // unknown value falls back to "dark".
-    theme: s.theme === "light" || s.theme === "system" ? s.theme : "dark",
+    // R79 + ADKM: accept "system"; an explicit light/dark choice from the user
+    // is still honoured, but an unknown/missing value now falls back to system.
+    theme: s.theme === "light" || s.theme === "dark" || s.theme === "system" ? s.theme : "system",
     fontSize,
   };
 }

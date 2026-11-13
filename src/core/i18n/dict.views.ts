@@ -71,7 +71,8 @@ export const en = {
   "settings.quickFontZoom": "Quick font size adjustment",
   "settings.quickFontZoomDesc": "Hold Ctrl (or Cmd) and scroll to change the font size.",
   "settings.language": "Language",
-  "settings.languageDesc": "Choose the interface language.",
+  "settings.languageDesc": "Follow the system language by default.",
+  "settings.languageSystem": "Follow system",
   "settings.showViewModeToggle": "Show view mode toggle",
   "settings.showViewModeToggleDesc": "Show the edit/read view toggle button on each tab. When off, switch with Ctrl+E.",
   "settings.focusNewTab": "Always focus new tabs",
@@ -318,9 +319,10 @@ export const en = {
   "settings.cmdPalette.noMatch": "No matching commands.",
 
   // ---- settings: about ----
-  "settings.aboutDesc":
-    "Geode is a local-first markdown knowledge base. Your notes are plain files on your own disk — link them with wikilinks, follow backlinks, and explore the connections between ideas in an interactive graph.",
-  "settings.aboutStack": "Built with Tauri 2 · React 18 · TypeScript · Vite · CodeMirror 6",
+  // ADKM: identity copy moved to src/core/product.ts (placeholders).
+  // These keys are retained so the future I18N pass has a stable slot.
+  "settings.aboutDesc": "APP_DESCRIPTION",
+  "settings.aboutStack": "APP_TECH_STACK",
 
   // ---- settings: updates (R9, desktop only) ----
   "settings.update.title": "Updates",
@@ -514,7 +516,8 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.quickFontZoom": "快速调整字体大小",
   "settings.quickFontZoomDesc": "按住 Ctrl（或 Cmd）滚动鼠标滚轮即可快速调整字号。",
   "settings.language": "语言",
-  "settings.languageDesc": "选择界面语言。",
+  "settings.languageDesc": "默认跟随系统语言，也可手动指定。",
+  "settings.languageSystem": "跟随系统",
   "settings.showViewModeToggle": "视图状态切换",
   "settings.showViewModeToggleDesc": "在每个标签页显示「编辑/阅读视图」切换按钮。关闭后可用 Ctrl+E 切换。",
   "settings.focusNewTab": "始终聚焦新标签页",
@@ -747,9 +750,9 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.cmdPalette.noMatch": "没有匹配的命令。",
 
   // ---- settings: about ----
-  "settings.aboutDesc":
-    "Geode 是一个本地优先的 Markdown 知识库。你的笔记是存放在自己磁盘上的纯文本文件——用 wikilink 连接它们、追踪反向链接，并在交互式关系图谱中探索想法之间的关联。",
-  "settings.aboutStack": "基于 Tauri 2 · React 18 · TypeScript · Vite · CodeMirror 6 构建",
+  // ADKM: 品牌文案已迁至 src/core/product.ts（占位符）。保留键位供未来 I18N 改造。
+  "settings.aboutDesc": "APP_DESCRIPTION",
+  "settings.aboutStack": "APP_TECH_STACK",
 
   // ---- settings: updates (R9, desktop only) ----
   "settings.update.title": "更新",

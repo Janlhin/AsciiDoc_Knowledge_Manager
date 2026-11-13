@@ -21,7 +21,7 @@ import {
   parseHotkey,
   type KeyEventLike,
 } from "@core/commands";
-import { t } from "@core/i18n";
+import { watchSystemLocale, t } from "@core/i18n";
 import { DocumentManager } from "@core/documents";
 import { EventBus } from "@core/events";
 import { renameWithLinkUpdate, type LinkRewriteResult } from "@core/linkRewrite";
@@ -224,6 +224,7 @@ async function bootstrap() {
 
   workspace.applyDocumentEffects();
   workspace.watchSystemTheme(); // R79: re-resolve "system" theme on OS scheme flip
+  watchSystemLocale(); // ADKM: re-resolve "system" language on OS locale flip
   // close-time flushing covers every open document (single source of dirty state)
   workspace.registerFlusher(() => documents.flushAll());
 

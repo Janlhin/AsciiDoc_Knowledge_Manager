@@ -118,7 +118,8 @@ import {
   setPagePreviewEnabled,
   setPagePreviewRequireModifier,
 } from "@core/hover";
-import { locale, setLocale, useI18n, type I18nKey } from "@core/i18n";
+import { localePref, setLocale, useI18n, type I18nKey, type LocalePref } from "@core/i18n";
+import { PRODUCT } from "@core/product";
 import type { ThemeKind, Command } from "@core/types";
 import { autoUpdateLinks, setAutoUpdateLinks } from "@core/linkRewrite";
 import {
@@ -151,9 +152,10 @@ import {
 } from "@core/update";
 import "./settings.scss";
 
-/** Current app version — single source for the About card and the update row. */
-// exported (R217) so app:show-debug-info reuses the same constant — no 4th version hardcode.
-export const APP_VERSION = "0.269.0";
+/** Current app version — single source for the About card and the update row.
+ *  ADKM: value comes from the product placeholder file; see docs/product-placeholders.md.
+ *  Exported (R217) so app:show-debug-info reuses the same constant. */
+export const APP_VERSION: string = PRODUCT.version;
 
 type SectionId =
   | "about"
@@ -2609,18 +2611,21 @@ function CommandPaletteSection() {
 
 function AboutSection() {
   const t = useI18n();
-  const currentLocale = useStore(locale);
+  // ADKM: the dropdown binds the PREFERENCE (may be "system"), while `t()`
+  // keeps reading the resolved `locale`. See core/i18n.ts.
+  const currentPref = useStore(localePref);
   return (
     <section>
       <h2 className="settings-heading">{t("settings.section.about")}</h2>
       {updateSupported() && <UpdateSection />}
       <div className="about-card">
-        <div className="about-logo">💎</div>
+        {/* ADKM: all identity strings come from one placeholder file. */}
+        <div className="about-logo">{PRODUCT.logo}</div>
         <div className="about-title">
-          Geode <span className="about-version">{APP_VERSION}</span>
+          {PRODUCT.name} <span className="about-version">{APP_VERSION}</span>
         </div>
-        <p className="about-desc">{t("settings.aboutDesc")}</p>
-        <p className="about-stack">{t("settings.aboutStack")}</p>
+        <p className="about-desc">{PRODUCT.description}</p>
+        <p className="about-stack">{PRODUCT.techStack}</p>
       </div>
 
       <div className="setting-item">
@@ -2631,11 +2636,12 @@ function AboutSection() {
         <select
           className="settings-select"
           data-testid="settings-language"
-          value={currentLocale}
+          value={currentPref}
           aria-label={t("settings.language")}
-          onChange={(e) => setLocale(e.target.value === "zh" ? "zh" : "en")}
+          onChange={(e) => setLocale(e.target.value as LocalePref)}
         >
-          {/* option labels are self-named — never translated */}
+          {/* ADKM: "Follow system" is the default; option labels are self-named */}
+          <option value="system">{t("settings.languageSystem")}</option>
           <option value="en">English</option>
           <option value="zh">中文</option>
         </select>

@@ -1,0 +1,179 @@
+= 产品占位符与国际化改造清单
+:revnumber: 1.0.0
+:revdate: 2026-11-13
+:status: active
+:toc: macro
+:sectnums:
+
+toc::[]
+
+== 这份文档管什么
+
+关于页、欢迎页、窗口标题里原本写着上游 Geode 的品牌文案与过期技术栈（还写着 React 18 / Vite 6，实际已是 React 19.3 / vite-plus 1.6）。这些值现在**全部换成占位符**，等待项目所有者填写。
+
+同时把「界面语言」与「基础明暗」的默认值改为**跟随系统**，并把完整的 I18N 改造登记为未来任务。
+
+== 单一事实来源
+
+所有面向用户的产品身份字符串集中在 `src/core/product.ts`：
+
+[source,typescript]
+----
+export const PRODUCT = {
+  name: "APP_NAME",
+  version: "0.0.0",
+  tagline: "APP_TAGLINE",
+  description: "APP_DESCRIPTION",
+  techStack: "APP_TECH_STACK",
+  logo: "APP_LOGO",
+  credit: "APP_CREDIT",
+} as const;
+----
+
+消费方只读常量，不自行拼接品牌文案。这是为未来 I18N 预留的接缝：届时必须改动的文件只有这一个。
+
+== 待填清单
+
+[cols="1,2,2",options="header"]
+|===
+|占位符 |出现位置 |说明
+
+|`APP_NAME`
+|`src/core/product.ts`、`index.html` 的 `<title>`、`src-tauri/tauri.conf.json` 的 `app.windows[0].title`
+|三处必须同步。前两处是页面标题，第三处是原生窗口标题
+
+|`APP_VERSION`
+|不再使用；显示版本由 `PRODUCT.version` 提供
+|真实构建版本以 `package.json` / `tauri.conf.json` 的 `version` 为准，`PRODUCT.version` 只是展示值
+
+|`APP_TAGLINE`
+|`src/core/product.ts`；词表 `app.vaultTagline` 也已改为占位符
+|欢迎页 / 空库提示的一句话
+
+|`APP_DESCRIPTION`
+|`src/core/product.ts`；词表 `settings.aboutDesc`（en/zh）保留占位符
+|关于页长描述
+
+|`APP_TECH_STACK`
+|`src/core/product.ts`；词表 `settings.aboutStack`（en/zh）保留占位符
+|原文已过期，填写时按当前实际技术栈写
+
+|`APP_LOGO`
+|`src/core/product.ts`；关于页与欢迎页
+|当前是字符占位，未来替换为图标组件或资源路径
+
+|`APP_CREDIT`
+|`src/core/product.ts`（已定义，暂未渲染）
+|版权 / 归属行，需要时再在关于页接出来
+|===
+
+=== 不能只改字符串的项目
+
+以下属于**构建期标识**，改动会连带影响数据目录、包名与升级链路，填写前必须单独评估：
+
+[cols="2,3",options="header"]
+|===
+|项 |改动后果
+
+|`src-tauri/tauri.conf.json` 的 `identifier`（当前 `com.geode.knowledgebase`）
+|WebView2 用户数据目录、localStorage、工作区状态都按它隔离。改了等于换一个应用，旧设置全部不可见
+
+|`package.json` 的 `name`
+|影响 npm 脚本产物名与部分工具链约定
+
+|`productName` / 安装包名 / 图标文件
+|影响开始菜单、卸载项、升级器匹配；与 `TAURI_SIGNING_PRIVATE_KEY` 的签名链路相关
+
+|`src/app/AppContext.tsx` 的 `GeodeApp` 类型名
+|纯内部标识符，非展示数据；改名波及 50+ 处 import，收益为零，**建议保留**
+|===
+
+因此本次只改了 `title` 字段，没有碰 `identifier`。
+
+== 系统默认
+
+=== 语言
+
+[cols="1,3",options="header"]
+|===
+|项 |实现
+
+|偏好类型
+|新增 `LocalePref = "system" \| "en" \| "zh"`，默认 `system`
+
+|生效语言
+|`locale` store 仍是 `"en" \| "zh"`，由 `resolveLocale(pref)` 解析。50+ 处消费方零改动
+
+|持久化
+|沿用 `geode.locale`；历史值 `en` / `zh` 仍被尊重（用户显式选过），无存储时才用 `system`
+
+|系统变化
+|`watchSystemLocale()` 监听 `languagechange`，启动时注册；偏好为 `system` 时重算
+
+|界面
+|设置 → 关于 → 语言下拉新增「跟随系统 / Follow system」，列为第一项
+|===
+
+=== 基础明暗与原生控件
+
+[cols="1,3",options="header"]
+|===
+|项 |实现
+
+|主题默认值
+|`src/core/workspace.ts` 的默认 `theme` 由 `dark` 改为 `system`；恢复持久化状态时未知值回退 `system`，显式的 light/dark 仍尊重
+
+|已有能力
+|`resolveTheme()`、`watchSystemTheme()`、`data-theme` 切换本来就在，本次只是把默认值拨过去，没有重写主题引擎
+
+|原生控件
+|`src/styles/app.scss` 增加 `color-scheme`：默认 `light dark`，并随 `data-theme` 收敛为 `light` / `dark`。滚动条、下拉框、输入框跟随系统
+
+|品牌强调色
+|**未改为系统强调色**，见下
+|===
+
+**为什么强调色没动。** `app.scss` 的 `:root` 调色板与 `src/compat/obsidian/theme-bridge.css` 有逐字同步义务（文件头注释明确声明），且兼容层会在 `body` 作用域把 Geode 变量重指向 Obsidian 变量。直接在 `:root` 覆盖 `--accent` 会被兼容层吃掉，结果不可预测；改主题桥接又会破坏「未安装 Obsidian 主题时零视觉变化」这条承诺。
+
+因此品牌色被列为**待填占位符**（未来由所有者决定），当前保留上游色板。这是本次唯一没有完全按字面执行的一条，理由记录在此。
+
+== 未来 I18N 改造
+
+当前是「占位符 + 中英双词表」的过渡状态，不是完整国际化。建议按此顺序推进：
+
+. **确定产品文案**（本清单的待填项）。先把 `PRODUCT` 的七个值填成真实内容。
+. **让 `PRODUCT` 支持按语言取值**。把常量对象换成 `Record<Locale, ProductStrings>`，`resolveLocale()` 已在 `src/core/i18n.ts` 集中，新增语种只需改这一个函数。
+. **回收词表占位键**。`settings.aboutDesc`、`settings.aboutStack`、`app.vaultTagline` 现在已无消费方，键位保留是为了给这一步一个稳定落点；届时决定是删除还是改为按 locale 读取。
+. **加词条完整性校验**。en / zh 两份词表的键集合必须一致，缺键、多键在 `npm run verify` 里报错。
+. **扩展语种与回退链**。当前只有 en / zh，且 `t()` 是「当前语言 → en → 键名」。多语种时把回退链显式化，并处理复数、日期、方向性（RTL）。
+. **检查硬编码**。全仓仍有用中文或英文直接写在组件里的字符串（不经过 `t()`），需要一轮扫描收编。
+
+=== 为什么现在不做完整改造
+
+完整 I18N 会同时改动词表结构、`t()` 签名、50+ 处调用点和构建校验链。在产品名、描述、目标语言都还没定的情况下先做，等于把结构建立在会变的假设上。先收敛到单一入口，等身份信息填好再动结构，返工面最小。
+
+== 决策记录（待归档）
+
+**D-011（待归档到 `DECISIONS.md`）**：产品身份字符串集中到 `src/core/product.ts` 并改为占位符；语言与主题默认值改为跟随系统。
+
+*被否决方案*：直接把 Geode 文案换成 ADKM 文案 —— 否决理由：产品定位与命名尚未定案，写死会再改一次，且会散落到多个词表文件。
+
+*复审条件*：产品名确定时，按「待填清单」逐项替换；届时同步评估 `identifier` 是否需要在正式发布前变更（越早改代价越小）。
+
+本条暂记于此，是因为 `DECISIONS.md` 正被另一条 PR 修改，避免合并冲突；两条 PR 都落地后移入。
+
+**T-016（待登记到 `TASKS.md`）**：完整 I18N 改造，按上一节六步推进。完成判据：`npm run verify` 退出码 0，且词条完整性校验脚本对 en/zh 键集合零差异。
+
+== 验收
+
+[source,sh]
+----
+npm run verify
+# 退出码 0，构建产物 CSS 规则集合不应少于改造前
+
+# 人工核对（桌面版）
+# 1. 设置 → 关于：显示 APP_NAME / APP_DESCRIPTION / APP_TECH_STACK 等占位符，无 Geode 品牌文案
+# 2. 语言下拉第一项为「跟随系统」，默认选中（无历史偏好时）
+# 3. 外观 → 主题默认「跟随系统」；切换系统明暗后应用随之切换
+# 4. 欢迎页标题为占位符，不出现 💎 Geode
+----
