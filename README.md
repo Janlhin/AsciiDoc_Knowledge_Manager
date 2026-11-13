@@ -172,6 +172,19 @@ docs/               项目文档与规范原文
 | [`README.md`](README.md) | 本项目适用的工程校验规范 v1.22.0 |
 | [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单、许可义务 |
 
+### 战略与决策文档
+
+| 文件 | 职责 |
+| --- | --- |
+| [`docs/project-charter-v2.adoc`](docs/project-charter-v2.adoc) | 产品章程：定位、P0 目标、能力分层 L1–L4 |
+| [`docs/route-evaluation.adoc`](docs/route-evaluation.adoc) | 底座选型的评估方法与候选对照 |
+| [`docs/obsidian-clone-report.adoc`](docs/obsidian-clone-report.adoc) | Obsidian 克隆候选的横向核查 |
+| [`docs/obsidian-reverse-engineering.adoc`](docs/obsidian-reverse-engineering.adoc) | Obsidian 本体逆向结论与落点映射 |
+| [`docs/geode-baseline.adoc`](docs/geode-baseline.adoc) | 底座现状基线：与目标的差距对照 |
+| [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
+| [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |
+| [`CHANGELOG.adoc`](CHANGELOG.adoc) | 版本变更记录 |
+
 ## 来源与许可
 
 本项目基于 [Geode](https://github.com/AlexHercules/geode)，Apache License 2.0。
