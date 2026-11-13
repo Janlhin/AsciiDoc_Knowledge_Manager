@@ -30,9 +30,9 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "dev": "vp dev",
+    "build": "tsc --noEmit && vp build",
+    "preview": "vp preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run build"
@@ -71,6 +71,10 @@
     "@vitejs/plugin-react": "^4.3.4",
     "sass": "^1.108.2",
     "typescript": "^7.0.2",
-    "vite": "^6.0.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0",
+    "vite-plus": "1.6.0"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0"
   }
 }
