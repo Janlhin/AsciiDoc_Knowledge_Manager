@@ -24,6 +24,7 @@ import { useStore } from "@core/store";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { foldedPropertiesPaths, togglePropertiesFold } from "./foldProperties";
+import type { JSX } from "react";
 
 /**
  * PropertiesPanel (R22) — structured frontmatter editor rendered at the top of

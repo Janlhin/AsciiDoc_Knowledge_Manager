@@ -31,3 +31,6 @@ compat-vault/
 .env
 .env.local
 .env.*.local
+
+# Windows 设备名残留（asciidoctor -o /dev/null 在 Git Bash 下误建）
+nul
