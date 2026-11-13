@@ -43,6 +43,7 @@ import {
   setFoldHeading,
   defaultNewTabMode,
   setDefaultNewTabMode,
+  setDefaultPreviewMode,
   defaultEditMode,
   setDefaultEditMode,
   tabIndentSize,
@@ -742,6 +743,7 @@ function EditorSection() {
   const backlinksInDoc = useStore(showBacklinksInDocument);
   const foldH = useStore(foldHeading);
   const newTabMode = useStore(defaultNewTabMode);
+  const defaultPreview = newTabMode === "preview";
   const editMode = useStore(defaultEditMode);
   /* R92: editor indentation — indent using tabs + tab indent size */
   const useTabs = useStore(indentUsingTabs);
@@ -771,26 +773,28 @@ function EditorSection() {
         </button>
       </div>
 
-      {/* R272: Obsidian splits this into two orthogonal dropdowns (reference 01-编辑器-01):
-          「默认视图模式」editing/reading × 「默认编辑模式」live/source — not one 3-way control.
-          The combined `defaultNewTabMode` stays the single source of truth consumed by
-          workspace.openFile; these dropdowns read/write it + the remembered `defaultEditMode`,
-          so the edit-mode choice survives switching the view to Reading (R272). */}
+      {/* R272: Obsidian's "默认视图模式" becomes an orthogonal pair here: a single
+          "默认打开预览模式" switch (Reading view ⇄ editing) × the "默认编辑模式"
+          live/source dropdown. The combined `defaultNewTabMode` stays the single
+          source of truth consumed by workspace.openFile; the switch reads/writes it
+          (preview ⇄ the remembered edit mode) and the edit-mode dropdown remembers
+          live/source so toggling preview off lands there. The Ctrl+E cycle command
+          (App.tsx) drives the same store, so the switch stays in sync with it. */}
       <div className="setting-item">
         <div className="setting-info">
-          <div className="setting-name">{t("settings.defaultNewTabMode")}</div>
-          <div className="setting-desc">{t("settings.defaultNewTabModeDesc")}</div>
+          <div className="setting-name">{t("settings.defaultPreviewMode")}</div>
+          <div className="setting-desc">{t("settings.defaultPreviewModeDesc")}</div>
         </div>
-        <select
-          className="settings-select"
-          data-testid="settings-newtab-view"
-          value={newTabMode === "preview" ? "read" : "edit"}
-          aria-label={t("settings.defaultNewTabMode")}
-          onChange={(e) => setDefaultNewTabMode(e.target.value === "read" ? "preview" : editMode)}
+        <button
+          className={`settings-toggle${defaultPreview ? " is-on" : ""}`}
+          role="switch"
+          aria-checked={defaultPreview}
+          aria-label={t("settings.defaultPreviewMode")}
+          data-testid="settings-default-preview-toggle"
+          onClick={() => setDefaultPreviewMode(!defaultPreview)}
         >
-          <option value="edit">{t("settings.viewEditing")}</option>
-          <option value="read">{t("settings.viewReading")}</option>
-        </select>
+          <span className="settings-toggle-thumb" />
+        </button>
       </div>
 
       <div className="setting-item">
