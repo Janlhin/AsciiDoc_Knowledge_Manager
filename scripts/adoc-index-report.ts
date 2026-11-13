@@ -7,7 +7,7 @@
  * `MetadataIndex`（不是另写一份解析），所以它给出的数字与应用内一致。
  *
  * 用法:
- *   node scripts/adoc-index-report.mjs <目录> [--min-adoc N] [--json]
+ *   node scripts/adoc-index-report.ts <目录> [--min-adoc N] [--json]
  *
  * 退出码:
  *   0  报告已产出，且 adoc 文档数 ≥ --min-adoc（默认 1）
@@ -22,7 +22,7 @@ const flags = new Set(argv.filter((a) => a.startsWith("--")));
 const positional = argv.filter((a) => !a.startsWith("--"));
 const vaultDir = positional[0];
 
-function flagValue(name, fallback) {
+function flagValue(name: string, fallback: number): number {
   const hit = argv.find((a) => a.startsWith(`${name}=`));
   if (hit) return Number(hit.slice(name.length + 1));
   const idx = argv.indexOf(name);
@@ -31,7 +31,7 @@ function flagValue(name, fallback) {
 }
 
 if (!vaultDir) {
-  console.error("用法: node scripts/adoc-index-report.mjs <目录> [--min-adoc N] [--json]");
+  console.error("用法: node scripts/adoc-index-report.ts <目录> [--min-adoc N] [--json]");
   process.exit(2);
 }
 
@@ -39,7 +39,7 @@ const root = resolve(vaultDir);
 try {
   if (!statSync(root).isDirectory()) throw new Error("不是目录");
 } catch (err) {
-  console.error(`无法读取目录: ${root} (${err.message})`);
+  console.error(`无法读取目录: ${root} (${(err as Error).message})`);
   process.exit(2);
 }
 
@@ -48,8 +48,31 @@ const JSON_OUT = flags.has("--json");
 const EXT_LIMIT = 200 * 1024;
 const SKIP_DIRS = new Set([".git", ".obsidian", "node_modules", ".trash"]);
 
-const toPosix = (p) => p.split(sep).join("/");
-function walk(dir, acc = []) {
+/** 一条未能解析的 adoc 链接。 */
+interface UnresolvedLink {
+  from: string;
+  target: string;
+  syntax: string;
+  /** 区分两类：属性没定义 → 扫描器无能为力；目标真的不存在 → 真断链 */
+  reason: string;
+}
+
+/** 报告的最终结构。 */
+interface IndexReport {
+  vault: string;
+  scanned: { md: number; adoc: number; skippedLarge: number };
+  indexed: number;
+  elapsedMs: number;
+  graph: { nodes: number; edges: number };
+  adocLinks: number;
+  bySyntax: Record<string, number>;
+  unresolved: { total: number; placeholders: number; missing: number };
+  unresolvedDetail: UnresolvedLink[];
+}
+
+const toPosix = (p: string): string => p.split(sep).join("/");
+
+function walk(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (SKIP_DIRS.has(entry.name)) continue;
     const full = join(dir, entry.name);
@@ -65,7 +88,7 @@ function walk(dir, acc = []) {
 // 盲点，不是数据的真相。内容留空即可：索引期只查附件路径，不读其字节。
 // 超过 EXT_LIMIT 的文档整份跳过（不登记），否则一份 48 MB 的导出笔记会拖死脚本，
 // 而且它若以空串参与索引，会变成一条「存在但内容为空」的假记录。
-const seed = {};
+const seed: Record<string, string> = {};
 let skippedLarge = 0;
 let md = 0;
 let adoc = 0;
@@ -87,74 +110,85 @@ for (const full of walk(root)) {
   else adoc++;
 }
 
-// 用 Vite 的 SSR 模块加载器跑源码：Node 的 type stripping 不支持 TS 参数属性
-// （`constructor(private vault: Vault)`），而这些核心类大量使用它。
-const { createServer } = await import("vite");
-const server = await createServer({
-  configFile: false,
-  root: resolve(import.meta.dirname, ".."),
-  logLevel: "error",
-  server: { middlewareMode: true, hmr: false },
-  appType: "custom",
-  optimizeDeps: { noDiscovery: true },
-});
+/**
+ * 用 Vite 的 SSR 模块加载器跑源码：Node 的 type stripping 不支持 TS 参数属性
+ * （`constructor(private vault: Vault)`），而这些核心类大量使用它。
+ */
+async function buildReport(): Promise<IndexReport> {
+  const { createServer } = await import("vite");
+  const viteConfig = {
+    configFile: false,
+    root: resolve(import.meta.dirname, ".."),
+    logLevel: "error",
+    server: { middlewareMode: true, hmr: false },
+    appType: "custom",
+    optimizeDeps: { noDiscovery: true },
+  } as unknown as Parameters<typeof createServer>[0];
+  const server = await createServer(viteConfig);
 
-let report;
-try {
-  const { Vault, MemoryVaultAdapter } = await server.ssrLoadModule("/src/core/vault.ts");
-  const { MetadataIndex } = await server.ssrLoadModule("/src/core/metadata.ts");
-  const { EventBus } = await server.ssrLoadModule("/src/core/events.ts");
+  try {
+    const { Vault, MemoryVaultAdapter } = await server.ssrLoadModule("/src/core/vault.ts");
+    const { MetadataIndex } = await server.ssrLoadModule("/src/core/metadata.ts");
+    const { EventBus } = await server.ssrLoadModule("/src/core/events.ts");
 
-  const events = new EventBus();
-  const vault = new Vault(new MemoryVaultAdapter(seed), events);
-  await vault.load();
+    const events = new EventBus();
+    const vault = new Vault(new MemoryVaultAdapter(seed), events);
+    await vault.load();
 
-  const index = new MetadataIndex(vault, events);
-  const t0 = performance.now();
-  await index.rebuildAll();
-  const elapsedMs = performance.now() - t0;
+    const index = new MetadataIndex(vault, events);
+    const t0 = performance.now();
+    await index.rebuildAll();
+    const elapsedMs = performance.now() - t0;
 
-  const all = index.getAll();
-  const graph = index.getGraph();
+    const all = index.getAll();
+    const graph = index.getGraph();
 
-  const bySyntax = { xref: 0, "xref-short": 0, "link-macro": 0, include: 0 };
-  const unresolved = [];
-  let adocLinks = 0;
-  for (const meta of all) {
-    if (!meta.path.toLowerCase().endsWith(".adoc")) continue;
-    adocLinks += meta.links.length;
-    for (const link of meta.links) {
-      if (link.syntax) bySyntax[link.syntax]++;
-      if (index.resolveByKind(link, meta.path) !== null) continue;
-      unresolved.push({
-        from: meta.path,
-        target: link.target,
-        syntax: link.syntax ?? "?",
-        // 区分两类：属性没定义 → 扫描器无能为力；目标真的不存在 → 真断链
-        reason: /\{[A-Za-z0-9_-]+\}/.test(link.target) ? "属性未定义" : "目标不存在",
-      });
+    const bySyntax: Record<string, number> = {
+      xref: 0,
+      "xref-short": 0,
+      "link-macro": 0,
+      include: 0,
+    };
+    const unresolved: UnresolvedLink[] = [];
+    let adocLinks = 0;
+    for (const meta of all) {
+      if (!meta.path.toLowerCase().endsWith(".adoc")) continue;
+      adocLinks += meta.links.length;
+      for (const link of meta.links) {
+        if (link.syntax) bySyntax[link.syntax] = (bySyntax[link.syntax] ?? 0) + 1;
+        if (index.resolveByKind(link, meta.path) !== null) continue;
+        unresolved.push({
+          from: meta.path,
+          target: link.target,
+          syntax: link.syntax ?? "?",
+          // 区分两类：属性没定义 → 扫描器无能为力；目标真的不存在 → 真断链
+          reason: /\{[A-Za-z0-9_-]+\}/.test(link.target) ? "属性未定义" : "目标不存在",
+        });
+      }
     }
-  }
 
-  const unresolvedPlaceholders = unresolved.filter((u) => u.reason === "属性未定义").length;
-  report = {
-    vault: root,
-    scanned: { md, adoc, skippedLarge },
-    indexed: all.length,
-    elapsedMs: Math.round(elapsedMs),
-    graph: { nodes: graph.nodes.length, edges: graph.edges.length },
-    adocLinks,
-    bySyntax,
-    unresolved: {
-      total: unresolved.length,
-      placeholders: unresolvedPlaceholders,
-      missing: unresolved.length - unresolvedPlaceholders,
-    },
-    unresolvedDetail: unresolved.slice(0, 40),
-  };
-} finally {
-  await server.close();
+    const unresolvedPlaceholders = unresolved.filter((u) => u.reason === "属性未定义").length;
+    return {
+      vault: root,
+      scanned: { md, adoc, skippedLarge },
+      indexed: all.length,
+      elapsedMs: Math.round(elapsedMs),
+      graph: { nodes: graph.nodes.length, edges: graph.edges.length },
+      adocLinks,
+      bySyntax,
+      unresolved: {
+        total: unresolved.length,
+        placeholders: unresolvedPlaceholders,
+        missing: unresolved.length - unresolvedPlaceholders,
+      },
+      unresolvedDetail: unresolved.slice(0, 40),
+    };
+  } finally {
+    await server.close();
+  }
 }
+
+const report = await buildReport();
 
 if (JSON_OUT) {
   console.log(JSON.stringify(report, null, 2));

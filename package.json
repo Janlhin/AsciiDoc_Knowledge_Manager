@@ -35,8 +35,9 @@
     "preview": "vp preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run build",
-    "report:index": "node scripts/adoc-index-report.mjs"
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json",
+    "verify": "npm run typecheck && npm run typecheck:scripts && npm run build",
+    "report:index": "node scripts/adoc-index-report.ts"
   },
   "dependencies": {
     "@asciidoctor/core": "^4.2.1",
@@ -73,6 +74,7 @@
     "@types/d3-force": "^3.0.10",
     "@types/katex": "^0.16.8",
     "@types/markdown-it": "^14.1.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.3.4",

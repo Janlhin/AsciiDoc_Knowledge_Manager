@@ -6,23 +6,38 @@ import { writeFileSync } from "node:fs";
 const S = 1024;
 const px = new Uint8Array(S * S * 4);
 
-const inRoundedRect = (x, y, r) => {
+const inRoundedRect = (x: number, y: number, r: number): boolean => {
   const m = 64; // margin
-  const x0 = m, y0 = m, x1 = S - m, y1 = S - m;
+  const x0 = m,
+    y0 = m,
+    x1 = S - m,
+    y1 = S - m;
   if (x < x0 || x >= x1 || y < y0 || y >= y1) return false;
   const cx = Math.max(x0 + r, Math.min(x, x1 - r));
   const cy = Math.max(y0 + r, Math.min(y, y1 - r));
-  return (x - cx) ** 2 + (y - cy) ** 2 <= r * r || (x >= x0 + r && x < x1 - r) || (y >= y0 + r && y < y1 - r);
+  return (
+    (x - cx) ** 2 + (y - cy) ** 2 <= r * r ||
+    (x >= x0 + r && x < x1 - r) ||
+    (y >= y0 + r && y < y1 - r)
+  );
 };
 
 // gem: hexagon-ish diamond centered at (512, 512)
-const gemPath = [
-  [512, 240], [760, 420], [660, 790], [364, 790], [264, 420],
+type Point = [number, number];
+
+const gemPath: Point[] = [
+  [512, 240],
+  [760, 420],
+  [660, 790],
+  [364, 790],
+  [264, 420],
 ];
-function inPoly(x, y, pts) {
+
+function inPoly(x: number, y: number, pts: Point[]): boolean {
   let inside = false;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
@@ -36,15 +51,26 @@ for (let y = 0; y < S; y++) {
       continue;
     }
     // background: deep slate
-    let r = 30, g = 30, b = 36, a = 255;
+    let r = 30,
+      g = 30,
+      b = 36;
+    const a = 255;
     if (inPoly(x, y, gemPath)) {
       // purple gem with vertical gradient + simple facet shading
       const t = (y - 240) / 550;
       r = Math.round(139 + (108 - 139) * t);
       g = Math.round(124 + (92 - 124) * t);
       b = Math.round(246 + (231 - 246) * t);
-      if (x < 512 && y < 512) { r += 25; g += 25; b += 6; }      // top-left facet highlight
-      if (x >= 512 && y >= 512) { r -= 18; g -= 18; b -= 10; }   // bottom-right facet shade
+      if (x < 512 && y < 512) {
+        r += 25;
+        g += 25;
+        b += 6;
+      } // top-left facet highlight
+      if (x >= 512 && y >= 512) {
+        r -= 18;
+        g -= 18;
+        b -= 10;
+      } // bottom-right facet shade
     }
     px[i] = Math.min(255, Math.max(0, r));
     px[i + 1] = Math.min(255, Math.max(0, g));
@@ -54,18 +80,20 @@ for (let y = 0; y < S; y++) {
 }
 
 // ---- PNG encode ----
-const crcTable = [];
+const crcTable: number[] = [];
 for (let n = 0; n < 256; n++) {
   let c = n;
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
   crcTable[n] = c >>> 0;
 }
-const crc32 = (buf) => {
+
+const crc32 = (buf: Buffer): number => {
   let c = 0xffffffff;
   for (const byte of buf) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 };
-const chunk = (type, data) => {
+
+const chunk = (type: string, data: Buffer): Buffer => {
   const len = Buffer.alloc(4);
   len.writeUInt32BE(data.length);
   const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
@@ -77,8 +105,8 @@ const chunk = (type, data) => {
 const ihdr = Buffer.alloc(13);
 ihdr.writeUInt32BE(S, 0);
 ihdr.writeUInt32BE(S, 4);
-ihdr[8] = 8;  // bit depth
-ihdr[9] = 6;  // RGBA
+ihdr[8] = 8; // bit depth
+ihdr[9] = 6; // RGBA
 
 const raw = Buffer.alloc(S * (S * 4 + 1));
 for (let y = 0; y < S; y++) {

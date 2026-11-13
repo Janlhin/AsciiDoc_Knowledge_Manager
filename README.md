@@ -57,7 +57,7 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
 **换句话说：adoc 现在能进图、能参与反链、阅读视图也正常，剩下的主要缺口是编辑器内的语言支持与校验界面。** 想核对索引结果跑：
 
 ```sh
-node scripts/adoc-index-report.mjs "D:/你的文件夹" --min-adoc 1
+node scripts/adoc-index-report.ts "D:/你的文件夹" --min-adoc 1
 ```
 
 ## 技术栈
