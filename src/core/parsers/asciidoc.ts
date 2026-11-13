@@ -6,6 +6,9 @@
  *  - 块级结构（章节层级）用行首标记判定，行内引用在块内容上扫描
  *  - 属性替换必须求值，否则 xref:{attr} 无法解析
  *  - 渲染阶段再按需懒加载 Asciidoctor.js
+ *
+ * 与渲染路径的已知偏差（计划 P3）：条件包含 `ifdef`、变量默认值、跨文件属性
+ * 一律按文本原样处理。索引结果不得声称等同渲染结果。
  */
 import type { HeadingRef, LinkRef, NoteMetadata, TagRef } from "../types";
 
@@ -15,15 +18,49 @@ const SHORT_XREF = /<<([^<>\n]+)>>/g;
 const INCLUDE = /^include::([^\[]+)\[/;
 const ATTR_LINE = /^:([A-Za-z0-9_-]+):\s*(.*)$/;
 const HEADING = /^(={1,6})\s+(.+)$/;
-const BLOCK_DELIM = /^(\/{4}|-{4,}|\.{4,}|\+{4,}|_{4,}|\*{4,}|={4,})$/;
+/**
+ * 只有「逐字块」内部的文本不参与链接扫描。
+ *
+ * 这里曾经把 `====`（示例块）、`****`（侧栏）、`____`（引用）、`--`（开放块）
+ * 也一并屏蔽，结果 `[WARNING]\n====\n…\n====` 里的 xref 被静默丢弃。
+ * 那四种块的内部仍是正常 AsciiDoc，必须照常扫描。
+ */
+const VERBATIM_FENCE = /^(\/{4}|-{4,}|\.{4,}|\+{4,}|\${4})$/;
+
+interface SourceLine {
+  /** line text with the CR of a CRLF pair removed */
+  text: string;
+  /** exact character offset of the line start in the source */
+  start: number;
+}
+
+/**
+ * ADKM: split preserving exact offsets.
+ *
+ * `content.split("\n")` cannot be used: every line then keeps a trailing `\r`
+ * on CRLF files, which breaks the `$`-anchored block delimiter match (a
+ * `----\r` line would no longer be recognised as a block fence) and would let
+ * listing-block content leak into the link scan. Offsets come from the real
+ * index rather than `length + 1`, so LF and CRLF both stay exact.
+ */
+function splitLines(content: string): SourceLine[] {
+  const out: SourceLine[] = [];
+  let start = 0;
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) !== 10) continue;
+    const end = i > start && content.charCodeAt(i - 1) === 13 ? i - 1 : i;
+    out.push({ text: content.slice(start, end), start });
+    start = i + 1;
+  }
+  out.push({ text: content.slice(start), start });
+  return out;
+}
 
 /** 文档头属性：只取正文之前的连续属性行 */
-function collectAttributes(lines: string[]): Record<string, string> {
+function collectAttributes(lines: SourceLine[]): Record<string, string> {
   const attrs: Record<string, string> = {};
   let seenTitle = false;
-  let inHeader = true;
-  for (const line of lines) {
-    if (!inHeader) break;
+  for (const { text: line } of lines) {
     if (!seenTitle && HEADING.test(line)) {
       seenTitle = true;
       continue;
@@ -34,8 +71,8 @@ function collectAttributes(lines: string[]): Record<string, string> {
       continue;
     }
     if (line.trim() === "" || line.startsWith("//")) continue;
-    // 遇到第一段正文即视为文档头结束
-    if (seenTitle) inHeader = false;
+    // 首个非标题、非属性、非空行即正文起点，文档头结束
+    break;
   }
   return attrs;
 }
@@ -62,25 +99,20 @@ function makeSnippet(content: string, from: number, to: number): string {
 }
 
 export function parseAsciiDoc(path: string, content: string): NoteMetadata {
-  const lines = content.split("\n");
+  const lines = splitLines(content);
   const attrs = collectAttributes(lines);
 
   const links: LinkRef[] = [];
   const headings: HeadingRef[] = [];
   const tags: TagRef[] = [];
 
-  let offset = 0;
   let inBlock = false;
   let blockChar = "";
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lineStart = offset;
-    offset += line.length + 1; // 粗略：+1 覆盖 \n
-
-    const delim = BLOCK_DELIM.exec(line);
+  for (const { text: line, start: lineStart } of lines) {
+    const delim = VERBATIM_FENCE.exec(line);
     if (delim) {
-      const ch = delim[1][0];
+      const ch = delim[1];
       if (!inBlock) {
         inBlock = true;
         blockChar = ch;
@@ -115,28 +147,32 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
 
     // ---------- xref:target[text] ----------
     for (const m of line.matchAll(XREF)) {
+      const from = lineStart + m.index!;
       const target = substitute(m[1], attrs);
       links.push({
         target,
         alias: m[2] || undefined,
-        from: lineStart + m.index!,
-        to: lineStart + m.index! + m[0].length,
-        context: makeSnippet(content, lineStart + m.index!, lineStart + m.index! + m[0].length),
+        from,
+        to: from + m[0].length,
+        context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
+        syntax: "xref",
       });
     }
 
     // ---------- link:target[text] ----------
     for (const m of line.matchAll(LINK_MACRO)) {
       if (/^https?:/i.test(m[1])) continue;
+      const from = lineStart + m.index!;
       const target = substitute(m[1], attrs);
       links.push({
         target,
         alias: m[2] || undefined,
-        from: lineStart + m.index!,
-        to: lineStart + m.index! + m[0].length,
-        context: makeSnippet(content, lineStart + m.index!, lineStart + m.index! + m[0].length),
+        from,
+        to: from + m[0].length,
+        context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
+        syntax: "link-macro",
       });
     }
 
@@ -149,14 +185,16 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
       // 纯锚点（无路径分隔符、无已知扩展名）是文档内引用，不建跨文档边
       const isCrossDoc = /[\/\\]/.test(targetPart) || /\.(adoc|md|html?)$/i.test(targetPart.split("#")[0]);
       if (!isCrossDoc) continue;
+      const from = lineStart + m.index!;
       const target = substitute(targetPart, attrs);
       links.push({
         target,
         alias: reftext || undefined,
-        from: lineStart + m.index!,
-        to: lineStart + m.index! + m[0].length,
-        context: makeSnippet(content, lineStart + m.index!, lineStart + m.index! + m[0].length),
+        from,
+        to: from + m[0].length,
+        context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
+        syntax: "xref-short",
       });
     }
 
@@ -170,6 +208,7 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
         to: lineStart + line.length,
         context: makeSnippet(content, lineStart, lineStart + line.length),
         kind: "markdown",
+        syntax: "include",
       });
     }
   }
