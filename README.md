@@ -64,8 +64,8 @@ Rust 侧很薄（约 800 行），只负责文件系统、监听、对话框与�
 
 ## 环境要求
 
-- Node.js 20 或更高（实测 26.13）
-- Rust stable + Cargo（实测 1.99.1）
+- Node.js 20 或更高（仓库内 `.nvmrc` 固定为 `26.13.0`，CI 与本地以此为准）
+- Rust stable + Cargo（实测 1.99.1；Tauri 2.12 的 MSRV 为 1.90）
 - Windows：Visual Studio 2022 的 C++ 工具链 + WebView2 运行时
 - Tauri 各平台依赖见 <https://tauri.app/start/prerequisites/>
 
@@ -120,15 +120,36 @@ src/
 ├── app/            应用装配、布局、状态
 └── styles/         全局样式与主题令牌
 src-tauri/          Rust 壳（文件系统、监听、打包）
-PROVENANCE.adoc     来源、改动清单、许可义务
+public/             静态资源
+scripts/            构建期脚本（Node）
+assets/             图标等二进制素材
+docs/               项目文档与规范原文
+├── 工程约束.adoc   工程校验规范
+├── PROVENANCE.adoc         来源与许可义务
+├── CONTRIBUTING.md         协作约定
+├── SECURITY.md             安全策略
+└── mtx.config.md           工具配置说明
 ```
+
+顶层目录的职责在上一节声明；`git diff` 中出现声明范围外的路径即为需要解释的信号。
+
+## 项目文档
+
+| 文件 | 职责 |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | AI 协作约束入口（目录式，≤150 行） |
+| [`DECISIONS.md`](DECISIONS.md) | 追加式决策日志 |
+| [`TASKS.md`](TASKS.md) | 任务队列与待裁决台账 |
+| [`MANIFEST.md`](MANIFEST.md) | 第三方来源登记 |
+| [`README.md`](README.md) | 本项目适用的工程校验规范 v1.22.0 |
+| [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单、许可义务 |
 
 ## 来源与许可
 
 本项目基于 [Geode](https://github.com/AlexHercules/geode)，Apache License 2.0。
 
 - 上游基线：提交 `7a8ce22`（2026-07-04）
-- 完整来源说明、改动清单与许可义务履行情况见 [PROVENANCE.adoc](PROVENANCE.adoc)
+- 完整来源说明、改动清单与许可义务履行情况见 [docs/PROVENANCE.adoc](docs/PROVENANCE.adoc)
 - 商标：「Geode」名称与图标不在 Apache-2.0 授权范围内，本项目不以该名义发布
 - 与 Obsidian、Dynalist Inc. 无关联；「Obsidian」为其权利人商标
 
