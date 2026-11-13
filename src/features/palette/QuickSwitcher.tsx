@@ -89,7 +89,7 @@ export function QuickSwitcher() {
         ? app.vault.getFiles()
         : showAttachments
           ? app.vault.getFiles().filter((f) => f.extension === "md" || isAttachmentPath(f.path))
-          : app.vault.getMarkdownFiles(),
+          : app.vault.getIndexableFiles(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [app.vault, tree, showAllTypes, showAttachments],
   );

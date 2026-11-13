@@ -17,7 +17,7 @@ export const randomNotePlugin: GeodePlugin = {
       id: "random-note:open",
       name: () => t("cmd.randomNote"),
       callback: () => {
-        const files = app.vault.getMarkdownFiles();
+        const files = app.vault.getIndexableFiles();
         if (files.length === 0) return;
         const pick = files[Math.floor(Math.random() * files.length)];
         app.workspace.openFile(pick.path);

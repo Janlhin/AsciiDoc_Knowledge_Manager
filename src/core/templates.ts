@@ -78,7 +78,7 @@ export interface TemplateInfo {
 
 /**
  * Enumerate templates under the configured folder (recursive — subfolders
- * included via path-prefix filtering over vault.getMarkdownFiles()).
+ * included via path-prefix filtering over vault.getIndexableFiles()).
  *
  * Folder = templateFolder consumption form (trim + strip leading/trailing
  * slashes). Empty string or any ""/"."/".."/dot-prefixed segment → null
@@ -95,7 +95,7 @@ export function listTemplates(vault: Vault): TemplateInfo[] | null {
   }
   const prefix = `${folder}/`;
   return vault
-    .getMarkdownFiles()
+    .getIndexableFiles()
     .filter((f) => f.path.startsWith(prefix))
     .map((f) => ({ path: f.path, name: f.basename }))
     .sort((a, b) => a.name.localeCompare(b.name));

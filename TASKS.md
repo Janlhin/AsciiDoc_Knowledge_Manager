@@ -94,14 +94,6 @@
 - **解决**：—
 - **完成判据**：`.nvmrc` 存在且内容为有效版本号；`README.md` 中出现该文件名。
 
-### T-012 L2：AsciiDoc 接入索引（主线）
-
-- **提出**：2026-11-13
-- **计划**：[`docs/plans/L2-asciidoc-indexing.md`](docs/plans/L2-asciidoc-indexing.md)
-- **完成判据**：`npm run verify` 退出码 0；对 Blueprint 运行 `scripts/adoc-index-report.mjs`，adoc 文档数 ≥ 130；md 部分的图谱节点数与边数接入前后完全一致。
-
----
-
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
@@ -118,3 +110,4 @@
 | T-013 | 2026-11-13 | 规范原文 vendor 至 `README.md` |
 | T-014 | 2026-11-13 | 根目录散文文件迁移；`CLAUDE.md` 降为单行引用 |
 | T-015 | 2026-11-13 | vite-plus 引入后的视觉核对：主界面与改造前无可辨差异（仅主界面，其余页面未逐一核对） |
+| T-012 | 2026-11-13 | L2 完成：`.adoc` 与 `.md` 同索引。Blueprint 实测 130 篇 adoc、220 条引用、0 条未解析、全量 67 ms；md 子图接入前后逐字段一致 |

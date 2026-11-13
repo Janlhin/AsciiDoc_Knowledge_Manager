@@ -441,7 +441,7 @@ function wikilinkCompletionSource(app: GeodeApp, getPath: () => string) {
         validFor: /^[^\[\]#]*$/,
       };
     }
-    const files = app.vault.getMarkdownFiles();
+    const files = app.vault.getIndexableFiles();
     const dupCount = new Map<string, number>();
     for (const f of files) {
       const key = f.basename.toLowerCase();

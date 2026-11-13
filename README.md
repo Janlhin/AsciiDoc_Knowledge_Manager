@@ -35,29 +35,37 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
 - 反向链接、出链、大纲、搜索、命令面板、多标签与分屏
 - **Obsidian 插件与主题兼容层**（约 10,400 行），从 `.obsidian/` 加载
 - 样式体系已转 SCSS（22 个文件，编译产物与改造前逐条等价）
+- **AsciiDoc 进入索引**：`.adoc` 与 `.md` 参与同一套文件树、图谱、反链、大纲、搜索
+  - 四种引用写法都识别：`xref:path[]`、`<<path,text>>`、`link:path[]`、`include::path[]`
+  - 属性别名在文档头内求值，`xref:{spec}[]` 能解析到真实文件
+  - 实测 Blueprint 语料：130 篇 adoc、220 条引用、0 条未解析、全量索引 67 ms
 
 ### 还不能用的
 
 | 能力 | 状态 |
 | --- | --- |
-| AsciiDoc 进入文件树与图谱 | **未接线**。解析器已写（`src/core/parsers/asciidoc.ts`，193 行），但索引入口尚未分派 |
-| AsciiDoc 编辑 | 无语言模式，仅纯文本 |
-| xref 校验 | 未开始 |
+| AsciiDoc 阅读视图 | **按 Markdown 渲染**。adoc 能打开、能编辑、能进图谱，但阅读模式会把它当 Markdown 处理，标题和表格显示不对。语言模式与预览分派是 L3 |
+| xref 校验 | 索引已能判定每条引用解析到哪，但**没有校验界面**。断链清单、悬空锚点、属性未定义分类都还没做 |
 | 双语对齐 | 未开始 |
 | Canvas（`.canvas`） | 未开始。设置里有开关，门后是空的 |
 | Git 集成 | 未开始。无任何 git 调用 |
 
-**换句话说：现在打开一个 vault，只有 `.md` 会被索引。** 如果你打开一个以 adoc 为主的文件夹，会看到空目录。
+**换句话说：adoc 现在能进图、能参与反链，但读起来还不对。** 想核对索引结果跑：
+
+```sh
+node scripts/adoc-index-report.mjs "D:/你的文件夹" --min-adoc 1
+```
 
 ## 技术栈
 
 | 层 | 选型 | 版本 |
 | --- | --- | --- |
-| 桌面壳 | Tauri | 2.x |
-| 界面 | React | 18.3 |
-| 语言 | TypeScript | 5.7 |
-| 编辑器 | CodeMirror | 6.x |
-| 构建 | Vite | 6.x |
+| 桌面壳 | Tauri | 2.12 |
+| 界面 | React | 19.3 |
+| 语言 | TypeScript | 7.0 |
+| 编辑器 | CodeMirror | 6.43 |
+| 构建 | vite-plus（内含 Vite 8 + Rolldown） | 1.6 |
+| 样式 | Sass（SCSS） | 1.108 |
 | 样式 | SCSS（`sass`） | 1.108 |
 
 Rust 侧很薄（约 800 行），只负责文件系统、监听、对话框与打包。业务逻辑全在 TypeScript。
@@ -91,11 +99,25 @@ npx tauri build
 产物：
 
 ```
-src-tauri/target/release/geode.exe                              约 7.6 MB
+src-tauri/target/release/geode.exe                              约 5.1 MB
 src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 ```
 
 `tauri build` 结束时会出现 `A public key has been found, but no private key` 错误。那是自动更新签名缺少私钥，**安装包已经生成**，不影响本地使用。要消除需设置 `TAURI_SIGNING_PRIVATE_KEY`。
+
+> **不要只跑 `cargo build --release`。** exe 里嵌入的 `dist/` 资源由 `tauri build` 链路刷新；只编译 Rust 侧会得到一个能启动、但**界面全白**的 exe（窗口标题在、Local Storage 也在写，就是没有 UI）。2026-11-13 实测踩过：改成 `npx tauri build --no-bundle` 重编一次即恢复。改完前端代码必须走完整链路。
+
+## 启动
+
+双击 `run-adkm.ps1`（右键 →「使用 PowerShell 运行」），或直接：
+
+```sh
+src-tauri/target/release/geode.exe "C:\Users\Janlhin\Desktop\Blueprint"
+```
+
+第一个参数会被当成 vault 根目录，跳过文件夹选择对话框。省略参数则恢复上次打开的库。
+
+首次打开 `Blueprint` 时，`.obsidian/` 里的四个插件会被兼容层加载，设置弹窗可能自动出现；点右上角 × 关掉即可看到图谱。
 
 ## 开发时的一条硬规矩
 

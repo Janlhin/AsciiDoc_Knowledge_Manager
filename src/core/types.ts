@@ -47,6 +47,12 @@ export interface LinkRef {
   /** R70: `[[wikilink]]` vs `[text](markdown.md)` — drives the rewrite engine's
    *  per-kind splice/reconstruction branch. */
   kind: "wikilink" | "markdown";
+  /** ADKM: the AsciiDoc macro that produced this link, when the source is
+   *  AsciiDoc. Deliberately NOT folded into `kind` — that field is compared
+   *  with `===` in `linkRewrite.ts`, `linkAtCursor.ts` and the Obsidian compat
+   *  layer, so adding members would silently send those branches to `else`
+   *  (renaming a file would stop rewriting adoc xrefs). Additive only. */
+  syntax?: "xref" | "xref-short" | "link-macro" | "include";
 }
 
 export interface HeadingRef {

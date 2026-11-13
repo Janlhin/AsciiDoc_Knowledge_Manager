@@ -280,7 +280,7 @@ export function SearchPanel() {
 
     void (async () => {
       const t0 = performance.now();
-      const files = app.vault.getMarkdownFiles();
+      const files = app.vault.getIndexableFiles();
       const out: FileResult[] = [];
       for (const f of files) {
         if (isExcluded(f.path)) continue; // R96: excluded files don't appear in search

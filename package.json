@@ -35,7 +35,8 @@
     "preview": "vp preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run build"
+    "verify": "npm run typecheck && npm run build",
+    "report:index": "node scripts/adoc-index-report.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
