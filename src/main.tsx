@@ -704,7 +704,7 @@ async function bootstrap() {
     __geodeGraphTags?: () => { nodes: { id: string; degree: number }[]; edges: number };
   };
   tagGraphHost.__geodeGraphTags = () => {
-    const kept = new Set(vault.getMarkdownFiles().map((f) => f.path));
+    const kept = new Set(vault.getIndexableFiles().map((f) => f.path));
     const { nodes, edges } = buildTagGraph(app.metadata.getTagMap(), kept);
     return { nodes: nodes.map((n) => ({ id: n.id, degree: n.degree })), edges: edges.length };
   };
@@ -718,7 +718,7 @@ async function bootstrap() {
     __geodeGraphAttachments?: () => { nodes: { id: string; degree: number }[]; edges: number };
   };
   attachmentGraphHost.__geodeGraphAttachments = () => {
-    const kept = new Set(vault.getMarkdownFiles().map((f) => f.path));
+    const kept = new Set(vault.getIndexableFiles().map((f) => f.path));
     const { nodes, edges } = buildAttachmentGraph(app.metadata.getAttachmentMap(), kept);
     return { nodes: nodes.map((n) => ({ id: n.id, degree: n.degree })), edges: edges.length };
   };

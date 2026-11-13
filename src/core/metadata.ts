@@ -16,6 +16,8 @@ import type {
 import type { Vault } from "./vault";
 import { EventBus } from "./events";
 import { Store } from "./store";
+import { RESOLVE_EXTENSIONS, extensionOf, isIndexable, stripDocExtension } from "./parsers/indexable";
+import { isAsciiDoc, parseAsciiDoc } from "./parsers/asciidoc";
 
 const WIKILINK_RE = /\[\[([^\[\]\|#]+)(?:#[^\[\]\|]*)?(?:\|([^\[\]]*))?\]\]/g;
 /** Standard markdown inline link/image `[text](href)` / `![alt](href "title")`
@@ -218,6 +220,17 @@ export function parseFootnoteDefinitions(content: string): FootnoteRef[] {
   return extractFootnoteDefs(content, maskCodeRegions(withoutFm));
 }
 
+/**
+ * ADKM: parse one document according to its format.
+ *
+ * Both formats produce the same `NoteMetadata` shape, so every downstream
+ * consumer (graph, backlinks, outline, search, compat layer) stays
+ * format-blind — only this dispatch and the resolvers know about extensions.
+ */
+export function parseDocument(path: string, content: string): NoteMetadata {
+  return isAsciiDoc(path) ? parseAsciiDoc(path, content) : parseNote(path, content);
+}
+
 /** Parse one markdown document into metadata. Exported for tests/reuse. */
 export function parseNote(path: string, content: string): NoteMetadata {
   const frontmatter = parseFrontmatter(content) ?? undefined;
@@ -399,7 +412,7 @@ export class MetadataIndex {
     events.on("file:created", ({ path }) => void this.reindexFile(path));
     events.on("file:deleted", ({ path }) => this.dropPath(path));
     events.on("file:renamed", ({ oldPath, newPath }) => {
-      if (newPath.toLowerCase().endsWith(".md")) {
+      if (isIndexable(newPath)) {
         this.dropPath(oldPath, false);
         void this.reindexFile(newPath);
       } else {
@@ -415,7 +428,7 @@ export class MetadataIndex {
     const t0 = performance.now();
     this.byPath.clear();
     this.nameToPaths.clear();
-    await this.indexFiles(this.vault.getMarkdownFiles());
+    await this.indexFiles(this.vault.getIndexableFiles());
     this.rebuildNameMap();
     perfMark("metadataIndexMs", performance.now() - t0);
     perfMark("metadataFiles", this.byPath.size);
@@ -432,7 +445,7 @@ export class MetadataIndex {
         const f = files[i];
         try {
           const content = await this.vault.read(f.path);
-          this.byPath.set(f.path, parseNote(f.path, content));
+          this.byPath.set(f.path, parseDocument(f.path, content));
         } catch (err) {
           console.warn(`[metadata] failed to index ${f.path}`, err);
         }
@@ -444,7 +457,7 @@ export class MetadataIndex {
   }
 
   private async reindexFile(path: string): Promise<void> {
-    if (!path.toLowerCase().endsWith(".md")) {
+    if (!isIndexable(path)) {
       // R101: a non-md file create/modify changes the attachment SET (createBinary +
       // the external fs-watcher both fire file:created for attachments) → bump so
       // attachment-dependent consumers (getAttachmentMap cache, graph rebuild) refresh.
@@ -463,7 +476,7 @@ export class MetadataIndex {
     }
     try {
       const content = await this.vault.read(path);
-      this.byPath.set(path, parseNote(path, content));
+      this.byPath.set(path, parseDocument(path, content));
     } catch {
       this.byPath.delete(path);
     }
@@ -475,7 +488,7 @@ export class MetadataIndex {
   private async reindexFolder(oldPath: string, newPath: string): Promise<void> {
     this.dropPath(oldPath, false);
     const prefix = newPath + "/";
-    const files = this.vault.getMarkdownFiles().filter((f) => f.path.startsWith(prefix));
+    const files = this.vault.getIndexableFiles().filter((f) => f.path.startsWith(prefix));
     await this.indexFiles(files);
     this.rebuildNameMap();
     this.bump();
@@ -494,10 +507,10 @@ export class MetadataIndex {
     readText?: (path: string) => string | undefined,
   ): Promise<void> {
     for (const path of paths) {
-      if (!path.toLowerCase().endsWith(".md")) continue;
+      if (!isIndexable(path)) continue;
       const buffered = readText?.(path);
       if (buffered !== undefined) {
-        this.byPath.set(path, parseNote(path, buffered));
+        this.byPath.set(path, parseDocument(path, buffered));
         continue;
       }
       if (!this.vault.fileExists(path)) {
@@ -506,7 +519,7 @@ export class MetadataIndex {
       }
       try {
         const content = await this.vault.read(path);
-        this.byPath.set(path, parseNote(path, content));
+        this.byPath.set(path, parseDocument(path, content));
       } catch (err) {
         console.warn(`[metadata] ensureFresh failed to read ${path}`, err);
         this.byPath.delete(path);
@@ -537,7 +550,7 @@ export class MetadataIndex {
       set.add(path);
     };
     for (const meta of this.byPath.values()) {
-      add((meta.path.split("/").pop() ?? meta.path).replace(/\.md$/i, ""), meta.path);
+      add(stripDocExtension(meta.path.split("/").pop() ?? meta.path), meta.path);
       // frontmatter aliases resolve like real names (Obsidian behaviour)
       for (const alias of meta.aliases) add(alias, meta.path);
     }
@@ -601,20 +614,49 @@ export class MetadataIndex {
 
   /**
    * Obsidian-style link resolution:
-   *  - exact vault path (with or without .md)
+   *  - exact vault path (with or without a known document extension)
    *  - else basename match (case-insensitive); prefer file in same folder
    * Returns the resolved vault path or null (unresolved link).
+   *
+   * ADKM: an explicit `.adoc` / `.md` suffix is honoured before the
+   * extension-less fallbacks, so `xref:a/Note.adoc[]` never lands on a
+   * same-named `a/Note.md`. Every extension-less probe still tries `.md`
+   * first (RESOLVE_EXTENSIONS), which is what keeps the Markdown-only
+   * graphs byte-identical to before adoc support existed.
    */
   resolveLink(target: string, fromPath: string): string | null {
-    const clean = target.replace(/\.md$/i, "").trim();
+    const raw = target.trim();
+    const clean = stripDocExtension(raw);
     if (!clean) return null;
-    const asPath = clean.includes("/") ? clean + ".md" : null;
-    if (asPath) {
-      const exact = this.lowerPathToPath.get(asPath.toLowerCase());
-      if (exact) return exact;
+    const explicitExt = clean !== raw;
+    const hasDir = clean.includes("/");
+    if (hasDir) {
+      if (explicitExt) {
+        const exact = this.lowerPathToPath.get(raw.toLowerCase());
+        if (exact) return exact;
+      }
+      for (const ext of RESOLVE_EXTENSIONS) {
+        const exact = this.lowerPathToPath.get((clean + ext).toLowerCase());
+        if (exact) return exact;
+      }
     }
-    const candidates = this.nameToPaths.get(clean.split("/").pop()!.toLowerCase());
-    if (!candidates || candidates.size === 0) return null;
+    const byName = this.nameToPaths.get(clean.split("/").pop()!.toLowerCase());
+    if (!byName || byName.size === 0) return null;
+    // An explicit suffix disambiguates same-named files in different formats;
+    // without one, prefer the referrer's own format (a .md note links to .md
+    // first, an .adoc note to .adoc) so merely adding an adoc file can never
+    // re-point an existing Markdown link at a different target.
+    const explicitSuffix = explicitExt ? raw.slice(raw.lastIndexOf(".")).toLowerCase() : "";
+    let pool = [...byName];
+    if (explicitSuffix) {
+      const sameExt = pool.filter((p) => p.toLowerCase().endsWith(explicitSuffix));
+      if (sameExt.length > 0) pool = sameExt;
+    } else {
+      const referrerSuffix = `.${extensionOf(fromPath)}`;
+      const sameFormat = pool.filter((p) => p.toLowerCase().endsWith(referrerSuffix));
+      if (sameFormat.length > 0) pool = sameFormat;
+    }
+    const candidates = new Set(pool);
     if (candidates.size === 1) return [...candidates][0];
     const fromFolder = fromPath.includes("/") ? fromPath.slice(0, fromPath.lastIndexOf("/")) : "";
     const sameFolder = [...candidates].find((p) => {
@@ -686,8 +728,12 @@ export class MetadataIndex {
     // basename keeps resolveLink's shortest-path/basename behavior.
     const stripped = href.trim().split("#")[0].split("?")[0];
     if (stripped.startsWith("/") || stripped.startsWith("./") || stripped.startsWith("../")) {
-      const exactMd = this.lowerPathToPath.get((p.replace(/\.md$/i, "") + ".md").toLowerCase());
-      return exactMd ?? this.resolveAttachment(p, fromPath);
+      const base = stripDocExtension(p);
+      for (const ext of RESOLVE_EXTENSIONS) {
+        const exact = this.lowerPathToPath.get((base + ext).toLowerCase());
+        if (exact) return exact;
+      }
+      return this.resolveAttachment(p, fromPath);
     }
     return this.resolveLink(p, fromPath) ?? this.resolveAttachment(p, fromPath);
   }
@@ -734,7 +780,8 @@ export class MetadataIndex {
     const lowerPathToPath = new Map<string, string>();
     const lowerBasenameToPaths = new Map<string, string[]>();
     for (const f of this.vault.getFiles()) {
-      if (f.extension.toLowerCase() === "md") continue;
+      // ADKM: indexable documents resolve as notes, never as attachments
+      if (isIndexable(f.path)) continue;
       lowerPathToPath.set(f.path.toLowerCase(), f.path);
       const key = f.name.toLowerCase();
       const list = lowerBasenameToPaths.get(key);
@@ -987,7 +1034,7 @@ export class MetadataIndex {
     const edgeSeen = new Set<string>();
 
     for (const path of this.byPath.keys()) {
-      const label = (path.split("/").pop() ?? path).replace(/\.md$/i, "");
+      const label = stripDocExtension(path.split("/").pop() ?? path);
       nodes.set(path, { id: path, label, resolved: true, degree: 0 });
     }
     for (const meta of this.byPath.values()) {

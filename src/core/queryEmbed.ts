@@ -41,7 +41,7 @@ export async function runQueryBlock(raw: string, ctx: QueryBlockContext): Promis
   const expr = parsed.expr;
 
   const hits: QueryFileHit[] = [];
-  for (const f of ctx.vault.getMarkdownFiles()) {
+  for (const f of ctx.vault.getIndexableFiles()) {
     let content: string;
     try {
       content = await ctx.vault.read(f.path);

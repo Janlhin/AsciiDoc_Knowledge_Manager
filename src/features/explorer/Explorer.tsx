@@ -445,7 +445,7 @@ export function Explorer() {
   // directly does not cascade). Drives orphan-attachment detection for the delete.
   const notesUnderDeletion = (rootPaths: string[]): Set<string> => {
     const notes = new Set<string>();
-    const mdFiles = app.vault.getMarkdownFiles();
+    const mdFiles = app.vault.getIndexableFiles();
     for (const p of rootPaths) {
       if (p.endsWith(".md")) notes.add(p);
       else for (const f of mdFiles) if (f.path.startsWith(`${p}/`)) notes.add(f.path);

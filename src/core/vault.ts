@@ -1,6 +1,7 @@
 import type { FileNode, FolderNode, VaultNode } from "./types";
 import { EventBus } from "./events";
 import { Store } from "./store";
+import { isIndexable } from "./parsers/indexable";
 
 /**
  * VaultAdapter — the IO boundary. Two implementations:
@@ -252,8 +253,15 @@ export class Vault {
     return t ? flattenFiles(t) : [];
   }
 
-  getMarkdownFiles(): FileNode[] {
-    return this.getFiles().filter((f) => f.extension === "md");
+  /**
+   * ADKM: every file that takes part in the note index (`.md` + `.adoc`).
+   *
+   * Renamed from `getMarkdownFiles` — the old name asserted a Markdown-only
+   * vault, and callers used it as the definition of "which files are notes".
+   * Attachments stay out (they resolve through `getFiles` instead).
+   */
+  getIndexableFiles(): FileNode[] {
+    return this.getFiles().filter((f) => isIndexable(f.path));
   }
 
   fileExists(path: string): boolean {
