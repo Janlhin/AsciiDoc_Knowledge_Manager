@@ -34,7 +34,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",
