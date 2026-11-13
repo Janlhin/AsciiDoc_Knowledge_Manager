@@ -126,7 +126,13 @@
   - *等待 oxfmt 发布 1.0 再引入*：否决理由同上。
 - **保留的风险（必须逐项验证）**：
   1. **隐式引入 Vite 8 与 Rolldown**。`vp toolchain` 显示实际为 `vite@8.3.7` + `rolldown@1.2.18` + `oxc@0.156.0`。这是一次未单独提案的主版本升级，与规范 §版本策略 存在张力，故在此留痕。
-  2. **`@vitejs/plugin-react` 4.7.0 的 peer 依赖不匹配**（要求 vite ^6/^7，实际为 1.6.0 的 core 包）。生产构建已验证通过，**dev 模式的 HMR 未验证**。
+  2. **`@vitejs/plugin-react` 4.7.0 的 peer 依赖不匹配**（要求 vite ^6/^7，实际为 1.6.0 的 core 包）。**已于 2026-11-13 实测 dev 模式**：服务器 264 ms 就绪，`/` 与 `/@vite/client` 均 200；`main.tsx` 转换产出 `jsxDEV` 调用并注入 `@react-refresh`；改 SCSS 与改 TSX 均触发 `hmr update`，回滚同样触发。功能可用。
+   遗留三条告警，均不阻断：
+   - `[vite:react-babel] esbuild option deprecated, use oxc instead`
+   - `Invalid key: "jsx"` —— Babel 插件把 `jsx` 选项传给 Rolldown，被拒但 Babel 路径仍生效
+   - `optimizeDeps.rollupOptions deprecated` —— 上游插件所设，非本项目配置
+
+   告警建议改用 `@vitejs/plugin-react-oxc`，**已核查不可行**：该包最新为 `0.4.3`（发布于 2025-11-12，已一年未更新），peer 仅声明 `vite ^6.3.0 || ^7.0.0`，不覆盖当前的 core 1.6.0（vite 8）。换用它会把一个 0.x 且滞后的包引入主构建链路，风险高于现有告警。
   3. **CSS 产物被 lightningcss 重新规范化**。比对结果：选择器 976 → 975，规则 989 → 988；135 处声明差异（`background:transparent` → `background:0 0`、`var()` 逗号后空格移除、自动补 `-webkit-` 前缀），11 处选择器写法差异（属性选择器转义、规则合并）。判定为等价规范化，**但未做视觉回归验证**。
   4. **构建配置项更名**：`build.rollupOptions` → `build.rolldownOptions`。当前配置未使用该字段，无影响。
   5. **oxfmt 仍为 0.78.0**（未到 1.0），格式器行为可能变化。

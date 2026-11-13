@@ -34,3 +34,6 @@ compat-vault/
 
 # Windows 设备名残留（asciidoctor -o /dev/null 在 Git Bash 下误建）
 nul
+
+# 本地日志
+*.log
