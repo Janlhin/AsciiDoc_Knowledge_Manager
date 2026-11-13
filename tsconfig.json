@@ -15,12 +15,11 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@features/*": ["src/features/*"],
-      "@app/*": ["src/app/*"],
-      "@compat/*": ["src/compat/*"]
+      "@core/*": ["./src/core/*"],
+      "@features/*": ["./src/features/*"],
+      "@app/*": ["./src/app/*"],
+      "@compat/*": ["./src/compat/*"]
     }
   },
   "include": ["src"]

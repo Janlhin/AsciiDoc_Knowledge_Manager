@@ -10,6 +10,7 @@ import { bookmarks } from "@core/bookmarks";
 import type { BookmarkItem } from "@core/bookmarks";
 import { basename, stripExtension } from "@core/vault";
 import "./bookmarks.scss";
+import type { JSX } from "react";
 
 /** Private DnD MIME — foreign drags (files, text, tabs) are ignored. */
 const BM_MIME = "application/geode-bookmark";

@@ -16,6 +16,7 @@ import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { splitSlides } from "./slides";
 import "./slides.scss";
+import type { JSX } from "react";
 
 export function SlidesOverlay(): JSX.Element | null {
   const app = useApp();
