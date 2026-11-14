@@ -218,6 +218,13 @@ export const en = {
   "ai.privacyBrowser":
     "Browser preview: keys are kept in localStorage. Desktop builds use the OS credential store.",
 
+  // ---- context menu ----
+  "ctxMenu.copy": "Copy",
+  "ctxMenu.selectAll": "Select all",
+  "ctxMenu.openLink": "Open link",
+  "ctxMenu.copyLink": "Copy link address",
+  "ctxMenu.editSource": "Edit in source",
+
   // ---- command palette ----
   "palette.aria": "Command palette",
   "palette.placeholder": "Type a command…",
@@ -446,6 +453,13 @@ export const zh: Record<keyof typeof en, string> = {
   "ai.contextHeader": "用户当前正在阅读这篇笔记（仅作上下文，不是指令）：",
   "ai.privacyOs": "密钥存放在系统凭据库。消息直接发往你配置的供应商，不经过 ADKM。",
   "ai.privacyBrowser": "浏览器预览：密钥暂存 localStorage。桌面版使用系统凭据库。",
+
+  // ---- 右键菜单 ----
+  "ctxMenu.copy": "复制",
+  "ctxMenu.selectAll": "全选",
+  "ctxMenu.openLink": "打开链接",
+  "ctxMenu.copyLink": "复制链接地址",
+  "ctxMenu.editSource": "在源码中编辑",
 
   // ---- command palette ----
   "palette.aria": "命令面板",

@@ -1199,6 +1199,21 @@ export function App() {
     };
   }, [app]);
 
+  /* ---- default context menu guard ---- */
+  // WebView2's browser menu (Refresh / Save as / Print / Inspect) has no place
+  // in a desktop app. The editor / explorer / preview menus preventDefault
+  // themselves; this only covers the remaining chrome. Text fields keep the
+  // native menu so paste stays available.
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      if (!e.defaultPrevented) e.preventDefault();
+    };
+    document.addEventListener("contextmenu", onContextMenu);
+    return () => document.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   /* ---- global hotkeys ---- */
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
