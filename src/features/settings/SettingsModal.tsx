@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { confirmAction } from "@core/confirm";
+import { clearSettingsSection, peekSettingsSection } from "@core/settingsNav";
 import {
   readableLineLength,
   setReadableLineLength,
@@ -137,6 +138,24 @@ import {
   type PluginSource,
 } from "@core/plugins";
 import { useStore } from "@core/store";
+import { testProvider } from "@core/llm/client";
+import { listSecretNames, secretDelete, secretExists, secretSet } from "@core/llm/secrets";
+import {
+  addProvider,
+  activeLlmProviderId,
+  isProviderUsable,
+  llmProviders,
+  removeProvider,
+  setActiveLlmProvider,
+  uniqueProviderId,
+  updateProvider,
+} from "@core/llm/store";
+import {
+  defaultSecretName,
+  PROVIDER_PRESETS,
+  providerFromPreset,
+  type LlmProvider,
+} from "@core/llm/types";
 import {
   setTemplateDateFormat,
   setTemplateFolder,
@@ -165,6 +184,7 @@ type SectionId =
   | "appearance"
   | "hotkeys"
   | "keychain"
+  | "ai"
   | "core-plugins"
   | "plugins"
   | "command-palette"
@@ -187,6 +207,7 @@ export function requestUpdateAutoCheck(): void {
   pendingAutoCheck = true;
 }
 
+
 /* G1: three-group left-nav IA (Obsidian "Options" / "Core plugins" + per-plugin tabs).
    labels are i18n keys, resolved at render time via useI18n(). */
 const NAV_GROUPS: Array<{
@@ -204,6 +225,7 @@ const NAV_GROUPS: Array<{
       { id: "appearance", labelKey: "settings.section.appearance", icon: "sun" },
       { id: "hotkeys", labelKey: "settings.section.hotkeys", icon: "command" },
       { id: "keychain", labelKey: "settings.section.keychain", icon: "key" },
+      { id: "ai", labelKey: "settings.section.ai", icon: "sparkles" },
       { id: "core-plugins", labelKey: "settings.section.corePlugins", icon: "puzzle" },
       { id: "plugins", labelKey: "settings.section.plugins", icon: "puzzle" },
     ],
@@ -229,9 +251,16 @@ export function SettingsModal() {
   /* peek (don't consume) the auto-check flag — UpdateSection consumes it on mount */
   // R163: section is a string — fixed ids (SectionId) OR `plugin:<sectionId>` for
   // a per-plugin settings tab (Obsidian "one plugin, one tab" left-nav IA).
-  const [section, setSection] = useState<string>(pendingAutoCheck ? "about" : "appearance");
+  const [section, setSection] = useState<string>(
+    pendingAutoCheck ? "about" : (peekSettingsSection() ?? "appearance"),
+  );
   const close = () => app.workspace.closeModal();
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Consume the deep-link request so a later open starts on the default section.
+  useEffect(() => {
+    clearSettingsSection();
+  }, []);
 
   /* R163: enabled plugins that contribute a settings section → one left-nav tab each */
   useStore(app.plugins.revision); // re-render on enable/disable/register
@@ -326,6 +355,7 @@ export function SettingsModal() {
           {section === "appearance" && <AppearanceSection />}
           {section === "hotkeys" && <HotkeysSection />}
           {section === "keychain" && <KeychainSection />}
+          {section === "ai" && <AiSection />}
           {section === "core-plugins" && <CorePluginsSection setSection={setSection} />}
           {section === "plugins" && <PluginsSection />}
           {section === "command-palette" && <CommandPaletteSection />}
@@ -1791,15 +1821,395 @@ function PagePreviewSection() {
 
 function KeychainSection() {
   const t = useI18n();
+  const [names, setNames] = useState<string[]>(() => listSecretNames());
+
+  const remove = async (name: string) => {
+    const ok = await confirmAction(
+      `${t("settings.keychainDelete")}: ${name}`,
+      t("settings.section.keychain"),
+    );
+    if (!ok) return;
+    await secretDelete(name).catch(() => {});
+    setNames(listSecretNames());
+  };
+
   return (
     <section>
       <h2 className="settings-heading">{t("settings.section.keychain")}</h2>
-      <div className="setting-item" data-testid="settings-keychain-empty">
-        <div className="setting-info">
-          <div className="setting-desc">{t("settings.keychainEmpty")}</div>
+      {names.length === 0 ? (
+        <div className="setting-item" data-testid="settings-keychain-empty">
+          <div className="setting-info">
+            <div className="setting-desc">{t("settings.keychainEmpty")}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="settings-card">
+          <div className="setting-item">
+            <div className="setting-info">
+              <div className="setting-desc">{t("settings.keychainHint")}</div>
+            </div>
+          </div>
+          {names.map((name) => (
+            <div className="setting-item" key={name} data-testid={`settings-keychain-${name}`}>
+              <div className="setting-info">
+                <div className="setting-name">{name}</div>
+              </div>
+              <button
+                className="settings-action-btn"
+                onClick={() => void remove(name)}
+                data-testid={`settings-keychain-delete-${name}`}
+              >
+                {t("settings.keychainDelete")}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------------- AI models (ADKM) ---------------- */
+
+function AiSection() {
+  const t = useI18n();
+  const providers = useStore(llmProviders);
+  const activeId = useStore(activeLlmProviderId);
+  const [presetId, setPresetId] = useState<string>(PROVIDER_PRESETS[0]?.id ?? "custom");
+  const [selectedId, setSelectedId] = useState<string>(activeId);
+  const selected = providers.find((p) => p.id === selectedId) ?? providers[0] ?? null;
+
+  const add = () => {
+    const preset = PROVIDER_PRESETS.find((p) => p.id === presetId);
+    if (preset === undefined) return;
+    const id = uniqueProviderId(preset.id, providers);
+    const provider = providerFromPreset(preset, id);
+    addProvider(provider);
+    setActiveLlmProvider(provider.id);
+    setSelectedId(provider.id);
+  };
+
+  return (
+    <section>
+      <h2 className="settings-heading">{t("settings.aiHeading")}</h2>
+      <div className="settings-card">
+        <div className="setting-item">
+          <div className="setting-info">
+            <div className="setting-name">{t("settings.aiPreset")}</div>
+            <div className="setting-desc">{t("settings.aiDesc")}</div>
+          </div>
+          <div className="ai-preset-row">
+            <select
+              className="settings-text-input"
+              value={presetId}
+              aria-label={t("settings.aiPreset")}
+              data-testid="settings-ai-preset"
+              onChange={(e) => setPresetId(e.target.value)}
+            >
+              {PROVIDER_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+            <button className="settings-action-btn" onClick={add} data-testid="settings-ai-add">
+              {t("settings.aiAdd")}
+            </button>
+          </div>
         </div>
       </div>
+
+      {providers.length === 0 ? (
+        <div className="setting-item" data-testid="settings-ai-empty">
+          <div className="setting-info">
+            <div className="setting-desc">{t("settings.aiEmpty")}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="ai-provider-tabs" role="tablist" aria-label={t("settings.aiHeading")}>
+            {providers.map((entry) => (
+              <button
+                key={entry.id}
+                role="tab"
+                aria-selected={selected?.id === entry.id}
+                className={`ai-provider-tab${selected?.id === entry.id ? " is-active" : ""}`}
+                data-testid={`settings-ai-provider-${entry.id}`}
+                onClick={() => setSelectedId(entry.id)}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+          {selected !== null && <ProviderEditor key={selected.id} provider={selected} />}
+        </>
+      )}
     </section>
+  );
+}
+
+function ProviderEditor({ provider }: { provider: LlmProvider }) {
+  const t = useI18n();
+  const [form, setForm] = useState<LlmProvider>(provider);
+  const [keyInput, setKeyInput] = useState("");
+  const [keyStored, setKeyStored] = useState(false);
+  const [status, setStatus] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (form.secretName === "") {
+      setKeyStored(false);
+      return;
+    }
+    void secretExists(form.secretName).then((exists) => {
+      if (alive) setKeyStored(exists);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [form.secretName]);
+
+  const patch = (next: Partial<LlmProvider>) => setForm((prev) => ({ ...prev, ...next }));
+
+  /**
+   * Persist form + optional new key. Returns the saved provider so callers
+   * (test connection) act on exactly what was written, not stale state.
+   */
+  const persist = async (): Promise<LlmProvider | null> => {
+    if (!isProviderUsable(form)) {
+      setStatus({ kind: "err", text: t("settings.aiRequired") });
+      return null;
+    }
+    const trimmedKey = keyInput.trim();
+    const secretName =
+      form.secretName !== ""
+        ? form.secretName
+        : trimmedKey !== ""
+          ? defaultSecretName(form.id)
+          : "";
+    const next: LlmProvider = {
+      ...form,
+      label: form.label.trim() === "" ? form.id : form.label.trim(),
+      secretName,
+    };
+    if (secretName !== "" && trimmedKey !== "") {
+      await secretSet(secretName, trimmedKey);
+      setKeyInput("");
+      setKeyStored(true);
+    }
+    updateProvider(next);
+    setForm(next);
+    return next;
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      const saved = await persist();
+      if (saved !== null) setStatus({ kind: "info", text: t("settings.aiSaved") });
+    } catch (e) {
+      setStatus({ kind: "err", text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const test = async () => {
+    setBusy(true);
+    setStatus({ kind: "info", text: t("settings.aiTesting") });
+    try {
+      const saved = await persist();
+      if (saved === null) return;
+      const result = await testProvider(saved);
+      setStatus({
+        kind: "ok",
+        text: t("settings.aiTestOk").replace("{reply}", result.reply),
+      });
+    } catch (e) {
+      setStatus({
+        kind: "err",
+        text: t("settings.aiTestFail").replace(
+          "{message}",
+          e instanceof Error ? e.message : String(e),
+        ),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    const ok = await confirmAction(
+      t("settings.aiRemoveConfirm").replace("{label}", form.label),
+      t("settings.aiHeading"),
+    );
+    if (!ok) return;
+    if (form.secretName !== "") await secretDelete(form.secretName).catch(() => {});
+    removeProvider(form.id);
+  };
+
+  const clearKey = async () => {
+    if (form.secretName === "") return;
+    await secretDelete(form.secretName).catch(() => {});
+    setKeyStored(false);
+    setKeyInput("");
+  };
+
+  return (
+    <div className="settings-card ai-editor" data-testid={`settings-ai-editor-${form.id}`}>
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiLabel")}</div>
+        </div>
+        <input
+          type="text"
+          className="settings-text-input"
+          value={form.label}
+          onChange={(e) => patch({ label: e.target.value })}
+        />
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiBaseUrl")}</div>
+          <div className="setting-desc">…/v1</div>
+        </div>
+        <input
+          type="text"
+          className="settings-text-input"
+          value={form.baseUrl}
+          placeholder="https://api.example.com/v1"
+          spellCheck={false}
+          onChange={(e) => patch({ baseUrl: e.target.value })}
+        />
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiModel")}</div>
+        </div>
+        <input
+          type="text"
+          className="settings-text-input"
+          value={form.model}
+          spellCheck={false}
+          onChange={(e) => patch({ model: e.target.value })}
+        />
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiKey")}</div>
+          <div className="setting-desc">
+            {keyStored ? t("settings.aiKeyStored") : t("settings.aiKeyHint")}
+            {form.secretName === "" && ` · ${t("settings.aiLocalNoKey")}`}
+          </div>
+        </div>
+        <div className="ai-key-row">
+          <input
+            type="password"
+            className="settings-text-input"
+            value={keyInput}
+            placeholder={t("settings.aiKeyPlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => setKeyInput(e.target.value)}
+          />
+          {keyStored && (
+            <button className="settings-action-btn" onClick={() => void clearKey()}>
+              {t("settings.keychainDelete")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiTemperature")}</div>
+        </div>
+        <input
+          type="number"
+          className="settings-text-input"
+          min={0}
+          max={2}
+          step={0.1}
+          value={form.temperature}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            patch({ temperature: Number.isFinite(value) ? Math.min(2, Math.max(0, value)) : 0 });
+          }}
+        />
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.aiMaxTokens")}</div>
+        </div>
+        <input
+          type="number"
+          className="settings-text-input"
+          min={1}
+          step={1}
+          value={form.maxTokens ?? ""}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (raw === "") {
+              patch({ maxTokens: undefined });
+              return;
+            }
+            const value = Number(raw);
+            patch({
+              maxTokens:
+                Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined,
+            });
+          }}
+        />
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-desc">{t("settings.aiDesc")}</div>
+        </div>
+        <div className="ai-editor-actions">
+          <button
+            className="settings-action-btn"
+            disabled={busy}
+            onClick={() => void save()}
+            data-testid="settings-ai-save"
+          >
+            {t("settings.aiSave")}
+          </button>
+          <button
+            className="settings-action-btn"
+            disabled={busy}
+            onClick={() => void test()}
+            data-testid="settings-ai-test"
+          >
+            {busy ? t("settings.aiTesting") : t("settings.aiTest")}
+          </button>
+          <button
+            className="settings-action-btn"
+            disabled={busy}
+            onClick={() => void remove()}
+            data-testid="settings-ai-remove"
+          >
+            {t("settings.aiRemove")}
+          </button>
+        </div>
+      </div>
+
+      {status !== null && (
+        <div className="setting-item">
+          <div className="setting-info">
+            <div className={`setting-desc ai-status-${status.kind}`} data-testid="settings-ai-status">
+              {status.text}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

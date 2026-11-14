@@ -1232,3 +1232,58 @@
 .settings-action-btn:hover {
   background: var(--bg-hover);
 }
+
+/* ---- AI models (ADKM) ---- */
+
+.ai-preset-row,
+.ai-key-row,
+.ai-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ai-editor .settings-text-input {
+  width: 260px;
+}
+
+.ai-provider-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+}
+
+.ai-provider-tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.ai-provider-tab:hover {
+  color: var(--text-normal);
+  background: var(--bg-hover);
+}
+
+.ai-provider-tab.is-active {
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ai-status-ok {
+  color: var(--accent);
+}
+
+.ai-status-err {
+  color: var(--danger);
+}
+
+.ai-status-info {
+  color: var(--text-muted);
+}

@@ -43,6 +43,38 @@ export const en = {
   "settings.navGroup.corePlugins": "Core plugins",
   "settings.keychainEmpty":
     "No keys yet. Keys store API keys and passwords used by plugins.",
+  "settings.keychainDelete": "Delete",
+  "settings.keychainHint":
+    "Secret values are held by the OS credential store and are never shown again — you can only replace or delete them.",
+
+  // ---- settings: AI (ADKM) ----
+  "settings.section.ai": "AI",
+  "settings.aiHeading": "AI models",
+  "settings.aiDesc":
+    "All providers speak the OpenAI-compatible protocol. Local servers (Ollama, LM Studio, llama.cpp) need no API key.",
+  "settings.aiPreset": "Add from preset",
+  "settings.aiAdd": "Add",
+  "settings.aiEmpty": "No provider yet. Pick a preset above to get started.",
+  "settings.aiLabel": "Name",
+  "settings.aiBaseUrl": "Base URL",
+  "settings.aiModel": "Model",
+  "settings.aiKey": "API key",
+  "settings.aiKeyStored": "A key is stored in the OS credential store.",
+  "settings.aiKeyPlaceholder": "Paste a key (saved to the credential store)",
+  "settings.aiLocalNoKey": "Local server — no key required",
+  "settings.aiTemperature": "Temperature",
+  "settings.aiMaxTokens": "Max tokens (optional)",
+  "settings.aiTest": "Test connection",
+  "settings.aiTesting": "Testing…",
+  "settings.aiTestOk": "Connected — model replied: {reply}",
+  "settings.aiTestFail": "Failed: {message}",
+  "settings.aiSave": "Save",
+  "settings.aiSaved": "Saved",
+  "settings.aiRemove": "Delete provider",
+  "settings.aiRemoveConfirm": "Delete provider \"{label}\" and its stored key?",
+  "settings.aiRequired": "Base URL and model are required.",
+  "settings.aiKeyHint":
+    "Keys go to the OS credential store, never to the settings file or vault.",
 
   // ---- settings: appearance ----
   "settings.baseColor": "Base color",
@@ -492,6 +524,37 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.navGroup.options": "选项",
   "settings.navGroup.corePlugins": "核心插件",
   "settings.keychainEmpty": "尚未添加密钥。密钥用于存储插件使用的 API 密钥和密码等信息。",
+  "settings.keychainDelete": "删除",
+  "settings.keychainHint":
+    "密钥值由系统凭据库保管，之后无法再次显示，只能替换或删除。",
+
+  // ---- 设置：AI（ADKM） ----
+  "settings.section.ai": "AI",
+  "settings.aiHeading": "AI 模型",
+  "settings.aiDesc":
+    "所有供应商均使用 OpenAI 兼容协议。本地服务（Ollama、LM Studio、llama.cpp）无需 API 密钥。",
+  "settings.aiPreset": "从预设添加",
+  "settings.aiAdd": "添加",
+  "settings.aiEmpty": "尚未添加供应商。从上方选一个预设开始。",
+  "settings.aiLabel": "名称",
+  "settings.aiBaseUrl": "Base URL",
+  "settings.aiModel": "模型",
+  "settings.aiKey": "API 密钥",
+  "settings.aiKeyStored": "密钥已存入系统凭据库。",
+  "settings.aiKeyPlaceholder": "粘贴密钥（将保存到系统凭据库）",
+  "settings.aiLocalNoKey": "本地服务——无需密钥",
+  "settings.aiTemperature": "温度",
+  "settings.aiMaxTokens": "最大 token 数（可选）",
+  "settings.aiTest": "测试连接",
+  "settings.aiTesting": "测试中…",
+  "settings.aiTestOk": "连接成功——模型回复：{reply}",
+  "settings.aiTestFail": "失败：{message}",
+  "settings.aiSave": "保存",
+  "settings.aiSaved": "已保存",
+  "settings.aiRemove": "删除供应商",
+  "settings.aiRemoveConfirm": "删除供应商「{label}」及其已存密钥？",
+  "settings.aiRequired": "Base URL 与模型名称必填。",
+  "settings.aiKeyHint": "密钥写入系统凭据库，不会写入设置文件或笔记库。",
 
   // ---- settings: appearance ----
   "settings.baseColor": "基础颜色",
