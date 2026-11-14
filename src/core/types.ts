@@ -197,6 +197,7 @@ export type RightPanelKind =
   | "fileproperties"
   | "tags"
   | "calendar"
+  | "ai"
   | (string & {});
 export type ModalKind = "palette" | "switcher" | "settings" | "templates" | "workspaces" | "recovery" | "slides" | "vaultswitcher" | null;
 export type ThemeKind = "dark" | "light" | "system";

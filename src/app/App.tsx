@@ -29,6 +29,7 @@ import { AllPropertiesPanel } from "@features/allproperties/AllPropertiesPanel";
 import { BacklinksPanel } from "@features/backlinks/BacklinksPanel";
 import { BookmarksPanel } from "@features/bookmarks/BookmarksPanel";
 import { OutlinePanel } from "@features/outline/OutlinePanel";
+import { AiPanel } from "@features/ai/AiPanel";
 import { OutgoingLinksPanel } from "@features/outgoinglinks";
 import { FootnotesPanel } from "@features/footnotes";
 import { FilePropertiesPanel } from "@features/editor/FilePropertiesPanel";
@@ -466,6 +467,12 @@ export function App() {
         id: "app:show-file-properties",
         name: () => t("cmd.showFileProperties"),
         callback: () => workspace.setRightPanel("fileproperties"),
+      }),
+      // ADKM AI: reveal the AI chat panel (sidebar tab + command entry point).
+      commands.register({
+        id: "app:show-ai",
+        name: () => t("cmd.showAi"),
+        callback: () => workspace.setRightPanel("ai"),
       }),
       // R217 (G3 §0): Obsidian "Show debug info" — copy version/platform/locale/plugins to
       // the clipboard for bug reports. buildDebugInfo is pure; the gathered values are live.
@@ -1422,6 +1429,16 @@ export function App() {
               >
                 <Icon name="calendar" size={15} />
               </button>
+              <button
+                role="tab"
+                aria-selected={effectiveRight === "ai"}
+                className={`right-tab${effectiveRight === "ai" ? " is-active" : ""}`}
+                title={t("app.tabAi")}
+                data-testid="right-tab-ai"
+                onClick={() => app.workspace.setRightPanel("ai")}
+              >
+                <Icon name="sparkles" size={15} />
+              </button>
               {/* plugin-contributed sidebar panels (compat registerView): one tab each */}
               {rightPanels.map((p) => (
                 <button
@@ -1454,6 +1471,8 @@ export function App() {
                 <TagsPanel />
               ) : ws.rightPanel === "calendar" ? (
                 <CalendarPanel />
+              ) : ws.rightPanel === "ai" ? (
+                <AiPanel />
               ) : (
                 <BacklinksPanel />
               )}
