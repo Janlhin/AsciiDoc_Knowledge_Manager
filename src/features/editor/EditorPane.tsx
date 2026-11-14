@@ -1172,6 +1172,24 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
           }
           return;
         }
+        // Same-document anchor (AsciiDoc :toc:, Markdown [x](#id)): scroll the
+        // rendered view instead of letting the webview navigate. Footnote links
+        // were already handled above, so they never reach this branch.
+        if (href.startsWith("#") && href.length > 1) {
+          e.preventDefault();
+          let id = href.slice(1);
+          try {
+            id = decodeURIComponent(id);
+          } catch {
+            /* keep the raw fragment */
+          }
+          const scope = previewContentRef.current;
+          const target =
+            scope?.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ??
+            scope?.querySelector<HTMLElement>(`[name="${CSS.escape(id)}"]`);
+          target?.scrollIntoView({ block: "start" });
+          return;
+        }
         if (!/^https?:/i.test(href)) e.preventDefault();
       }
     },

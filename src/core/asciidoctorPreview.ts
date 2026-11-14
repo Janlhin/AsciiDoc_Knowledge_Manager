@@ -53,6 +53,11 @@ function escapeAttr(value: string): string {
  */
 function localizeLinks(html: string): string {
   return html.replace(/<a\s+[^>]*?href="([^"]+)"[^>]*>/gi, (full, href: string) => {
+    // Same-document anchor (AsciiDoc :toc: / intra-page xref): keep the
+    // fragment. Rewriting it into internal-link + data-subpath made the click
+    // resolve as a note link, and Asciidoctor ids ("_xxx") are not resolvable
+    // subpaths — the click then did nothing.
+    if (href.startsWith("#")) return full;
     // scheme or protocol-relative → external, keep as-is
     if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return full;
 
