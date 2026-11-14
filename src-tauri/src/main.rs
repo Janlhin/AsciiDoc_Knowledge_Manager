@@ -14,6 +14,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+
+mod features;
 use tauri::{Emitter, Manager};
 
 #[derive(Serialize)]
@@ -1010,6 +1012,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(WatcherState(Mutex::new(None)))
         .manage(LlmCancels::default())
+        .manage(features::index::IndexState::default())
         .invoke_handler(tauri::generate_handler![
             initial_vault,
             vault_list,
@@ -1038,7 +1041,17 @@ fn main() {
             secret_get,
             secret_delete,
             llm_stream,
-            llm_cancel
+            llm_cancel,
+            features::index::index_open,
+            features::index::index_close,
+            features::index::index_upsert,
+            features::index::index_remove,
+            features::index::index_remove_prefix,
+            features::index::index_rename,
+            features::index::index_rename_prefix,
+            features::index::index_search,
+            features::index::index_known,
+            features::index::index_clear
         ])
         .on_window_event(|window, event| {
             // Tauri v2 calls `api.prevent_close()` whenever the frontend has a

@@ -26,6 +26,11 @@ base64 = "0.22"
 # unlocked by the user 2026-11-14 for LLM key storage only — never for
 # arbitrary network or filesystem access.
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
+# ADKM T-039: persistent search index (FTS5). Hard-boundary #5 (new runtime
+# dependency) explicitly unlocked by the user 2026-11-15 for the derived search
+# index only — the vault stays plain files, the database lives in app data and
+# is always rebuildable from the vault.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [profile.release]
 panic = "abort"
