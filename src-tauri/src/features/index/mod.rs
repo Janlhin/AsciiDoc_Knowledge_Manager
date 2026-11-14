@@ -35,6 +35,9 @@ pub struct IndexNote {
     pub mtime: i64,
     #[serde(default)]
     pub size: i64,
+    /// Serialized `NoteMetadata`; empty means "not hydrateable".
+    #[serde(default)]
+    pub meta: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,6 +53,8 @@ pub struct KnownNote {
     pub path: String,
     pub mtime: i64,
     pub size: i64,
+    /// Serialized `NoteMetadata` (empty when the row predates hydration).
+    pub meta: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -81,9 +86,10 @@ fn err(e: impl std::fmt::Display) -> String {
 pub fn upsert(conn: &mut Connection, note: &IndexNote) -> rusqlite::Result<()> {
     let tx = conn.transaction()?;
     tx.execute(
-        "INSERT INTO notes (path, title, mtime, size) VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(path) DO UPDATE SET title = ?2, mtime = ?3, size = ?4",
-        params![note.path, note.title, note.mtime, note.size],
+        "INSERT INTO notes (path, title, mtime, size, meta_json)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(path) DO UPDATE SET title = ?2, mtime = ?3, size = ?4, meta_json = ?5",
+        params![note.path, note.title, note.mtime, note.size, note.meta],
     )?;
     tx.execute("DELETE FROM notes_fts WHERE path = ?1", [&note.path])?;
     tx.execute(
@@ -257,12 +263,13 @@ fn escape_like(value: &str) -> String {
 }
 
 pub fn known(conn: &Connection) -> rusqlite::Result<Vec<KnownNote>> {
-    let mut stmt = conn.prepare("SELECT path, mtime, size FROM notes")?;
+    let mut stmt = conn.prepare("SELECT path, mtime, size, meta_json FROM notes")?;
     let rows = stmt.query_map([], |row| {
         Ok(KnownNote {
             path: row.get(0)?,
             mtime: row.get(1)?,
             size: row.get(2)?,
+            meta: row.get(3)?,
         })
     })?;
     rows.collect()
@@ -431,6 +438,7 @@ mod tests {
             links: links.iter().map(|s| s.to_string()).collect(),
             mtime: 1,
             size: 10,
+            meta: String::new(),
         }
     }
 
@@ -543,6 +551,24 @@ mod tests {
         // `_` is a LIKE wildcard; the escape must keep a_b/ from matching a_bc/
         let removed = remove_prefix(&mut conn, "a_b").unwrap();
         assert_eq!(removed, 1);
+    }
+
+    #[test]
+    fn metadata_json_round_trips_for_warm_start_hydration() {
+        let mut conn = db();
+        let mut n = note("a.md", "A", "b", &[], &[]);
+        n.meta = r#"{"path":"a.md","headings":[{"level":1,"text":"A"}]}"#.into();
+        upsert(&mut conn, &n).unwrap();
+
+        let rows = known(&conn).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].meta.contains("headings"), "meta must survive upsert");
+
+        // A re-upsert with an empty meta clears it rather than keeping stale JSON.
+        let mut n2 = note("a.md", "A2", "b2", &[], &[]);
+        n2.meta = String::new();
+        upsert(&mut conn, &n2).unwrap();
+        assert_eq!(known(&conn).unwrap()[0].meta, "");
     }
 
     #[test]

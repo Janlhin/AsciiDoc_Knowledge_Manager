@@ -12,7 +12,7 @@
  */
 import type { EventBus } from "./events";
 import type { MetadataIndex } from "./metadata";
-import type { FileNode } from "./types";
+import type { FileNode, NoteMetadata } from "./types";
 import type { Vault } from "./vault";
 import {
   indexClose,
@@ -79,6 +79,8 @@ async function toIndexedNote(
     links: meta?.links?.map((l) => l.target) ?? [],
     mtime: file.mtime ?? 0,
     size: file.size ?? text.length,
+    // Whole metadata, so a warm start can restore it without reading the file.
+    meta: meta === undefined ? "" : JSON.stringify(meta),
   };
 }
 
@@ -170,6 +172,27 @@ export function startSearchIndex(host: IndexHost): void {
       if (!(await openFor(host))) return;
       await syncSearchIndex(host);
     })();
+  });
+
+  // Boot hydration: MetadataIndex.rebuildAll() runs on vault:changed/load, after
+  // this mount, so the store can be opened and read in time for it to skip
+  // reading every file. Unparseable rows are ignored — the file is re-read.
+  host.metadata.setHydrator(async () => {
+    const out = new Map<string, { mtime: number; size: number; meta: NoteMetadata }>();
+    if (!(await openFor(host))) return out;
+    for (const row of await indexKnown()) {
+      if (row.meta === "") continue;
+      try {
+        out.set(row.path, {
+          mtime: row.mtime,
+          size: row.size,
+          meta: JSON.parse(row.meta) as NoteMetadata,
+        });
+      } catch {
+        /* corrupt row — fall back to reading the file */
+      }
+    }
+    return out;
   });
 
   // Backfill after the first frame, so opening a vault paints before touching

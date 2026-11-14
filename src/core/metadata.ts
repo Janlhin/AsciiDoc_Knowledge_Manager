@@ -413,6 +413,16 @@ export function parseNote(path: string, content: string): NoteMetadata {
  * derives: link resolution, backlinks, the global graph, and the tag map.
  * Rebuilds incrementally on vault events; emits "metadata:updated".
  */
+export interface HydratedMetadata {
+  mtime: number;
+  size: number;
+  meta: NoteMetadata;
+}
+
+/** Supplies previously-persisted metadata (T-039). Returning an empty map is
+ *  fine: every miss simply falls back to reading and parsing the file. */
+export type MetadataHydrator = () => Promise<Map<string, HydratedMetadata>>;
+
 export class MetadataIndex {
   /** bumped on every reindex so React views can subscribe cheaply */
   readonly revision = new Store(0);
@@ -437,6 +447,9 @@ export class MetadataIndex {
   private attachmentRefMapCache: { rev: number; map: Map<string, Set<string>> } | null = null;
   /** R106 (㉟ 续): note path → its frontmatter aliases (only notes that have any) */
   private aliasMapCache: { rev: number; map: Map<string, string[]> } | null = null;
+
+  /** Set by the search indexer once the persisted store is reachable. */
+  private hydrator: MetadataHydrator | null = null;
 
   constructor(
     private vault: Vault,
@@ -464,25 +477,51 @@ export class MetadataIndex {
 
   /* ---------- indexing ---------- */
 
+  /** Install (or clear) the persisted-metadata source used by `rebuildAll`. */
+  setHydrator(hydrator: MetadataHydrator | null): void {
+    this.hydrator = hydrator;
+  }
+
   async rebuildAll(): Promise<void> {
     const t0 = performance.now();
+    // Warm start: rows whose mtime/size still match are restored from the
+    // persisted index instead of being read and parsed again. Read+parse is
+    // ~287 ms on a 415-file vault (69% of it reads), so this is the whole point.
+    const hydrated = this.hydrator === null ? null : await this.hydrator().catch(() => null);
     this.byPath.clear();
     this.nameToPaths.clear();
-    await this.indexFiles(this.vault.getIndexableFiles());
+    await this.indexFiles(this.vault.getIndexableFiles(), hydrated);
+    perfMark("metadataHydrated", hydrated?.size ?? 0);
     this.rebuildNameMap();
     perfMark("metadataIndexMs", performance.now() - t0);
     perfMark("metadataFiles", this.byPath.size);
     this.bump();
   }
 
-  /** Parse a list of files with a small worker pool (bounded concurrency). */
-  private async indexFiles(files: FileNode[], concurrency = 8): Promise<void> {
+  /** Parse a list of files with a small worker pool (bounded concurrency).
+   *  `hydrated` entries that still match the file's mtime/size skip the read. */
+  private async indexFiles(
+    files: FileNode[],
+    hydrated: Map<string, HydratedMetadata> | null = null,
+    concurrency = 8,
+  ): Promise<void> {
     let next = 0; // index cursor — Array.shift() would be O(n²) on 10k files
     const worker = async () => {
       for (;;) {
         const i = next++;
         if (i >= files.length) return;
         const f = files[i];
+        const cached = hydrated?.get(f.path);
+        // 1s slack mirrors the backfill's tolerance for coarse timestamps.
+        if (
+          cached !== undefined &&
+          f.mtime !== undefined &&
+          Math.abs(cached.mtime - f.mtime) < 1000 &&
+          (f.size === undefined || cached.size === f.size)
+        ) {
+          this.byPath.set(f.path, cached.meta);
+          continue;
+        }
         try {
           const content = await this.vault.read(f.path);
           this.byPath.set(f.path, parseDocument(f.path, content));

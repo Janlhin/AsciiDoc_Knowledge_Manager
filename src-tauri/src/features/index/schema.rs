@@ -18,14 +18,18 @@ use std::path::Path;
 /// Bump whenever the frontend's extraction of title/tags/links changes meaning.
 /// Every stored derivation becomes suspect at that moment, so the store is
 /// rebuilt rather than patched (see the module note).
-pub const PARSE_RULES_VERSION: i64 = 1;
+pub const PARSE_RULES_VERSION: i64 = 2;
 
 const CREATE_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS notes (
   path  TEXT PRIMARY KEY,
   title TEXT NOT NULL DEFAULT '',
   mtime INTEGER NOT NULL DEFAULT 0,
-  size  INTEGER NOT NULL DEFAULT 0
+  size  INTEGER NOT NULL DEFAULT 0,
+  -- Full NoteMetadata as JSON. Keeping only title/body/tags/links would still
+  -- force a warm start to read every file (reads are ~69% of boot cost on a
+  -- 415-file vault), so the parsed result is stored whole.
+  meta_json TEXT NOT NULL DEFAULT ''
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
   path UNINDEXED,

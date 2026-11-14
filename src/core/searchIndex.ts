@@ -19,6 +19,8 @@ export interface IndexedNote {
   /** ms epoch — used only to skip unchanged files during backfill */
   mtime: number;
   size: number;
+  /** Serialized NoteMetadata, so a warm start can skip read + parse. */
+  meta: string;
 }
 
 export interface IndexSearchHit {
@@ -33,6 +35,8 @@ export interface IndexKnownNote {
   path: string;
   mtime: number;
   size: number;
+  /** Serialized NoteMetadata; empty when the row predates hydration. */
+  meta: string;
 }
 
 export interface IndexStats {
