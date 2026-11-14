@@ -1,0 +1,810 @@
+= ADKM 技术路线评估报告
+:revnumber: 1.0.0
+:revdate: 2026-11-12
+:status: draft
+:toc:
+:toclevels: 3
+:sectnums:
+
+== 文档目的
+
+本报告汇总 2026-11-12 当天对九款开源笔记软件的实测核查结果，以及由此推导出的五条可行技术路线，供 ADKM 项目选定形态与底座。
+
+本报告不重复立项书的范围与需求定义，只回答一个问题：**在已有 415 篇文档、213 条引用的实际资产条件下，哪条路的投入产出比最优。**
+
+报告中的所有项目规模、数据模型、解析器能力均来自本地克隆源码或运行时实测，非依据 README 推断。凡未实测项均在文中显式标注。
+
+== 结论摘要
+
+三条结构性结论，先列在此便于快速判断：
+
+. **不存在“既是最好的开源笔记软件，又能低成本改造成 AsciiDoc 工作台”的项目。** 这不是检索不足，是存储范式决定的结构性矛盾，理由见 <<_三个存储范式>>。
+. **引擎与外壳可以分离。** 本次已完成的 AsciiDoc/Markdown 解析器、三态链接模型、力导向图布局共约 2,900 行，五条路线可原样复用。真正要选的是外壳，不是引擎。
+. **多端与软件感不必然互斥，但有前提。** 只有“完全自建”路线能通过一份 React 前端套两种外壳（Tauri 桌面 + Node 服务）同时满足两者，其余四条都只能二选一。
+
+推荐结论按优先级分三种情形给出，见 <<_推荐组合>>。
+
+== 评估背景
+
+=== 实际资产
+
+评估基于用户桌面 `Blueprint` 目录的真实数据，而非假设场景。
+
+[cols="3,2,3",options="header"]
+|===
+|指标 |数值 |说明
+
+|文档总数
+|415
+|130 篇 .adoc + 285 篇 .md
+
+|目录总体积
+|69 MB
+|含一个 48 MB 的单篇 .md，已排除出索引
+
+|AsciiDoc 总体积
+|1.22 MB
+|全部 130 篇
+
+|引用总数
+|213
+|有效 213，断链 0
+
+|引用语法分布
+|xref 宏 + xref 简写 + 资源链接
+|其中简写形式占 27%
+
+|连通节点
+|52
+|其余 364 篇为孤立节点
+
+|索引耗时
+|705–800 ms
+|全量 415 篇，含 Asciidoctor AST 解析
+
+|连接度最高文档
+|AI_Engineering_Gate.adoc，108 条
+|2,249 行，95 个标题
+|===
+
+=== 一个必须正视的分布
+
+连接度分布高度集中：
+
+[cols="3,1",options="header"]
+|===
+|文档 |连接数
+
+|AI_Engineering_Gate.adoc |108
+|AI_Execution_Plan.adoc |43
+|AI_Collaboration_Spec.adoc |39
+|AI_Contributor_Spec.adoc |30
+|AI_Project_Takeover.adoc |26
+|AI_Code_Review.adoc |19
+|Traditional_Software_Engineering_Supplement.adoc |13
+|其余 13 篇 |1–3
+|===
+
+`Vibe_Cding/` 下 7 篇文档承担了约 90% 的连接度。这个分布直接影响产品判断：
+
+* **断链校验不是紧迫需求。** 213 条引用中 0 条失效，说明现有维护习惯良好，校验器的价值在于“防止未来退化”，而非“解决当下痛点”。
+* **图谱探索的收益有限。** 52 个连通节点、一个主簇，不存在“发现意外关联”的空间；用户真正需要的是结构导航，不是自由探索。
+* **规模不构成技术挑战。** 415 篇 800 ms 索引完毕，内存索引完全足够，无需引入 SQLite。
+
+=== 另一种资产：双语漂移
+
+同一批文档的中英文版本已出现可测量的偏离：
+
+[cols="3,2,2,3",options="header"]
+|===
+|文档 |中文版 |英文版 |差异
+
+|AI_Engineering_Gate
+|1.22.0 / 2,249 行 / 95 标题
+|1.20.0 / 1,824 行 / 94 标题
+|落后 2 个版本、425 行、1 个章节
+
+|ADKM_Project_Charter
+|1,213 行
+|1,162 行
+|落后 1 次修订
+|===
+
+前 12 个章节标题中英一一对应，翻译质量高，说明这是被认真维护的双语体系，但维护手段跟不上——425 行的差距靠人眼无法定位到具体章节。
+
+**这是目前唯一被证实的、真实存在的痛点。** 任何路线的首版若不含双语对齐检查，都会错过这个最有说服力的应用场景。
+
+== 评估方法
+
+=== 四条硬条件
+
+[cols="1,2,3",options="header"]
+|===
+|编号 |条件 |理由
+
+|①
+|许可证允许闭源衍生
+|AGPL 的传染性不可逆，一旦代码进入 AGPL 体系无法洗回
+
+|②
+|正文以文件形式存在于磁盘
+|xref 指向的是文件路径，数据库行没有路径可指
+
+|③
+|TypeScript 技术栈
+|协作者 nqble 的背景是 TS/JS，Go、Rust、Pascal 都会让协作退化为单人
+
+|④
+|加入 AsciiDoc 不改动核心数据模型
+|决定工期量级：加解析器是周级，换数据层是月级
+|===
+
+=== 三个存储范式
+
+条件 ② 需要进一步细分。实测发现“文件即真理”存在第三种形态，必须单独列出，否则会误判。
+
+[cols="2,3,3,3",options="header"]
+|===
+|范式 |正文存放位置 |代表项目 |加 AsciiDoc 的实质
+
+|纯文本文件
+|磁盘上的 .md / .adoc 原文
+|Geode、SilverBullet、Zettlr
+|新增一个解析器
+
+|自有块格式
+|磁盘上的块树序列化文件
+|SiYuan（.sy）、Logseq、AFFiNE
+|替换编辑器与块格式
+
+|数据库行
+|数据库的 content 字段
+|Joplin、Trilium、Knowledge Base
+|替换整个数据层
+|===
+
+第二类是陷阱：文件确实在磁盘上，满足字面上的“本地优先”，但内容是块树的 JSON 序列化，AsciiDoc 解析器读不了，也无法把 xref 语义映射进块模型。SiYuan 与 Logseq 均属此类。
+
+=== 一个反向规律
+
+成熟度与可改造性呈反向关系。
+
+一个笔记软件要变“好”，几乎必然要做同步、手机端、加密、全文检索、块级引用。这五件事都在把正文往结构化方向推，一旦推进去就拿不回纯文本。因此：
+
+* **最好用的几个**（Joplin、SiYuan、Logseq、Trilium）恰好是最难改的。
+* **最好改的几个**（Geode、SilverBullet、Zettlr）恰好功能最少、最年轻。
+
+这条规律是本报告最重要的发现，它解释了为什么连续检索九款软件都收敛到同一个结论。
+
+== 候选项目核查
+
+=== 总表
+
+[cols="2,3,2,3,3,1",options="header"]
+|===
+|项目 |技术栈 |许可 |规模 |正文存储 |判定
+
+|Geode
+|Tauri 2 + React 18 + TypeScript
+|Apache-2.0
+|51,954 行 TS + 821 行 Rust
+|磁盘 .md 文件
+|通过
+
+|Joplin
+|Electron + TypeScript
+|AGPL-3.0
+|23 个包（monorepo）
+|SQLite，Note 无路径字段
+|淘汰
+
+|Logseq
+|ClojureScript + Electron
+|AGPL-3.0
+|25,993 次提交
+|块 UUID + 数据库图
+|淘汰
+
+|Nodum
+|FastAPI + PostgreSQL 16 + Redis + MinIO
+|MIT
+|85,410 行（Py 40.6k + TS 44.8k）
+|PostgreSQL 多租户
+|淘汰
+
+|Knowledge Base
+|Tauri 2 + React 19 + Rust + TipTap
+|AGPL-3.0（双许可）
+|178,360 行（TS 99,637 + Rust 78,723）
+|SQLite 的 notes.content
+|淘汰
+
+|Luhmann
+|Blaise Pascal
+|BSD-3（源文件头标 MIT）
+|4,681 行 / 28 个文件
+|直接扫描源码字符串
+|代码不可用
+
+|Yamlink
+|VS Code 扩展 + 原生 JS
+|MIT
+|137,309 行（源码 80.6k + 测试 53.1k）
+|磁盘 .md 文件
+|形态不符
+
+|Opensidian
+|Tauri + Rust + 原生 JS
+|GPL-3.0
+|146 个 .rs，0 个 .ts
+|磁盘 .md 文件
+|淘汰
+
+|SilverBullet
+|Deno + Rust
+|MIT
+|1,242 个 TS/TSX 文件
+|磁盘 .md 文件
+|备选
+
+|Zettlr
+|Electron + TypeScript
+|GPL-3.0
+|未核
+|磁盘 .md 文件
+|备选
+
+|Folio
+|GTK4 + PyGObject
+|未核
+|未核
+|磁盘 .adoc 文件
+|平台不符
+
+|Knowledge Lab
+|Wails + Go + F#
+|AGPL-3.0
+|未核
+|—
+|已停更
+|===
+
+=== 关键证据
+
+==== Geode：唯一四条全过
+
+代码层面的可改造性已实测：
+
+* `compat/` 那 10,397 行 Obsidian 插件兼容层**完全隔离**，`core/` 与 `features/` 无一处实际 import，仅 `src/app/` 有 3 处引用。整体删除只需改 3 行。
+* `parseNote(path, content)` 是纯函数入口（`core/metadata.ts:222`），按扩展名分派即可。
+* `NoteMetadata` 已是格式无关抽象（`links` / `tags` / `headings` / `blocks` / `footnotes` / `frontmatter` / `aliases`），AsciiDoc 均有对应物。
+* 全仓仅 4 处 `.md` 硬编码判断。
+* 图谱只消费 `GraphNode` / `GraphEdge`，替换数据源即可。
+
+真实耦合在别处：`features/` 依赖 `@core/store` 23 次、`@core/markdown` 12 次，这些是围绕 Markdown 语义的类型契约。
+
+**它不是“最好的开源笔记软件”。** 它是 v0.269.0 的 alpha、单作者、仅 Windows。它是**最好的地基**，不是最好的房子。
+
+==== Knowledge Base：README 与实际相反
+
+README 宣称 Tauri 2 + 双向链接 + 图谱 + FTS5 + 同步 + 加密，看起来起点高于 Geode。实际代码：
+
+[source,sql]
+----
+CREATE TABLE IF NOT EXISTS notes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL DEFAULT '',
+    folder_id   INTEGER REFERENCES folders(id) ON DELETE SET NULL,
+    is_daily    INTEGER NOT NULL DEFAULT 0,
+    daily_date  TEXT,
+    ...
+);
+----
+
+整张表没有 `file_path`。它与 Joplin 同类：数据库为真理源，笔记不以文件形式存在。这与立项书里“原始文档始终位于用户指定的文件夹”的原则正面冲突。
+
+规模也是 Geode 的 3.4 倍，多出的部分几乎全在 AI 问答、同步、加密、数据库迁移这些 ADKM 不需要的方向。
+
+==== Joplin：没有路径
+
+`grep -c "public path\|file_path\|localPath" packages/lib/models/Note.ts` 返回 0。笔记是数据库一行：`id` + `title` + `body` + `parent_id`。
+
+`+xref:AI_Engineering_Gate.adoc[]+` 在 Joplin 里无法解析——没有“文件”可指。要支持工作区模式，等于替换数据层，而非新增解析器。
+
+=== Luhmann：唯一的先行者，但代码不可用
+
+它是**唯一已实现“AsciiDoc + 反向链接 + 图谱 + 断链报告”的项目**，4,681 行 Pascal。其提取器核心只有一句：
+
+[source,pascal]
+----
+ScanMacro(ASource, 'xref:', ABaseDir, Result);
+ScanMacro(ASource, 'link:', ABaseDir, Result);
+----
+
+这给 ADR-0001 的方案 C 提供了独立旁证：自建行内扫描的工作量可控。
+
+但它同时暴露了明确边界，而这些边界恰好是 ADR-0002 处理的内容：
+
+* 不支持 `include`（全仓零处提及，设计文档未讨论此维度）
+* 不处理属性替换与条件包含
+* 出链只存目标 id，不存行号，无法满足立项书要求的源码定位
+* 不识别 listing block 转义，代码块里的 xref 会被误判
+* 只认 `.adoc` 后缀，写死在 `EndsText('.adoc', Target)`
+
+**许可存在合规矛盾**：`LICENSE` 为 BSD 3-Clause，但 14 个源文件头部均写 `SPDX-License-Identifier: MIT`。若将来移植其逻辑，须先向上游确认。
+
+=== Asciidoctor.js v4 的实测边界
+
+这是所有路线共同的技术前提，已在 ADR-0001 详述，此处仅列结论：
+
+[cols="3,2,3",options="header"]
+|===
+|能力 |结果 |影响
+
+|源码行号
+|495 / 495 块全部带行号
+|结构导航与跳转可行
+
+|行内节点
+|`getInlineNodes` 不存在，`catalog.links` 恒为空
+|链接提取必须走“取块文本再扫描”
+
+|解析与渲染分离
+|`loadFile()` 后 `doc.convert()` 可复用
+|索引与预览共用一次解析
+
+|include 跨文件归属
+|正确标记为 `part.adoc: L2`
+|includes 关系可建
+
+|路径穿越防护
+|`safe:unsafe` 下仍被 jail 拦截
+|安全边界成立
+
+|批量性能
+|100 篇 79 ms
+|1,000 篇约 0.8 秒
+
+|全异步
+|`getContent()` 返回 Promise
+|索引接口必须 async，不可在同步上下文调用
+|===
+
+另有编辑器侧的空缺：
+
+* `lezer-asciidoc` 不存在（npm 404）
+* `@asciidoctor/codemirror` 不存在（npm 404）
+* 唯一可用的是 `codemirror-asciidoc` 2.0.1，2022-08 停更，实现为 `StreamLanguage`（逐行 token 化，无解析树）
+
+这意味着**任何路线都拿不到 AsciiDoc 的语法树**，折叠、结构化导航、精确 inline 装饰都需自己扫文本。这是放弃 VS Code 或自建桌面壳的共同代价，约 2–3 周。
+
+== 五条路线
+
+=== 路线 A：Obsidian 插件
+
+**形态**：在 Obsidian 内运行，自建图谱面板与校验面板。
+
+**白送**：编辑器、文件树、搜索、主题体系、手机端（官方 App）、插件市场分发。
+
+**要写**：
+
+[cols="3,1,3",options="header"]
+|===
+|模块 |行数 |说明
+
+|索引器
+|约 300
+|复用已有解析器，改用 `vault.adapter.read` 读取
+
+|图谱面板
+|约 450
+|Canvas 或 SVG 力导向，可复用现有布局代码
+
+|校验面板
+|约 250
+|断链、未解析属性、双语差异
+
+|xref 跳转与打开
+|约 150
+|节点点击打开对应 adoc
+
+|设置页
+|约 100
+|工作区根、排除规则
+
+|合计
+|约 1,250
+|
+|===
+
+**硬限制（已实测）**：`asciidoc-live`、`asciidoc-reader`、`asciidoctor-editor` 三个插件均已安装，但全部只做渲染。Obsidian 的 `metadataCache.resolvedLinks` 对插件只读，**插件无法向索引注册自定义链接**。
+
+因此“让 adoc 出现在原生图谱里”只有两条路：
+
+. **影子 md**：为每篇 adoc 生成藏在 `_graph/` 下的桩文件，内含转换后的 wikilink。原生图谱立刻可显示，成本不足 100 行。代价是图上节点是影子文件、点击多一跳、415 篇变 830 节点、文件树被污染。
+. **自建面板**：插件自己建视图、自己解析、自己画。干净合法，但那是“第二个图谱”，不是官方图谱。
+
+**风险**：宿主闭源，插件 API 无稳定性承诺；不能商业化分发；adoc 编辑体验停留在渲染层。
+
+**首版周期**：2 周。
+
+**适用条件**：多端（尤其手机）是硬需求，且希望 nqble 无需安装新软件即可使用。
+
+=== 路线 B：浏览器 + PWA
+
+**形态**：本地 Node 服务 + React 前端，浏览器访问；加 PWA manifest 可安装到桌面/手机主屏。
+
+**已有**：2,864 行，实测 415 文档 / 213 引用 / 0 断链 / 705 ms。文件树、图、文档渲染、出入链、大纲、Git 只读状态均已可用。
+
+**要写**：
+
+[cols="3,1,3",options="header"]
+|===
+|模块 |行数 |说明
+
+|编辑器
+|约 350
+|CodeMirror 6，adoc 用 StreamLanguage，Ctrl+S 写回
+
+|文件监听
+|约 120
+|fs.watch 加防抖，变更后增量重建
+
+|Git 写操作
+|约 200
+|commit / pull / push 按钮与冲突提示
+
+|鉴权
+|约 150
+|单密码 + cookie session，暴露到局域网前必须完成
+
+|全文搜索
+|约 200
+|内存倒排或简单遍历
+
+|PWA 封装
+|约 60
+|manifest + service worker
+
+|合计
+|约 1,080
+|
+|===
+
+**优势**：多端能力最强（任何设备只要有浏览器）；无许可约束；Git 是原生概念；已有代码最多。
+
+**风险**：需常驻服务进程；绑 `0.0.0.0` 而无鉴权等于把整个工作区暴露给局域网；形态上不是“可以装到别人电脑上的软件”。
+
+**首版周期**：1.5 周。
+
+**适用条件**：自己天天用、手机和平板都要看，不追求作品感。
+
+=== 路线 C：Geode 改造
+
+**形态**：fork Geode，新增 AsciiDoc 解析器，得到带安装包的 Windows 桌面应用。
+
+**白送**：52k 行中约 25k 可用——图谱渲染、虚拟化文件树、tabs 与分屏、命令面板、backlinks、outline、搜索面板、设置页，外加 10,397 行 md 的 Obsidian 插件兼容层。
+
+**要写**：
+
+[cols="3,1,3",options="header"]
+|===
+|模块 |行数 |说明
+
+|AsciiDoc 解析器
+|约 400
+|产出 `NoteMetadata`，含章节、xref、属性、行号
+
+|接线
+|约 60
+|4 处扩展名判断改为 `isIndexable()`，入口分派
+
+|编辑器语言模式
+|约 150
+|StreamLanguage + 括号与折叠适配
+
+|合计
+|约 610
+|
+|===
+
+**环境门槛（已撞墙）**：`cargo` 未安装，需 Rust 工具链 + MSVC Build Tools，合计数 GB。`npm install` 被 `EALLOWREMOTE` 拦截（lock 文件记录的是 npmmirror 镜像地址），需加 `--allow-remote` 放行。
+
+**真实成本不在行数**：52,000 行是必须读懂的外部代码，且上游是 active alpha，每次 rebase 都要重解冲突。ADR-0003 已定重写阈值：单次冲突超 20 文件或 500 行即重新评估。
+
+**风险**：无手机端；无同步；上游 churn 持续；React 已锁定 18 不升 19 以避免冲突。
+
+**首版周期**：2–3 周（不含环境准备）。
+
+**适用条件**：目标是可分发、可安装的独立产品，且接受只有 Windows 桌面。
+
+=== 路线 D：VS Code 插件
+
+**形态**：VS Code 扩展，图谱以 webview 面板呈现。
+
+**白送**：最好的文本编辑器、内置 Git、Problems 面板、多光标、跨平台、Settings Sync。
+
+**要写**：
+
+[cols="3,1,3",options="header"]
+|===
+|模块 |行数 |说明
+
+|索引器
+|约 350
+|workspace 扫描 + 解析器复用
+
+|诊断
+|约 250
+|`DiagnosticCollection` 输出断链与未解析属性
+
+|链接提供者
+|约 200
+|`DocumentLinkProvider` 让 xref 可直接点击
+
+|webview 图谱
+|约 450
+|复用现有布局
+
+|合计
+|约 1,250
+|
+|===
+
+**优势**：工程上最舒服的一条。`DiagnosticCollection` 天生就是断链清单的界面，`DocumentLinkProvider` 让 xref 在编辑器里可点，Git 完全白送。
+
+**风险**：形态上是编辑器而非知识库；图谱只能是侧边面板；用户已明确否过一次。
+
+**首版周期**：1.5 周。
+
+**适用条件**：日常主要在写文档，图谱只是辅助。
+
+=== 路线 E：完全自建
+
+**形态**：Tauri 2 + React + TypeScript，自有安装包；同一份 React 前端另套 Node 服务壳供手机访问。
+
+**已有可迁移**：解析器 295 行、力导向图 423 行、渲染管线、工作区扫描 256 行、SCSS 775 行，合计约 2,900 行，且已在真实数据上验证。
+
+**要写**：
+
+[cols="3,1,3",options="header"]
+|===
+|模块 |行数 |说明
+
+|Tauri 适配层
+|约 150
+|`readFileSync` → `plugin-fs`，`execFile` → `plugin-shell`
+
+|Rust 壳
+|约 200
+|插件注册、窗口配置、打包配置
+
+|文件树
+|约 250
+|虚拟化列表 + 折叠 + 过滤
+
+|编辑器
+|约 350
+|CodeMirror 6 + adoc 语言模式
+
+|设置与命令面板
+|约 350
+|工作区选择、排除规则、快捷键
+
+|搜索
+|约 200
+|内存检索
+
+|打包
+|约 100
+|NSIS 安装包、图标、更新检查
+
+|合计
+|约 1,600
+|
+|===
+
+**关键事实**：Tauri 的 fs 插件允许前端直接读写本地文件，因此 `workspace.ts`、`parsers/`、`render.ts` 的逻辑可**原样运行在前端**，无需翻译成 Rust。Rust 侧确实只有约 200 行。
+
+**已知风险（明确标注为风险，非已通畅）**：`asciidoctor.ts` 现用 `loadFile(absPath)`，内部依赖 Node 的 fs。迁入 webview 后须改用 `load(content)` 并自行实现 `FileReader`，使 `include::` 仍能读到文件。约 40 行，但是已知会卡住的点。
+
+**优势**：唯一能同时满足“软件感”与“多端”的路线——一份 React 前端，Tauri 壳给桌面，Node 服务壳给手机。无上游税，无许可约束。
+
+**风险**：全部自行维护；会经历一段功能少于任何竞品的半成品期。
+
+**首版周期**：1 周可跑通编辑，3–4 周才像软件。
+
+**适用条件**：要的是自己的作品，接受当租客之外的代价。
+
+== 横向对照
+
+[cols="2,1,1,1,1,1,1,1",options="header"]
+|===
+|路线 |软件感 |手机 |编辑器 |Git |图谱 |新增行数 |需理解外部代码
+
+|A Obsidian 插件
+|强
+|强
+|弱
+|部分
+|强
+|1,250
+|宿主 API（闭源）
+
+|B 浏览器 + PWA
+|部分
+|强
+|部分
+|强
+|强
+|1,080
+|0
+
+|C Geode 改造
+|强
+|无
+|部分
+|部分
+|强
+|610
+|52,000
+
+|D VS Code 插件
+|弱
+|无
+|强
+|强
+|部分
+|1,250
+|0
+
+|E 完全自建
+|强
+|部分
+|部分
+|强
+|强
+|1,600
+|0
+|===
+
+**读表要点**：路线 C 的 610 行是假象，真实成本是 52,000 行的理解负担加持续的上游合并。路线 E 的 1,600 行是实价，每一行都是自己愿意写的。
+
+== 推荐组合
+
+=== 情形一：多端优先
+
+选 **A（Obsidian 插件）**。
+
+理由：这是唯一“一个人写完、两个人能用、手机上也能看”的方案。nqble 无需安装任何新软件；用户自己不必维护常驻服务；分发成本接近零。
+
+代价：adoc 编辑体验停在渲染层；永远寄住在闭源宿主里；自建图谱而非官方图谱。
+
+=== 情形二：自有产品优先
+
+选 **E（完全自建）**，复用 B 的现有代码作为起点。
+
+理由：唯一能同时满足软件感与多端的路线，且完全无上游依赖。已完成的 2,900 行可直接迁移，真实新增约 1,600 行。
+
+代价：需先备好 Rust 与 MSVC 环境；三到四周内使用半成品。
+
+=== 情形三：想站在成熟项目肩上
+
+选 **C（Geode 改造）**。
+
+理由：唯一四条硬条件全过的项目。10,397 行兼容层、多标签分屏、命令面板、设置页全部白送。
+
+代价：无手机端、无同步、持续跟进 alpha 上游。
+
+=== 不推荐但同时列出
+
+* **D（VS Code 插件）** 工程质量最高，但形态是编辑器而非知识库，与项目定位冲突。
+* **B（浏览器版单独作战）** 已跑通，但缺“可安装的软件”这一层，作为 E 的中间产物更合理。
+
+== 未决事项
+
+[cols="1,3,3",options="header"]
+|===
+|编号 |事项 |影响
+
+|O1
+|nqble 在 Obsidian 中使用的具体插件清单
+|决定索引器需覆盖哪些语法（Dataview 内联字段、Tasks 语法、Canvas 边）
+
+|O2
+|手机端是否硬需求
+|A 与 B/E 的分水岭。若否，C 的短板即消失
+
+|O3
+|是否接受 AGPL
+|若接受，Knowledge Base 与 SiYuan 可重新进入候选，但数据模型仍需改造
+
+|O4
+|Geode 上游锁定 commit
+|采纳 C 时必须在 ADR-0003 §7 填写
+
+|O5
+|双语对齐检查是否进首版
+|目前唯一被证实的真实痛点，进首版可立即产生价值
+|===
+
+== 附录：复跑方式
+
+=== 解析器能力验证
+
+[source,bash]
+----
+node C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/adoc-spike.mjs
+node C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/perf.mjs
+----
+
+=== 索引与图谱复现
+
+[source,bash]
+----
+cd C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/adkm-graph-ts
+npm run all
+----
+
+=== 浏览器版
+
+[source,bash]
+----
+cd C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/adkm-web
+node server/index.ts "C:/Users/Janlhin/Desktop/Blueprint"
+----
+
+=== 实测记录汇总
+
+[cols="3,2,3",options="header"]
+|===
+|项目 |数值 |方法
+
+|章程自身解析
+|零警告 / 41 ms / 93.9 KB HTML
+|`asciidoctor -v`
+
+|AST 行号覆盖率
+|495 / 495
+|`adoc-spike.mjs`
+
+|章节树提取
+|63 个章节，层级与 ID 全对
+|`probe6.mjs`
+
+|include 跨文件归属
+|正确标记 `part.adoc: L2`
+|`adoc-spike.mjs`
+
+|批量解析
+|100 篇 79 ms
+|`perf.mjs`
+
+|Blueprint 全量索引
+|415 篇 705–800 ms
+|`indexer.ts`
+
+|引用提取
+|213 条，断链 0
+|`indexer.ts`
+
+|编辑器语法支持
+|`codemirror-asciidoc` 2.0.1，2022-08，StreamLanguage
+|npm registry
+
+|AsciiDoc 语法树
+|`lezer-asciidoc` 404，`@asciidoctor/codemirror` 404
+|npm registry
+|===
+
+== 修订记录
+
+[cols="1,1,3",options="header"]
+|===
+|版本 |日期 |说明
+
+|1.0.0
+|2026-11-12
+|初版。汇总九款开源笔记软件核查结果与五条路线评估。
+|===

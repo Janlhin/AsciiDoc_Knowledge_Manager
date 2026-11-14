@@ -97,11 +97,11 @@
 ### T-025 用 REA 拆解 Obsidian，仅学习优先软件逻辑与代码逻辑以完善 ADKM
 
 - **提出**：2026-11-13
-- **问题**：ADKM（Geode 底座）已有 D-013 等对上游库的复用决策，但从未逆向过 Obsidian 本体。既有 `ADKM/docs/obsidian-clone-report.adoc` 走的是「社区开源模仿品」路线（Opensidian/Geode/Lokus/Otterly/Mdit/Cherit 六个项目的公开信息核查），查的是**别人怎么模仿 Obsidian**，不是 Obsidian 自己怎么实现——缺的是本体证据（如缓存/增量策略、插件契约、模块边界、状态真源），恰是 ADKM 完善时最容易踩坑处。
+- **问题**：ADKM（Geode 底座）已有 D-013 等对上游库的复用决策，但从未逆向过 Obsidian 本体。既有 `docs/obsidian-clone-report.adoc` 走的是「社区开源模仿品」路线（Opensidian/Geode/Lokus/Otterly/Mdit/Cherit 六个项目的公开信息核查），查的是**别人怎么模仿 Obsidian**，不是 Obsidian 自己怎么实现——缺的是本体证据（如缓存/增量策略、插件契约、模块边界、状态真源），恰是 ADKM 完善时最容易踩坑处。
 - **方法**：用 REA 逆向 Obsidian 的 ASAR 包，分三阶段推进。
   - **阶段一 · 连接与就绪**：REA MCP 已在 `本机 REA 服务注册项` 注册为 `rea`（REA 服务），但当前会话未加载其工具 → 需重启 WorkBuddy 客户端使注册生效；**不依赖 MCP 的兜底路径**：`REA 分析子命令`（CLI 直接返回 Evidence 记录）。目标文件：`主程序资源包`；同目录 `启动壳资源包`仅 Electron 启动壳，非分析目标。
   - **阶段二 · 静态地图**：以 `detail: "summary"` 起步取得 Evidence 与模块图，再凭 `parent_evidence_id` 分页取模块视图；沿「入口 → 数据与状态变更 → 结果」路径推进，只在 summary 留下具体缺口时才下钻，避免重复分析。
-  - **阶段三 · 结论落地**：写 `ADKM/docs/technical-decisions/ADR-0005-*.adoc`，并在 geode 侧登记 T-026+ 实现待办。
+  - **阶段三 · 结论落地**：写 `docs/technical-decisions/ADR-0005-*.adoc`，并在 geode 侧登记 T-026+ 实现待办。
 - **学习范围（严格限定，只学优先项）**：
   - *软件逻辑*：① 文件/元数据缓存与增量更新策略；② 插件 API 契约与生命周期；③ 解析上下文与跨格式引用解析分层；④ 编辑视图与阅读视图分离；⑤ 大库下的性能调度（虚拟化、惰性加载）。
   - *代码逻辑*：⑥ 模块边界与依赖方向；⑦ 事件总线/订阅模型；⑧ 状态单一真源与持久化时机；⑨ 缓存失效与重算边界。
@@ -129,6 +129,98 @@
 - **解决**：—
 - **完成判据**：启动期不再出现由本扫描导致的主线程长任务（用 Long Task 探针确认）；且**实机验证**两件事——①首次打开面板仍能正确列出结果；②改动某篇笔记后重新打开面板，结果随之更新（验证 revision 失效生效，不能只看构建通过）。
 
+### T-029 大纲点击不应强制切换视图模式（preview 下点大纲被切到代码编辑态）
+
+- **提出**：2026-11-14
+- **问题**：右侧「大纲」面板点击条目时，`OutlinePanel.jumpTo`（`src/features/outline/OutlinePanel.tsx:124-138`）先 `openFile(activePath)` 再派发 `geode:scroll-to-heading` 事件。`openFile` 对同文件复用既存 tab、不改 `mode`，因此模式翻转不在此处。真正根因在编辑器侧监听器 `onJump`（`src/features/editor/EditorPane.tsx:842-867`）：当 `tab.mode === "preview"` 时执行 `app.workspace.setTabMode(tab.id, "live")` 后 `return`——即**把阅读视图强制切到可编辑态，并吞掉本次跳转**；真正的滚动（`CodeMirror` 的 `scrollIntoView`）只在 live/source 模式才执行。
+- **方法**：**只改导航行为，不改默认模式**（默认模式见 T-031）。
+  1. `onJump` 删除 preview 分支的 `setTabMode(...)` 调用；
+  2. preview 态改为在已渲染 DOM 中按 `data-heading-from` / 标题文本定位 heading 节点并 `scrollIntoView`；
+  3. 不新增任何写 `mode` 的路径。
+- **解决**：—
+- **完成判据**：Playwright——
+  ① preview 点大纲某条目：`tab.mode` 仍为 `"preview"`，且对应 heading 进入视口；
+  ② source 点大纲：`tab.mode` 仍为 `"source"`，且光标/滚动到位。
+  用例 `npx playwright test` 退出码 0。
+
+### T-030a Rust：SSE 流式传输（llm_stream / llm_cancel）
+
+- **提出**：2026-11-15
+- **问题**：现有 `http_request`（ureq）非流式、30 秒总超时、10 MB 上限，无法承载长回答；而 UI 主线程不能被阻塞。
+- **方法**：`ureq::AgentBuilder` + `timeout_read` 滚动超时（非总超时）→ `BufReader::read_line` 逐行读；仅 `data:` 帧经 `llm:chunk` 推送，`llm:done` / `llm:error` 各恰好一次；`llm_cancel` 用 `AtomicBool` 协作取消；`std::thread::spawn` 后命令立即返回。`sse_data_payload` 抽为纯函数以便单测。
+- **解决**：—（草案：`docs/drafts/ai-support-2026-11-14/01-rust-sse-transport.patch`）
+- **完成判据**：`cargo test`（`sse_frames`）通过；`cargo check` 通过；命令已注册。
+
+### T-030b Rust：系统凭据库（secret_set / secret_get / secret_delete）
+
+- **提出**：2026-11-15
+- **问题**：API Key 不能明文落盘；`keyring` 属硬边界 #5（新增运行时依赖），必须**单点审批**，不得夹带在功能任务里。
+- **方法**：`keyring` 3.6.3（`windows-native` / `apple-native`）；三个命令为 `#[tauri::command(async)]`；`NoEntry` 视为 `None` / 幂等删除。
+- **解决**：—（草案：`02-rust-credential-store.patch`）
+- **完成判据**：`cargo test -- --ignored` 通过（写入→覆盖→读取→删除→幂等删除，含 `llm:` 冒号命名）；`cargo test` 通过。
+
+### T-030c TS：协议核心与校验脚本
+
+- **提出**：2026-11-15
+- **问题**：SSE 增量解析、供应商配置持久化、输出安全渲染需要与网络层解耦并可离线验证。
+- **方法**：`src/core/llm/{types,store,sse}.ts`（纯函数 + localStorage 配置，Key 不入库）+ `src/core/settingsNav.ts` + `scripts/verify-llm-sse.ts` + npm script + `scripts/tsconfig.json`。
+- **解决**：—（草案：`03-ts-protocol-core.patch`）
+- **完成判据**：`node scripts/verify-llm-sse.ts` 15/15；`npm run typecheck:scripts` 通过。
+
+### T-030d TS：传输绑定（secrets / client）
+
+- **提出**：2026-11-15
+- **问题**：需要把 Tauri 事件流与浏览器 fetch 统一为一个 API，并处理取消与错误体。
+- **方法**：`secrets.ts` 封装 `secret_*`（浏览器降级 localStorage，仅开发）；`client.ts` 双通道流式、`AbortSignal` → `llm_cancel`、`testProvider` 复用 `http_request`。
+- **解决**：—（草案：`04-ts-stream-binding.patch`）
+- **完成判据**：`npm run typecheck` 通过；模块未被 UI 引用时也可编译。
+
+### T-030e UI：AI 侧边栏对话面板
+
+- **提出**：2026-11-15
+- **问题**：需要一等公民的对话入口，且模型输出不得引发 XSS。
+- **方法**：`AiPanel` + `ai.scss`；`RightPanelKind` 增 `"ai"`、右侧 tab、`sparkles` 图标；输出仅按 ``` 围栏切分为文本/代码段（React 文本节点，不注入 HTML）；附带笔记上限 12,000 字符、源文件 >2 MB 跳过。
+- **解决**：—（草案：`05-ai-panel.patch`）
+- **完成判据**：Playwright/实机——面板可打开；无供应商时显示配置引导；发送后逐字出现；停止可中止；关闭「附带笔记」后请求不含笔记内容。
+
+### T-030f UI：设置页「AI」与「钥匙串」分区
+
+- **提出**：2026-11-15
+- **问题**：供应商与密钥需要可配置、可验证、可撤销。
+- **方法**：AI 分区（7 个预设、Base URL、模型、密钥、温度、max tokens、测试连接、删除）+ 钥匙串分区（列出/删除名称，值不可回显）+ `settingsNav` 深链 + i18n + 样式。
+- **解决**：—（草案：`06-ai-settings.patch`）
+- **完成判据**：添加预设→保存→重开设置仍在；Key 仅显示「已存入凭据库」；测试连接返回成功或可读错误；删除后条目消失。
+
+### T-031 默认打开模式改为代码编辑（source），且在手动切换前不被改写
+
+- **提出**：2026-11-15
+- **问题**：用户偏好默认以代码编辑（source）打开笔记；现状 `defaultNewTabMode` 默认 `"live"`，且与 `defaultEditMode`、「默认打开预览模式」开关（T-019）三套语义叠加，存在互相覆盖风险。
+- **方法**：核对 `core/appearance.ts`、`workspace.openFile`（`src/core/workspace.ts:456`）与设置页三者的单一真源；首装默认改 `"source"`；明确「新 tab 用默认值 / 已开 tab 不被改写」的边界；任何导航动作不写 `mode`（导航侧由 T-029 修复）。
+- **解决**：—
+- **完成判据**：① 清空 localStorage 后新开笔记，`tab.mode === "source"`；② 手动切到 live 后再开新笔记，新笔记仍为 source（默认值不继承上一 tab）；③ 设置页修改默认值后，新开 tab 立即生效；④ `npm run verify` 通过。
+
+### T-032 功能区快捷键提示改为从命令注册表派生（消除手写不一致）
+
+- **提出**：2026-11-15
+- **问题**：ribbon 按钮的快捷键提示**手写在 i18n 文案里**，与命令注册表脱节。实测：
+  - `app.ribbonGraph` / `app.ribbonPalette` / `app.ribbonSettings` 文案硬编码 `(Ctrl+G)` / `(Ctrl+P)` / `(Ctrl+,)`；
+  - `app:show-search` 有默认键 `Mod+Shift+F`，但 `app.ribbonSearch` 无提示——同一动作，提示不一致；
+  - 手写文案不跟随「设置 → 快捷键」的用户改键；
+  - `Mod` 在 macOS 应显示为 ⌘，写死 `Ctrl` 在 Mac 上是错的。
+  另：插件面板缺合法单 SVG 图标时，`SidebarPanelIcon`（`src/app/App.tsx:1711`）渲染标题首字母（如 «N»），视觉上像孤立字符。
+- **方法**：
+  1. 删除 4 条 i18n 文案中的 `(Ctrl+X)`，恢复纯名称；
+  2. 新增 `formatHotkey(hotkey)`：`Mod` → Windows `Ctrl` / macOS `⌘`（复用 `isMacPlatform`），其余按规范顺序输出；
+  3. 新增 `ribbonTitle(labelKey, commandId)`：`t(labelKey)` + 有效键（`app.commands.getEffectiveHotkey(id)`），无键则不加括号；
+  4. ribbon 按钮改为按 command id 取标题：`app:open-graph` / `app:command-palette` / `app:open-settings` / `app:show-search`；
+  5. 插件面板兜底图标单列处理（要求插件提供图标，或改用通用图标）——需先定契约，不在本条强制。
+- **解决**：—
+- **完成判据**：
+  ① `npm run verify` 通过；
+  ② 手动/Playwright：hover 四个按钮，提示分别为「关系图谱 (Ctrl+G)」「命令面板 (Ctrl+P)」「设置 (Ctrl+,)」「搜索 (Ctrl+Shift+F)」；
+  ③ 在设置里把 `app:command-palette` 改为 `Mod+Shift+P` 后，hover 提示同步变为 `Ctrl+Shift+P`；
+  ④ `formatHotkey` 单测覆盖 `Mod+P` → Windows `Ctrl+P` / macOS `⌘P`。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
@@ -155,4 +247,3 @@
 | T-023 | 2026-11-13 | JS→TS 收尾：`scripts/` 下 4 个 `.mjs`（adoc-index-report / gen-blueprint-seed / gen-icon / verify-format-libs）全部转为 `.ts` 并补齐类型（NodeNext ESM；`xlsx` 经 `createRequire` 取 CJS 运行时同时保留 `typeof import("xlsx")` 类型；`mammoth` 用 `scripts/shims.d.ts` 补声明）；新增 `scripts/tsconfig.json` 独立类型检查（`npm run typecheck:scripts`，已并入 `npm run verify`），根 tsconfig 加 `"types": []` 避免 `@types/node` 污染浏览器端；同步更新 package.json 与 README/MANIFEST/DECISIONS/TASKS/docs 中的脚本路径。验收：`node scripts/verify-format-libs.ts` 4 项全 PASS（与原 `.mjs` 一致）。**刻意保留的 JS**：`compat-fixtures/*/main.js` 与 `demo-vault/.geode/plugins/hello-status.js` 是运行时经 `new Function()` 求值的 Obsidian 插件载荷，必须是 JS，转 TS 会破坏兼容性测试的真实性 |
 | T-024 | 2026-11-13 | 待办体系：JS→TS / CSS→SCSS / CPU 多线程 三项待办已登记。CPU 多线程经用户确认先做**性能画像**再决定并行化范围——现状是 Rust 后端极薄（仅 main.rs 一处 `std::thread::spawn`、无 rayon/tokio），前端 5.3 万行 TS 的解析/图谱(416 节点)/索引/重写全跑在 UI 主线程且无任何 Web Worker，重计算堵在 UI 线程是早前「卡顿」的潜在根因 |
 | T-026 | 2026-11-13 | 前端性能画像（CPU 多线程待办的第一阶段，**用实测数据否定了多线程化**）：经 WebView2 CDP（`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` 注入调试端口，无需改代码）+ Long Task API + 项目自带 `perfMark` 埋点测得：**启动期主线程阻塞 185ms**（85ms + 100ms 两个长任务），CPU 采样 88.7% 为 idle。根因是**单个 50MB 文件**——`Knowledge/书籍库/诸子百家系列.md`（18,487,265 字符 / 566,721 行），占全库 69MB 的 73%；其 `parseNote` 中 **block 标记扫描占 57%**（每行一次 `masked.slice` + 正则 exec）。**已修**：改为先用一次原生 `indexOf("^")` 定位候选行、只处理含 `^` 的行，成本从「按行数」变为「按标记数」；行为等价经 22 个边界用例（CRLF/代码围栏内标记/行首 `^`/重复 id/EOF 无换行/跨段范围等，18 个含真实标记）+ 416 个真实文件逐项比对，0 不匹配。**实测收益**：该文件 parseNote 84.9→39.4ms、parseDocument 181→38.6ms；全库 rebuildAll 193→134ms、解析总耗时 182.7→82.1ms、平均每文件 0.439→0.197ms、最慢文件 118.25→39.55ms；真实 app 启动长任务 185→141ms。**结论：不需要 Worker 化**——热点是单文件内的算法复杂度问题，Worker 化反而要序列化 18.5MB 字符串；且 `rebuildNameMap` 实测仅 0.25ms、`getGraph` 1.4ms、图谱 settle 1112ms 属动画帧预算内，均非热点。已新增可复跑工具 `npm run profile:hotspots / profile:bigfile / verify:block-scan` |
-

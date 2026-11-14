@@ -1,0 +1,553 @@
+From 01e940d77ccdd3161c037777688b5158ae0c2581 Mon Sep 17 00:00:00 2001
+From: Janlhin <72262030+Janlhin@users.noreply.github.com>
+Date: Sun, 15 Nov 2026 01:00:49 +0800
+Subject: [PATCH 3/7] feat(ai): add the LLM protocol core and its verification
+ script
+
+---
+ package.json              |   3 +-
+ scripts/tsconfig.json     |   1 +
+ scripts/verify-llm-sse.ts | 100 +++++++++++++++++++++++++++++
+ src/core/llm/sse.ts       | 120 ++++++++++++++++++++++++++++++++++
+ src/core/llm/store.ts     |  98 ++++++++++++++++++++++++++++
+ src/core/llm/types.ts     | 131 ++++++++++++++++++++++++++++++++++++++
+ src/core/settingsNav.ts   |  24 +++++++
+ 7 files changed, 476 insertions(+), 1 deletion(-)
+ create mode 100644 scripts/verify-llm-sse.ts
+ create mode 100644 src/core/llm/sse.ts
+ create mode 100644 src/core/llm/store.ts
+ create mode 100644 src/core/llm/types.ts
+ create mode 100644 src/core/settingsNav.ts
+
+diff --git a/package.json b/package.json
+index 98f8453..cd9c9bc 100644
+--- a/package.json
++++ b/package.json
+@@ -40,7 +40,8 @@
+     "profile:hotspots": "node scripts/profile-hotspots.ts",
+     "profile:bigfile": "node scripts/profile-bigfile.ts",
+     "verify:block-scan": "node scripts/verify-block-scan.ts",
+-    "report:index": "node scripts/adoc-index-report.ts"
++    "report:index": "node scripts/adoc-index-report.ts",
++    "verify:llm-sse": "node scripts/verify-llm-sse.ts"
+   },
+   "dependencies": {
+     "@asciidoctor/core": "^4.2.1",
+diff --git a/scripts/tsconfig.json b/scripts/tsconfig.json
+index a764926..699f65c 100644
+--- a/scripts/tsconfig.json
++++ b/scripts/tsconfig.json
+@@ -7,6 +7,7 @@
+     "types": ["node"],
+     "strict": true,
+     "noEmit": true,
++    "allowImportingTsExtensions": true,
+     "skipLibCheck": true,
+     "esModuleInterop": true,
+     "forceConsistentCasingInFileNames": true
+diff --git a/scripts/verify-llm-sse.ts b/scripts/verify-llm-sse.ts
+new file mode 100644
+index 0000000..8eefb7a
+--- /dev/null
++++ b/scripts/verify-llm-sse.ts
+@@ -0,0 +1,100 @@
++#!/usr/bin/env node
++/**
++ * Behaviour check for the LLM stream helpers (src/core/llm/sse.ts).
++ *
++ * These are pure functions, so they can be exercised without a browser, a
++ * Tauri webview, or a live provider — the cheapest possible guard against the
++ * two failure modes that matter: dropping a delta, or splitting a code fence
++ * in a way that renders model output as executable HTML (it never does — the
++ * UI renders text nodes only).
++ *
++ * Usage: node scripts/verify-llm-sse.ts
++ * Exit code: 0 = all cases pass, 1 = at least one mismatch.
++ */
++import { capContext, extractOpenAiDelta, extractProviderError, splitCodeFences } from "../src/core/llm/sse.ts";
++
++let failures = 0;
++
++function check(name: string, actual: unknown, expected: unknown): void {
++  const a = JSON.stringify(actual);
++  const e = JSON.stringify(expected);
++  if (a === e) {
++    console.log(`PASS  ${name}`);
++    return;
++  }
++  failures += 1;
++  console.error(`FAIL  ${name}\n      expected ${e}\n      actual   ${a}`);
++}
++
++// ---- delta extraction ----
++check(
++  "string content",
++  extractOpenAiDelta('{"choices":[{"delta":{"content":"你好"}}]}'),
++  "你好",
++);
++check(
++  "role-only delta is not text",
++  extractOpenAiDelta('{"choices":[{"delta":{"role":"assistant"}}]}'),
++  null,
++);
++check(
++  "array content parts",
++  extractOpenAiDelta(
++    '{"choices":[{"delta":{"content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]}}]}',
++  ),
++  "ab",
++);
++check(
++  "usage-only tail",
++  extractOpenAiDelta('{"choices":[],"usage":{"total_tokens":3}}'),
++  null,
++);
++check("done sentinel", extractOpenAiDelta("[DONE]"), null);
++check("malformed json", extractOpenAiDelta("{not json"), null);
++check(
++  "legacy completions text",
++  extractOpenAiDelta('{"choices":[{"text":"legacy"}]}'),
++  "legacy",
++);
++
++// ---- provider error extraction ----
++check(
++  "nested error message",
++  extractProviderError('{"error":{"message":"invalid api key","type":"auth"}}'),
++  "invalid api key",
++);
++check("plain text error", extractProviderError("  gateway timeout  "), "gateway timeout");
++check("empty error body", extractProviderError("   "), null);
++
++// ---- code fence splitting ----
++check(
++  "text / code / text",
++  splitCodeFences("intro\n```ts\nconst x = 1;\n```\noutro"),
++  [
++    { kind: "text", content: "intro", lang: "" },
++    { kind: "code", content: "const x = 1;", lang: "ts" },
++    { kind: "text", content: "outro", lang: "" },
++  ],
++);
++check(
++  "unterminated fence stays code",
++  splitCodeFences("a\n```\nlet y = 2;"),
++  [
++    { kind: "text", content: "a", lang: "" },
++    { kind: "code", content: "let y = 2;", lang: "" },
++  ],
++);
++check("no fences", splitCodeFences("just text"), [
++  { kind: "text", content: "just text", lang: "" },
++]);
++
++// ---- context cap ----
++const capped = capContext("abcdef", 3);
++check("cap truncates head", capped, { text: "abc", truncated: true });
++check("cap keeps short text", capContext("abc", 3), { text: "abc", truncated: false });
++
++if (failures > 0) {
++  console.error(`\n${failures} case(s) failed`);
++  process.exit(1);
++}
++console.log("\nAll LLM helper cases passed.");
+diff --git a/src/core/llm/sse.ts b/src/core/llm/sse.ts
+new file mode 100644
+index 0000000..c3d07c1
+--- /dev/null
++++ b/src/core/llm/sse.ts
+@@ -0,0 +1,120 @@
++/**
++ * Pure helpers for the OpenAI-compatible SSE stream and for safe message
++ * rendering. No DOM, no Tauri, no network — unit-testable in Node.
++ */
++
++/**
++ * Incremental text carried by one `data:` frame.
++ * Returns null for frames that carry no text (role-only deltas, usage tails,
++ * keep-alives, malformed JSON).
++ *
++ * Shape handled: `{ choices: [{ delta: { content } }] }` where `content` is
++ * either a string or an array of `{ type: "text", text }` parts (some
++ * gateways normalise to the array form).
++ */
++export function extractOpenAiDelta(data: string): string | null {
++  if (data === "" || data === "[DONE]") return null;
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(data);
++  } catch {
++    return null;
++  }
++  if (typeof parsed !== "object" || parsed === null) return null;
++  const choices = (parsed as { choices?: unknown }).choices;
++  if (!Array.isArray(choices) || choices.length === 0) return null;
++  const first = choices[0] as { delta?: unknown; text?: unknown };
++  // Legacy /completions frames put text at choices[0].text.
++  if (typeof first.text === "string") return first.text;
++  const delta = first.delta;
++  if (typeof delta !== "object" || delta === null) return null;
++  const content = (delta as { content?: unknown }).content;
++  if (typeof content === "string") return content === "" ? null : content;
++  if (Array.isArray(content)) {
++    let out = "";
++    for (const part of content) {
++      if (typeof part === "object" && part !== null) {
++        const text = (part as { text?: unknown }).text;
++        if (typeof text === "string") out += text;
++      }
++    }
++    return out === "" ? null : out;
++  }
++  return null;
++}
++
++/** Human-readable message from a provider error body, if one is present. */
++export function extractProviderError(body: string): string | null {
++  const trimmed = body.trim();
++  if (trimmed === "") return null;
++  try {
++    const parsed: unknown = JSON.parse(trimmed);
++    if (typeof parsed === "object" && parsed !== null) {
++      const error = (parsed as { error?: unknown }).error;
++      if (typeof error === "string") return error;
++      if (typeof error === "object" && error !== null) {
++        const message = (error as { message?: unknown }).message;
++        if (typeof message === "string") return message;
++      }
++      const message = (parsed as { message?: unknown }).message;
++      if (typeof message === "string") return message;
++    }
++  } catch {
++    /* not JSON — fall through to the raw text */
++  }
++  return trimmed.length > 500 ? `${trimmed.slice(0, 500)}…` : trimmed;
++}
++
++export interface TextSegment {
++  kind: "text" | "code";
++  content: string;
++  /** Fence info string (e.g. "ts"), empty for text segments. */
++  lang: string;
++}
++
++/**
++ * Split model output into text and fenced-code segments so the UI can render
++ * code in a <pre> without ever injecting HTML. Deliberately tiny: ``` fences
++ * only (tilde fences and nested fences degrade to text, which is safe).
++ */
++export function splitCodeFences(text: string): TextSegment[] {
++  const lines = text.split("\n");
++  const out: TextSegment[] = [];
++  let buffer: string[] = [];
++  let inCode = false;
++  let lang = "";
++
++  const flushText = () => {
++    if (buffer.length === 0) return;
++    const content = buffer.join("\n");
++    buffer = [];
++    if (content.trim() !== "") out.push({ kind: "text", content, lang: "" });
++  };
++
++  for (const line of lines) {
++    const fence = /^\s*```(.*)$/.exec(line);
++    if (fence !== null) {
++      if (!inCode) {
++        flushText();
++        inCode = true;
++        lang = fence[1].trim();
++      } else {
++        out.push({ kind: "code", content: buffer.join("\n"), lang });
++        buffer = [];
++        inCode = false;
++        lang = "";
++      }
++      continue;
++    }
++    buffer.push(line);
++  }
++  if (inCode) out.push({ kind: "code", content: buffer.join("\n"), lang });
++  else flushText();
++  return out;
++}
++
++/** Truncate note context by characters, preserving the head (most relevant). */
++export function capContext(text: string, maxChars: number): { text: string; truncated: boolean } {
++  if (text.length <= maxChars) return { text, truncated: false };
++  return { text: text.slice(0, maxChars), truncated: true };
++}
+diff --git a/src/core/llm/store.ts b/src/core/llm/store.ts
+new file mode 100644
+index 0000000..6683c13
+--- /dev/null
++++ b/src/core/llm/store.ts
+@@ -0,0 +1,98 @@
++/**
++ * Persisted LLM provider list + active selection.
++ *
++ * Persistence is localStorage on purpose: this is *configuration* (URLs, model
++ * names, temperatures). API keys are never written here — they go to the OS
++ * credential store via ./secrets.ts and are referenced by `secretName`.
++ * Mirrors the existing settings pattern (`core/appearance.ts`: Store + readX /
++ * persistX helpers) so every consumer subscribes the same way.
++ */
++import { Store } from "../store";
++import { isLlmProvider, type LlmProvider } from "./types";
++
++const PROVIDERS_KEY = "adkm.llm.providers";
++const ACTIVE_KEY = "adkm.llm.active";
++
++function readProviders(): LlmProvider[] {
++  try {
++    const raw = localStorage.getItem(PROVIDERS_KEY);
++    if (!raw) return [];
++    const parsed: unknown = JSON.parse(raw);
++    if (!Array.isArray(parsed)) return [];
++    return parsed.filter(isLlmProvider);
++  } catch {
++    return [];
++  }
++}
++
++function readActiveId(): string {
++  try {
++    return localStorage.getItem(ACTIVE_KEY) ?? "";
++  } catch {
++    return "";
++  }
++}
++
++export const llmProviders = new Store<LlmProvider[]>(readProviders());
++export const activeLlmProviderId = new Store<string>(readActiveId());
++
++function persistProviders(next: LlmProvider[]): void {
++  llmProviders.set(next);
++  try {
++    localStorage.setItem(PROVIDERS_KEY, JSON.stringify(next));
++  } catch {
++    /* quota / private mode — the in-memory store still works this session */
++  }
++}
++
++function persistActive(id: string): void {
++  activeLlmProviderId.set(id);
++  try {
++    localStorage.setItem(ACTIVE_KEY, id);
++  } catch {
++    /* ignore */
++  }
++}
++
++/** New id that never collides with an existing provider. */
++export function uniqueProviderId(base: string, existing: ReadonlyArray<LlmProvider>): string {
++  const taken = new Set(existing.map((p) => p.id));
++  if (!taken.has(base)) return base;
++  for (let i = 2; ; i++) {
++    const candidate = `${base}-${i}`;
++    if (!taken.has(candidate)) return candidate;
++  }
++}
++
++export function addProvider(provider: LlmProvider): void {
++  const next = [...llmProviders.get(), provider];
++  persistProviders(next);
++  if (!activeLlmProviderId.get()) persistActive(provider.id);
++}
++
++export function updateProvider(provider: LlmProvider): void {
++  persistProviders(llmProviders.get().map((p) => (p.id === provider.id ? provider : p)));
++}
++
++export function removeProvider(id: string): void {
++  const next = llmProviders.get().filter((p) => p.id !== id);
++  persistProviders(next);
++  if (activeLlmProviderId.get() === id) persistActive(next[0]?.id ?? "");
++}
++
++export function setActiveLlmProvider(id: string): void {
++  persistActive(id);
++}
++
++/** The provider the panel should use right now (active, else first). */
++export function resolveActiveProvider(
++  providers: ReadonlyArray<LlmProvider>,
++  activeId: string,
++): LlmProvider | null {
++  return providers.find((p) => p.id === activeId) ?? providers[0] ?? null;
++}
++
++/** True when the provider is configured enough to send a request. */
++export function isProviderUsable(provider: LlmProvider): boolean {
++  return provider.baseUrl.trim() !== "" && provider.model.trim() !== "";
++}
+diff --git a/src/core/llm/types.ts b/src/core/llm/types.ts
+new file mode 100644
+index 0000000..6e8ac4f
+--- /dev/null
++++ b/src/core/llm/types.ts
+@@ -0,0 +1,131 @@
++/**
++ * LLM provider model (ADKM AI).
++ *
++ * Only one wire protocol is implemented in the first release: the
++ * OpenAI-compatible `POST {baseUrl}/chat/completions` + SSE convention. That
++ * single protocol covers hosted APIs (OpenAI, DeepSeek, Qwen/DashScope
++ * compatible mode, Moonshot, OneAPI, vLLM…) and local servers (Ollama,
++ * LM Studio, llama.cpp), so "local model support" is a preset, not a second
++ * protocol.
++ *
++ * Secrets are NOT part of this type: `secretName` is a handle into the OS
++ * credential store (see ./secrets.ts). The value never enters localStorage.
++ */
++
++export interface LlmProvider {
++  /** Stable local id (also the keychain account suffix). */
++  id: string;
++  /** User-visible name in the panel + settings. */
++  label: string;
++  /** Base URL; `/chat/completions` is appended unless already present. */
++  baseUrl: string;
++  model: string;
++  /** Credential-store entry name; empty for local servers that need no key. */
++  secretName: string;
++  /** 0–2, forwarded as `temperature`. */
++  temperature: number;
++  /** Optional `max_tokens`; undefined = provider default. */
++  maxTokens?: number;
++}
++
++export type ChatRole = "system" | "user" | "assistant";
++
++export interface ChatMessage {
++  role: ChatRole;
++  content: string;
++}
++
++export interface ProviderPreset {
++  id: string;
++  label: string;
++  baseUrl: string;
++  model: string;
++  /** Local servers accept any key; hosted APIs require one. */
++  requiresKey: boolean;
++}
++
++/** Presets shown in Settings → AI. Users can edit every field afterwards. */
++export const PROVIDER_PRESETS: ReadonlyArray<ProviderPreset> = [
++  {
++    id: "openai",
++    label: "OpenAI",
++    baseUrl: "https://api.openai.com/v1",
++    model: "gpt-4o-mini",
++    requiresKey: true,
++  },
++  {
++    id: "deepseek",
++    label: "DeepSeek",
++    baseUrl: "https://api.deepseek.com/v1",
++    model: "deepseek-chat",
++    requiresKey: true,
++  },
++  {
++    id: "qwen",
++    label: "通义千问（DashScope 兼容模式）",
++    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
++    model: "qwen-plus",
++    requiresKey: true,
++  },
++  {
++    id: "moonshot",
++    label: "Moonshot / Kimi",
++    baseUrl: "https://api.moonshot.cn/v1",
++    model: "moonshot-v1-8k",
++    requiresKey: true,
++  },
++  {
++    id: "ollama",
++    label: "Ollama（本地）",
++    baseUrl: "http://localhost:11434/v1",
++    model: "llama3.1",
++    requiresKey: false,
++  },
++  {
++    id: "lmstudio",
++    label: "LM Studio（本地）",
++    baseUrl: "http://localhost:1234/v1",
++    model: "local-model",
++    requiresKey: false,
++  },
++  {
++    id: "custom",
++    label: "自定义（OpenAI 兼容）",
++    baseUrl: "",
++    model: "",
++    requiresKey: true,
++  },
++];
++
++/** Keychain account name for a provider's API key. */
++export function defaultSecretName(providerId: string): string {
++  return `llm:${providerId}`;
++}
++
++/** Build a provider from a preset (id deduplicated by the caller). */
++export function providerFromPreset(preset: ProviderPreset, id: string): LlmProvider {
++  return {
++    id,
++    label: preset.label,
++    baseUrl: preset.baseUrl,
++    model: preset.model,
++    secretName: preset.requiresKey ? defaultSecretName(id) : "",
++    temperature: 0.7,
++  };
++}
++
++/** Runtime guard for values read back from localStorage. */
++export function isLlmProvider(value: unknown): value is LlmProvider {
++  if (typeof value !== "object" || value === null) return false;
++  const v = value as Record<string, unknown>;
++  return (
++    typeof v.id === "string" &&
++    v.id !== "" &&
++    typeof v.label === "string" &&
++    typeof v.baseUrl === "string" &&
++    typeof v.model === "string" &&
++    typeof v.secretName === "string" &&
++    typeof v.temperature === "number" &&
++    (v.maxTokens === undefined || typeof v.maxTokens === "number")
++  );
++}
+diff --git a/src/core/settingsNav.ts b/src/core/settingsNav.ts
+new file mode 100644
+index 0000000..ddc56dd
+--- /dev/null
++++ b/src/core/settingsNav.ts
+@@ -0,0 +1,24 @@
++/**
++ * One-shot handshake for "open Settings on section X".
++ *
++ * Lives in core (not in the settings feature) because callers are other
++ * features: feature→feature imports are a layering violation, while both may
++ * depend on core. Module-level state on purpose — the caller fires before the
++ * modal component exists, and the modal remounts on every open.
++ *
++ * peek/clear are separate so a React StrictMode double-invoked state
++ * initializer cannot consume the request twice.
++ */
++let pendingSection: string | null = null;
++
++export function requestSettingsSection(id: string): void {
++  pendingSection = id;
++}
++
++export function peekSettingsSection(): string | null {
++  return pendingSection;
++}
++
++export function clearSettingsSection(): void {
++  pendingSection = null;
++}
+-- 
+2.55.0.windows.3
+

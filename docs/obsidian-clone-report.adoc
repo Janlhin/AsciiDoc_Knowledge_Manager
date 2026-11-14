@@ -1,0 +1,481 @@
+= Obsidian 模仿品核查报告
+:revnumber: 1.0.0
+:revdate: 2026-11-12
+:status: draft
+:toc:
+:toclevels: 3
+:sectnums:
+
+== 一句话结论
+
+**不是。Geode 不是最像的，也不是最好的。**
+
+三个问题必须分开答，混在一起会得出错误结论：
+
+[cols="1,3,2",options="header"]
+|===
+|问题 |答案 |依据
+
+|最像的是谁
+|Opensidian
+|原生读 `.obsidian/` 下的插件、主题、snippets，并复刻了「受限模式」这一安全模型
+
+|最好用的是谁
+|Lokus（但许可不是开源）
+|838 星、248k 行、图谱 + 基础视图 + Canvas 三件齐全
+
+|最适合当 ADKM 底座的是谁
+|Geode
+|Apache-2.0 + TypeScript + React + Windows 已实测构建成功
+|===
+
+**Geode 只在第三个问题上赢。** 它的星标数是 6——六个。这一点在后面的 <<_星标与像无关>> 单独说明。
+
+== 什么叫「像」
+
+「像 Obsidian」是个模糊说法，必须拆成可验证的特征，否则只能比截图。本报告用六个特征，全部通过读代码判定，不看 README 自述。
+
+[cols="1,3,2",options="header"]
+|===
+|编号 |特征 |为什么它能区分真假
+
+|F1
+|三模式编辑器：实时预览、源码、阅读
+|Obsidian 的编辑形态是它最难被模仿的部分，需要 CodeMirror 装饰层或等价实现
+
+|F2
+|读取 `.obsidian/` 配置目录
+|能否直接接管一个已有 vault，不用迁移
+
+|F3
+|社区插件 API（加载 `.obsidian/plugins/*/main.js`）
+|这是最高门槛。插件 API 表面极宽，复刻它等于复刻半个应用
+
+|F4
+|主题与 CSS snippets
+|`.obsidian/themes/` 与 `.obsidian/snippets/` 的加载与热重载
+
+|F5
+|JSON Canvas（`.canvas`）
+|独立文件格式，有明确的 schema，最容易判定有无
+
+|F6
+|短路径后缀链接解析 + 同名消歧 + 别名同步
+|社区分级把这一条作为「完全兼容」的核心判据，它决定链接在重命名后是否还成立
+|===
+
+=== 一个外部参照：社区的分级目录
+
+GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格：必须在不做导入转换的前提下直接使用 Obsidian vault 格式，包括 Markdown、JSON Canvas、短路径后缀链接解析、任意文件夹结构。它列出的 Tier 1 是：
+
+* Lokus
+* Otterly
+* Cherit
+* Mdit
+* Foam（VS Code 插件）
+
+**Geode 与 Opensidian 都不在这个名单里。** 这不代表它们不合格，而是说明这份目录的口径是「vault 格式兼容」，不是「应用行为复刻」。两个口径必须分开看，否则会误判。
+
+== 候选清单
+
+来源三条：GitHub 关键词检索（`obsidian clone`，239 个结果按星排序）、`obsidian-clone` 专题、社区分级目录。筛掉主题、插件、模板类仓库后，剩下六个真正的应用级模仿品。
+
+=== 基本盘
+
+[cols="2,3,2,2,1,1,2",options="header"]
+|===
+|项目 |技术栈 |许可 |代码规模 |★ |tag |发布平台
+
+|Geode
+|Tauri 2 + React 18 + TypeScript
+|Apache-2.0
+|53,834 行（TS/TSX 183 个文件）
+|6
+|0
+|Windows（源码可跨平台构建）
+
+|Opensidian
+|Tauri 2 + Rust + 原生 JS
+|GPL-3.0
+|68,730 行（Rust 43 / JS 34）
+|382
+|10
+|Linux x86_64（AppImage / Flatpak / RPM / DEB）
+
+|Lokus
+|Tauri + React（JS/JSX）+ Rust
+|FCL-1.0-MIT
+|248,022 行（JS 472 / JSX 291 / Rust 99）
+|838
+|15
+|三平台
+
+|Otterly
+|Tauri + Svelte 5 + CodeMirror 6
+|MIT
+|117,484 行（TS 518 / Svelte 151 / Rust 58）
+|174
+|17
+|三平台（dmg / setup.exe / deb / AppImage / AUR）
+
+|Mdit
+|Tauri + Rust + TypeScript
+|Apache-2.0
+|96,703 行（TS 411 / TSX 202 / Rust 66）
+|90
+|141
+|未核
+
+|Cherit
+|Tauri + Svelte + CodeMirror 6
+|GPL
+|4,061 行（TS 41 / Svelte 20）
+|67
+|2
+|跨平台（自述含移动端）
+|===
+
+=== 补充说明三点
+
+**Lokus 的许可不是开源。** LICENSE 首行是 `Fair Core License, Version 1.0, MIT Future License`。这是一种「延迟开源」许可：期满后才转为 MIT，在此之前对竞争性使用有额外限制。它不在 OSI 认可的开源许可列表内。想 fork 它做自己的产品，法务上并不干净。
+
+**Geode 的 0 个 tag 值得注意。** `package.json` 版本号已经到 0.269.0，但仓库里一个 git tag 都没有。这说明它的版本号是内部迭代计数，没有对外发布流程。对比 Mdit 的 141 个 tag、Otterly 的 17 个，差别是「有没有对外承诺」。
+
+**Opensidian 的发布只有 Linux。** 但 `tauri.conf.json` 里的 bundle targets 是默认值（未限定），意味着源码层面可以交叉构建 Windows 版本。它没有 Windows 包，是因为维护者只做 Linux，不是因为技术上做不到。
+
+== 特征矩阵
+
+下表是六个项目在 F1–F6 上的命中情况。数字表示「包含该特征的源码文件数」，用文件数而非「有/无」，是为了区分「真正实现」和「只提了一句」。
+
+[cols="2,1,1,1,1,1,2",options="header"]
+|===
+|项目 |F1 三模式 |F2 .obsidian |F3 插件 API |F4 主题 |F5 Canvas |F6 链接解析
+
+|Geode
+|26
+|17
+|14
+|8
+|0
+|未核
+
+|Opensidian
+|7
+|25
+|11
+|9
+|23
+|未核
+
+|Lokus
+|4
+|2
+|1
+|11
+|27
+|未核
+
+|Otterly
+|0
+|0
+|0
+|0
+|0
+|有（社区 Tier 1）
+
+|Mdit
+|0
+|3
+|1
+|1
+|0
+|未核
+
+|Cherit
+|0
+|0
+|0
+|0
+|0
+|有（社区 Tier 1）
+|===
+
+**读表警示**：文件命中数是代理指标，不是证明。它会被命名习惯干扰——比如 Otterly 用 Svelte 写编辑器，可能根本不出现 `livePreview` 这个词。所以下表的分档结论，凡关键判断都在后文给了代码级证据。
+
+== 六个项目逐个看
+
+=== Opensidian：最像的那个
+
+它是唯一在 README 里明确使用「clean-room functional clone」自我定义的项目，并声明「reimplements Obsidian's behaviour from the outside and contains none of its code」。
+
+代码层面的证据比这句话更有力。它的主题与插件章节写的是真实实现，不是愿望：
+
+* 主题放在 `<vault>/.obsidian/themes/<Name>/`，需要 `manifest.json` 与 `theme.css`，**实时重载**；坏主题会被置灰并显示原因，不会拖垮渲染。
+* CSS snippets 放在 `.obsidian/snippets/`，同样实时生效。
+* 社区插件：**默认关闭，每个 vault 从「受限模式」启动**，用户手动关闭受限模式后才允许运行社区代码。有插件浏览器可搜索、安装、更新、卸载。
+* 插件密钥走**系统 keyring**，不落明文。
+* Canvas 相关代码 23 个文件命中，是六个项目里最多。
+
+**它连「安全模型」都复刻了**——这一点比任何功能清单都能说明「像」的程度。很多模仿品只抄了界面，没抄「默认不信任社区代码」这个决定。
+
+代价：GPL-3.0（传染）、纯 Linux 发布、Rust 主导（前端是原生 JS，无 TypeScript）。
+
+=== Geode：插件 API 挖得最深，但不是最像
+
+它做了一件别人没做的事：**写了 10,397 行 Obsidian 插件兼容层**，实现 vault / workspace / metadata / settings / modals / menus / notices / markdown rendering / CodeMirror 集成。`src/compat/obsidian/loader.ts` 明确从 `<vault>/.obsidian/plugins/` 加载，注释写着「Idempotent like PluginManager.loadExternal」。
+
+也就是说，它真的能读 Obsidian 的插件目录，跑别人的插件。
+
+但它有三处不如 Opensidian：
+
+. **没有 Canvas。** 搜索 `canvas` 只命中 i18n 词条（`settings.corePlugin.canvas` 的界面文案），没有实现代码。它有一个开关位置，门后是空的。
+. **插件体系是双轨的。** 自己的插件放在 `<vault>/.geode/plugins/*.js`，Obsidian 插件放在 `.obsidian/plugins/`。两套并存，意味着它首先想做的不是克隆。
+. **Obsidian 兼容层状态是「In progress」。** README 自己写的，不是我的判断。
+
+它的强项在工程结构：`compat/` 与 `core/`、`features/` 完全隔离，`NoteMetadata` 是格式无关抽象，图谱只吃 `GraphNode`、`GraphEdge`。这也是它能当我方底座的原因——改造面干净。
+
+=== Lokus：星最多，功能最全，但不是开源
+
+838 星、248k 行、15 个 tag、三平台发布。技术上它最接近「完整产品」：图谱（`@react-sigma`）、基础视图、Canvas 都有。
+
+两个硬伤：
+
+* **FCL-1.0-MIT 不是开源许可**，它的开源是「两年后」。
+* **不读 `.obsidian/` 配置**（2 个文件命中，且大概率只是排除路径）。也就是说它要求你把 vault 交给它，而不是接管你已有的 Obsidian 设置。插件 API 只有 1 个文件命中，基本等于没有。
+
+它更像「另一个本地优先笔记软件」，而不是「Obsidian 的复刻」。社区把它列进 Tier 1，是因为 vault 格式兼容，不是因为行为兼容。
+
+=== Otterly：工程最干净，但它是重写不是复刻
+
+MIT、Svelte 5 + CodeMirror 6、117k 行、17 个 tag、三平台安装包齐全。
+
+它的定位写得很坦白：「Open a folder of Markdown notes and get to work」。**它没有试图模仿 Obsidian**，F2/F3/F4/F5 全部为零。它只是把「打开一个 Markdown 文件夹」这件事做得干净。
+
+作为底座它有两个优点：MIT 许可、CM6（与我方已有方案同栈）。缺点是 Svelte 而不是 React，且没有插件体系可继承。
+
+=== Mdit：不是模仿品，是杂交
+
+141 个 tag，Apache-2.0，Rust + TS。但它自己的对比表写得很清楚：本地文件 ✓、块编辑器 ✓、反向链接与图谱 ✓、同步计划中。
+
+块编辑器（Notion 式）与 Obsidian 的「源码可编辑」模型是冲突的。它要的是 Notion 的手感 + Obsidian 的文件所有权，这个组合有价值，但它不是「像 Obsidian」，是「在 Obsidian 缺的地方补 Notion」。
+
+=== Cherit：早期，动机最清楚
+
+4,061 行，2 个 tag，67 星。README 的动机段写得直白：Obsidian 把同步藏在付费墙后面，它要做跨平台、本地优先、同步内置的版本。
+
+方向清楚，但代码量决定了它现在只是一个方向，不是一个可选方案。
+
+== 三个排名
+
+=== 按「像」排
+
+[cols="1,2,3",options="header"]
+|===
+|名次 |项目 |判据
+
+|1
+|Opensidian
+|唯一复刻了受限模式与插件浏览器；原生读 themes / snippets / plugins；Canvas 有实现
+
+|2
+|Geode
+|插件 API 最厚（10,397 行），真读 `.obsidian/plugins`；但无 Canvas，插件体系双轨
+
+|3
+|Lokus
+|有 Canvas 与图谱，但不接管 `.obsidian` 配置，无插件 API
+
+|4
+|Mdit
+|块编辑器与 Obsidian 模型冲突，属于杂交路线
+
+|5
+|Otterly
+|vault 格式兼容，但明确不复刻应用行为
+
+|6
+|Cherit
+|方向正确，规模不足以判断
+|===
+
+=== 按「好用」排
+
+星标与发布节奏的客观数据：
+
+[cols="1,1,1,2",options="header"]
+|===
+|项目 |★ |tag |备注
+
+|Lokus
+|838
+|15
+|功能最全，但许可非开源
+
+|Opensidian
+|382
+|10
+|行为最像，但只有 Linux
+
+|Otterly
+|174
+|17
+|MIT，三平台，但功能最窄
+
+|Mdit
+|90
+|141
+|发布最勤，方向不同
+
+|Cherit
+|67
+|2
+|早期
+
+|Geode
+|6
+|0
+|alpha，无对外发布
+|===
+
+=== 按「当 ADKM 底座」排
+
+这一列与前两列不同，它把「我方能改」作为第一权重：
+
+[cols="2,1,1,1,2",options="header"]
+|===
+|项目 |许可 |我方技术栈 |改造面 |结论
+
+|Geode
+|Apache-2.0
+|TS + React
+|新增解析器，核心不动
+|**首选**
+
+|Otterly
+|MIT
+|TS + Svelte
+|需换 UI 框架认知
+|备选
+
+|Mdit
+|Apache-2.0
+|TS + Rust
+|块编辑器与 adoc 源码编辑冲突
+|不合适
+
+|Opensidian
+|GPL-3.0
+|Rust + JS
+|需写 Rust 解析器
+|可参考不可用
+
+|Lokus
+|FCL（非开源）
+|JS/JSX 无 TS
+|法务不干净
+|排除
+
+|Cherit
+|GPL
+|TS + Svelte
+|规模不足
+|排除
+|===
+
+== 对 ADKM 的影响
+
+=== 一个必须接受的事实
+
+Geode 只有 6 个星标。这意味着：
+
+* 没有社区在做代码审查，它的 53,834 行里可能藏着未被发现的问题
+* 没有第三方验证过它的 Obsidian 插件兼容层是否真能跑常见插件（README 说 in progress）
+* 一旦上游停更，没有 fork 生态可以接手
+
+这与 §5.2 里 ADR-0003 的判断不矛盾——那一条选的是「能改」，不是「成熟」。但必须把话说清楚：**ADKM 的地基是一个 6 星 alpha 项目。**
+
+如果你无法接受这一点，那么按本报告的数据，没有第二个同时满足 Apache/TS/Windows/可改 的候选。这不是选型失败，是这个细分领域就没人做。
+
+=== 一个可以利用的事实
+
+Geode 的 Canvas 是空的。而 Canvas 恰好是 ADKM 立项书 §5.4 里「related-to 关系来自用户手工标注」的数据源。
+
+也就是说，如果能实现 `.canvas` 解析，ADKM 补的正好是 Geode 的缺口，而不是重复它已有的东西。这是一个真实的功能位，不是硬造的理由。
+
+=== 一个需要修正的预期
+
+我在前几轮说过「Geode 是唯一四条全过的」——那是按「文件即真理 + 宽松许可 + TS + 改造成本」四个条件筛的，成立。
+
+但如果「像不像 Obsidian」也是条件，Geode 排第二，Opensidian 第一。**两个结论都对，因为问题不同。** 报告把这一点写清楚，免得将来回头看觉得前后矛盾。
+
+== 星标与「像」无关
+六个项目的星标数与「像」的程度，相关性接近于零：
+
+* 最像的 Opensidian 是 382 星，排第二
+* 最多星的 Lokus 是 838 星，但在「像」上排第三，且许可有问题
+* 星最少的 Geode 是 6 星，却在插件 API 上做得最深
+
+原因不难理解：星标奖励的是「功能多、界面好看、能装就上手」，不奖励「内部行为一致」。而「像」恰恰是内部行为的事。
+
+所以选底座不能看星标，只能看代码。本报告的全部判断都建立在 `git clone` 之后的实地检查上，没有一条来自 README 的自我描述——凡引用自述处均已标注。
+
+== 核查方法
+
+[source,bash]
+----
+# 1. 候选来源
+curl "https://api.github.com/search/repositories?q=obsidian+clone&sort=stars&per_page=20"
+curl "https://raw.githubusercontent.com/slimhk45/awesome-obsidian-alternatives/main/README.md"
+
+# 2. 六个仓库全部浅克隆
+for r in lokus-ai/lokus ajkdrag/otterly Keshav-writes-code/Cherit hjinco/mdit; do
+  git clone --depth 1 "https://github.com/$r.git"
+done
+
+# 3. 特征扫描（排除 node_modules / dist / target）
+#    统计每个仓库中命中 F1-F6 关键词的文件数
+
+# 4. 人工复核关键实现
+grep -rn "\.obsidian" src --include="*.ts"
+sed -n '1,60p' src/compat/obsidian/loader.ts
+grep -inE "theme|plugin|restricted" opensidian/README.md
+
+# 5. 成熟度
+git ls-remote --tags "https://github.com/<repo>.git" | wc -l
+----
+
+=== 数据可信度分级
+
+[cols="2,1,3",options="header"]
+|===
+|项目 |可信度 |说明
+
+|代码规模、许可、星标、tag 数
+|实测
+|直接读取仓库文件与 HTML
+
+|特征矩阵命中数
+|实测代理
+|文件命中数，受命名习惯影响
+
+|「最像」的判断
+|推断
+|基于 README 声明 + 关键文件结构，未逐一运行验证
+
+|各项目实际可用性
+|未验证
+|只构建过 Geode，其余五个未编译运行
+|===
+
+**明确未做的事**：Opensidian、Lokus、Otterly、Mdit、Cherit 均未构建运行，它们的实际可用性来自 README 与代码结构推断。若要把其中任何一个当作备选，必须按 Geode 的方式实测构建一次。
+
+== 修订记录
+
+[cols="1,1,3",options="header"]
+|===
+|版本 |日期 |说明
+
+|1.0.0
+|2026-11-12
+|初版。六个模仿品的代码级核查，三个维度排名，以及对 ADKM 底座结论的修正。
+|===

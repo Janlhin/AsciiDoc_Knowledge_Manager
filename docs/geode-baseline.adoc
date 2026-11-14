@@ -1,0 +1,272 @@
+= ADKM 相对 geode 的底座差异基线
+
+:encoding: utf-8
+:lang: zh-CN
+:toc: left
+:toclevels: 2
+
+本文记录 **ADKM 相对其底座 geode 的差异**，用于每一次"还差多少 / 该做什么"的评估。
+
+== 为什么需要这份基线
+
+评估"ADKM 离目标还有多远"时，参照物必须是 **geode（底座）**，而不是 Obsidian（参照产品）。两者混用会导致两类错误判断：
+
+* 拿 Obsidian 的功能广度去衡量 ADKM → 高估差距，把 Obsidian 十年商业演进的成果算成我们的欠债
+* 拿 ADKM 的纵深能力去衡量 Obsidian → 低估差异化，看不见我们在 adoc 与引用校验上的领先
+
+本文只记录**已核实的事实**与**明确标注的判断**，区分二者。
+
+== 基线事实
+
+=== 底座来源
+
+[cols="1,3"]
+|===
+|项 |值
+
+|上游项目
+|geode（`AlexHercules/geode`）
+
+|许可
+|Apache-2.0（保留 NOTICE 与版权声明义务）
+
+|引入方式
+|vendor 快照（单次提交引入，此后未同步上游）
+
+|快照提交
+|`6e80e93`，对应上游 `7a8ce22cb6fd289913c1032e7ecdc3667033748e`（2026-07-04）。该提交是重建的根，溯源见仓库内 `PROVENANCE.adoc`。
+
+|代码仓
+|`https://github.com/Janlhin/adkm.git`（fork）
+
+|应用标识
+|`com.geode.knowledgebase`
+|===
+
+=== 技术栈：底座当时 vs 现在
+
+下表两栏均为**核实自各自的 package.json / Cargo.toml**。注意底座当时用的是 React 18 与 TS 5.7，其后我们做了升级——评估"我们改了多少"时必须区分「底座原有」与「我们的版本选择」。
+
+[cols="1,2,1,1"]
+|===
+|层 |选型 |底座 7a8ce22 |ADKM 现在
+
+|桌面壳 |Tauri |2.2.0 |2.12.5
+
+|界面 |React / React-DOM |18.3.1 |19.3.1
+
+|语言 |TypeScript |5.7.0 |7.0.2
+
+|编辑器 |CodeMirror 6 |view 6.36.0 |view 6.43.15 等 8 个包
+
+|构建 |vite-plus（含 Vite 8 + Rolldown） |Vite 6 |vite-plus 1.6.0
+
+|样式 |sass（SCSS） |未引入 |1.108.2
+
+|AsciiDoc |@asciidoctor/core（浏览器构建） |**无** |4.2.1
+
+|状态管理 |**无第三方库**，自研 `useStore` |同 |同
+
+|图谱 |d3-force |3.0.0 |3.0.0
+
+|office 预览 |mammoth / jszip / epubjs / x-data-spreadsheet / xlsx |**均无** |1.13.0 / 3.10.2 / 0.3.93 / 1.1.9 / 0.18.5
+
+|Rust 侧 |serde / serde_json / notify / ureq / base64 |— |1 / 1 / 8 / 2 / 0.22
+
+|Rust 编译档 |`panic=abort`、`lto=true`、`opt-level="s"` |— |同
+
+|Node |.nvmrc 已登记 |未登记 |26.13.0
+
+|依赖条目总数 |package.json |46 |60
+|===
+
+=== 版本号的三个来源（易混淆，已核实）
+
+[cols="1,1,3"]
+|===
+|位置 |值 |作用
+
+|`src-tauri/tauri.conf.json`
+|`0.269.0`
+|**Tauri 打包与更新器实际认的版本号**。
+
+|`package.json`
+|`0.269.0`
+|npm 侧版本，与上者一致。
+
+|`src-tauri/Cargo.toml`
+|`0.269.0`
+|原为上游遗留的 `0.22.0`——该字段自 vendor 快照引入后从未修改，Tauri v2 不读取它。已于 2026-11-13 对齐为 `0.269.0`，避免后来者误改错文件。
+|===
+
+== 差异对照
+
+[cols="2,2,2"]
+|===
+|维度 |geode（底座） |ADKM（当前）
+
+|核心能力
+|md 知识库：索引、图谱、搜索、反链、插件兼容层
+|上述 + *AsciiDoc 全链路*（同索引 / `xref:` 可点 / 阅读视图 / 跨格式引用）
+
+|格式支持
+|仅 md
+|md + adoc 双一等公民；docx/pptx/epub 只读预览；xlsx 可编辑
+
+|文档能力
+|无引用校验
+|仍**未实现**——charter §5.1 的引用校验三态（有效 / 断链 / 未解析）与 §5.2 多版本一致性校验目前**均无代码**。索引侧只有二态（`resolveByKind` 返回 `string \| null`，`null` 同时表示「目标不存在」与「无法确定」），`LinkRef` 无 `status` 字段。属 **charter 规划，尚未落地**。
+
+|工程规范
+|无
+|五件套文档（README / AGENTS / DECISIONS / TASKS / MANIFEST）+ ADR 体系 + strict TS
+
+|代码质量
+|100% TS；`src/` 内 25 个 SCSS、0 个 CSS
+|同 + 脚本全部 TS 化（独立 tsconfig，纳入 `npm run verify`）
+
+|架构成熟度
+|缓存 / 增量 / 事件总线 / 状态真源 **全缺**
+|**同样缺（本轮零进展）**
+|===
+
+== 相对底座的差异（定性）
+
+> **本节刻意不写具体行数与文件数。** 数字在写下后数小时内即过期——本文件上一版曾记录一组 diff 计数，落笔时已与仓库实际状态不符，且会随每次提交继续漂移。差异要数字时，直接查当前状态（见下），
+>
+> [source,console]
+> ----
+> git diff --shortstat 6e80e93 HEAD          # 相对上游快照的总体差异
+> git diff --stat 6e80e93 HEAD -- src        # 仅前端
+> git diff --name-status 6e80e93 HEAD -- src # 新增 / 修改 / 重命名清单
+> ----
+>
+> 上游快照 `6e80e93`（对应上游 `7a8ce22`，2026-07-04）就在本仓库内，因此上述查询**完全可复现，无需联网**。
+
+=== 差异的性质
+
+[cols="2,3"]
+|===
+|类别 |性质
+
+|**既有能力**
+|**零删除。** 对 geode 原有文件的改动全部是「接入式」的——把 AsciiDoc 与 office 预览塞进既有的索引 / 图谱 / 预览管线，而非另起炉灶或重写。
+
+|**新增能力文件**
+|全部集中在 `src/` 下的**十二个新文件**，构成 ADKM 相对 geode 的**全部**产品增量：
+
+[cols="2,3"]
+|===
+|文件 |带来的能力
+
+|`core/parsers/asciidoc.ts`
+|*AsciiDoc 解析器*
+
+|`core/parsers/indexable.ts`
+|跨格式统一索引入口
+
+|`core/asciidoctorPreview.ts`
+|Asciidoctor 懒加载渲染
+
+|`styles/adoc-preview.scss`
+|adoc 阅读视图样式
+
+|`features/attachment/formatPreview.ts`
+|格式注册表
+
+|`features/attachment/DocxPreview.tsx`
+|docx 预览
+
+|`features/attachment/PptxPreview.tsx`
+|pptx 预览
+
+|`features/attachment/EpubPreview.tsx`
+|epub 阅读器
+
+|`features/attachment/XlsxPreview.tsx`
+|xlsx 可编辑网格
+
+|`core/product.ts`
+|品牌占位与产品标识
+
+|`styles.d.ts` / `format-shims.d.ts`
+|类型声明（`?raw` 导入、mammoth）
+|===
+
+|**非能力增量**
+|差异统计里的大头其实**不是能力**：样式层的 CSS→SCSS 机械改写、重命名与搬家、文档与根目录规范化。这些必须从「新增能力」里扣除，否则会严重高估工作量。
+
+|**架构成熟度**
+|缓存 / 增量 / 事件总线 / 状态真源——**底座为零，我们也是零**。见下文第三条结论。
+|===
+
+=== 结论
+
+[quote]
+____
+保留 100% 既有能力（**未删除任何文件**），以**少量**真实产品代码换来两个 geode 完全不具备的维度：**AsciiDoc 全链路**与**多格式 office 预览**。
+
+工程规范侧从 0 到有（SCSS 化、脚本 TS 化、五件套文档 + ADR 体系）。
+
+**架构成熟度侧：0 进展**——缓存 / 增量 / 事件总线 / 状态真源，上游 geode 同样为零，我们同样为零。
+____
+
+这个「以少量代码接入而非重写」的形态说明两件事：
+
+. geode 的底座质量不错；
+. 剩下的路**不在写代码，在补架构**。
+
+== 三条结论
+
+=== 一、产品能力上已完成质变
+
+从「md 编辑器」到「专业文档工程工具」，不是量变。ADKM 相对 geode 的增量集中在 charter 定义的方向上，且已在代码中落地——**代价是少量新增文件**，且未删除任何既有文件。
+
+=== 二、工程规范上已建立体系
+
+五件套文档、ADR、strict TS、脚本类型化——geode 上游没有这一层。
+
+=== 三、架构成熟度是唯一的大缺口，且 geode 也没有
+
+这一栏是 **0**，且底座同样为 **0**。
+
+这一点必须说清：**geode 的作者从未做过 Obsidian 那个量级的缓存 / 索引 / 增量体系**。Obsidian 是十年商业演进的产物，geode 是个人项目的演进产物。所以用 REA 逆向 Obsidian **不是在补 geode 的短板——是在补一个 geode 从来没有过的维度**。
+
+而这不是可有可无的工程洁癖：charter 承诺的「引用完整性校验优先」，在大库上若无缓存与增量索引，就是**不可用的功能**。承诺了却兑现不了，等于没承诺。
+
+因此 REA 逆向是兑现产品承诺的技术路径，不是可选的锦上添花。范围与纪律见 `obsidian-reverse-engineering.adoc`。
+
+== 待验证项
+
+以下尚未实测，不得当作结论使用：
+
+* 「重计算堵 UI 主线程是卡顿根因」——这是*假设*，无 profiling 数据支撑。
+* L4 的 x-data-spreadsheet 网格与 epub.js 阅读器真实 DOM 渲染——仅构建与逻辑验证通过，未在真实 Tauri 运行下目视确认（ADR-0004 未设「复审条件」章节，该项待补）。
+
+== 关联文档
+
+* `project-charter-v2.adoc`：定位、原则、P0 与非目标。
+* `route-evaluation.adoc`：五条路线评估，路线 C（以 Geode 为底座）的依据。
+* `technical-decisions/ADR-0003-geode-as-base.adoc`：选 geode 作底座的决策。
+* `technical-decisions/ADR-0004-deep-modification.adoc`：深度改造七层与样式三规则。
+* `obsidian-reverse-engineering.adoc`：REA 逆向路线与学习范围。
+* `obsidian-clone-report.adoc`：社区模仿品核查（**参照产品**方向，与本文的**底座差异**不是一回事）。
+
+== 修订记录
+
+[cols="1,1,3"]
+|===
+|日期 |变更 |说明
+
+|2026-11-13
+|创建
+|建立 ADKM 相对 geode 的底座差异基线；明确「架构成熟度」为唯一大缺口且底座同样缺失；标注两条待验证假设（卡顿根因、L4 真实 DOM 渲染）。
+
+|2026-11-13
+|修正事实错误
+|删除「ADKM 已有引用校验三态 + 版本一致性校验」这一虚构断言——审计确认两者在代码中**均无实现**（索引侧只有二态，`null` 合并了「断链」与「未解析」；`LinkRef` 无 `status` 字段），改为标注「charter 规划，尚未落地」；同时修正指向不存在的「ADR-0004 复审条件」的引用。
+
+|2026-11-13
+|补量化差异
+|加入相对上游快照的差异实测；区分「非能力增量」（CSS→SCSS 机械改写、文档、重命名）与「真实产品增量」（新增能力文件）；技术栈表改为「底座当时 vs ADKM 现在」两栏；`Cargo.toml` 版本号已对齐 0.269.0。
+|===
