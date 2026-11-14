@@ -1,0 +1,253 @@
+/* ADKM AI panel (2026-11-14). Tokens only — no hard-coded colours. */
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 13px;
+}
+
+.ai-header {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-provider-select {
+  max-width: 120px;
+  padding: 1px 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.ai-provider-select:focus {
+  border-color: var(--accent);
+}
+
+.ai-icon-btn,
+.ai-text-btn {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.ai-text-btn {
+  display: inline;
+  font-size: 11.5px;
+}
+
+.ai-icon-btn:hover,
+.ai-text-btn:hover {
+  color: var(--text-normal);
+  background: var(--bg-hover);
+}
+
+/* ---- context bar ---- */
+
+.ai-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 10px 6px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-context-bar input {
+  margin: 0;
+}
+
+.ai-context-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+}
+
+.ai-context-note {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--bg-panel-alt);
+}
+
+/* ---- transcript ---- */
+
+.ai-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 10px 14px;
+}
+
+.ai-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 18px 8px;
+  color: var(--text-faint);
+}
+
+.ai-empty-title {
+  color: var(--text-normal);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.ai-empty-body {
+  line-height: 1.6;
+}
+
+.ai-msg {
+  margin-bottom: 14px;
+}
+
+.ai-msg-role {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ai-copy-btn {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ai-copy-btn:hover {
+  color: var(--text-normal);
+}
+
+.ai-msg-user .ai-text {
+  padding: 7px 10px;
+  background: var(--accent-muted);
+  border-radius: 6px;
+  color: var(--text-normal);
+}
+
+.ai-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.65;
+  color: var(--text-normal);
+}
+
+.ai-thinking {
+  color: var(--text-faint);
+}
+
+.ai-code {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow-x: auto;
+  font-family: var(--font-monospace, ui-monospace, "Cascadia Code", Consolas, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.ai-error {
+  flex-shrink: 0;
+  margin: 0 10px 6px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  color: var(--danger);
+  background: var(--bg-panel-alt);
+  border-radius: 5px;
+  word-break: break-word;
+}
+
+/* ---- composer ---- */
+
+.ai-composer {
+  flex-shrink: 0;
+  padding: 8px 10px 6px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-input {
+  width: 100%;
+  min-height: 58px;
+  max-height: 180px;
+  resize: vertical;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-normal);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+}
+
+.ai-input:focus {
+  border-color: var(--accent);
+}
+
+.ai-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.ai-hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.ai-primary {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border-radius: 5px;
+}
+
+.ai-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.ai-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ai-footer {
+  flex-shrink: 0;
+  padding: 0 10px 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
