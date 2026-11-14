@@ -313,6 +313,15 @@
 | Q-001 | 2026-11-13 | `src/`、`src-tauri/`、`public/`、`scripts/`、`docs/` 等目录严格按字面不在根目录白名单内，是否逐项申请豁免 | 已按 D-006 解释为「文件从严、目录从宽」，README 目录结构声明职责 |
 | Q-002 | 2026-11-13 | 覆盖率阈值初始定多少（建议先 20%，逐层抬高） | 待 T-003 落地时定 |
 | Q-003 | 2026-11-13 | `oxfmt` 尚未到 1.0，是否等 1.0 再引入格式化 | 待定；当前 T-001 用 Prettier |
+| Q-004 | 2026-11-15 | 应用标识改名（`productName` / `identifier`）与数据目录迁移：新 identifier 用什么前缀、`package.json` 的 name 是否同步改 | **待定**。方案已定，参数未定；仓库名已改为 `AsciiDoc_Knowledge_Manager` |
+
+**Q-004 待定方案（2026-11-15 已确认要做，缺两个参数）**
+
+- **范围**：`productName` `Geode` → `AsciiDoc Knowledge Manager`；`identifier` `com.geode.knowledgebase` → 待定（建议 `com.janlhin.*`）；`package.json` 的 `name` 是否同步改（该字段是内部包名，不影响用户可见名称）。
+- **为什么必须一并迁移**：identifier 决定应用数据目录。现值 `%APPDATA%\com.geode.knowledgebase\` 内含索引库（实测 39 MB / 415 行）、设置、最近库列表。改 identifier 而不迁移 = 用户侧「数据全丢」。
+- **迁移方式（已定）**：启动时检测——新目录不存在且旧目录存在 → **递归复制**（不是移动，失败时旧数据仍在）→ 写完成标记 → 之后的启动只看新目录。必须在改 identifier 的同一次提交里实现，不允许先改后补。
+- **未做验证的部分**：迁移在真实用户数据上只跑一次，无法用现有测试覆盖（无 E2E）；实施后需要一次「旧目录改名→启动→核对行数/设置仍在」的手工验证。
+- **待你拍板**：① identifier 前缀；② `package.json` name 是否同步改。
 
 ## 已决
 
