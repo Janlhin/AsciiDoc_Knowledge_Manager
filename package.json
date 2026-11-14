@@ -40,7 +40,8 @@
     "profile:hotspots": "node scripts/profile-hotspots.ts",
     "profile:bigfile": "node scripts/profile-bigfile.ts",
     "verify:block-scan": "node scripts/verify-block-scan.ts",
-    "report:index": "node scripts/adoc-index-report.ts"
+    "report:index": "node scripts/adoc-index-report.ts",
+    "verify:llm-sse": "node scripts/verify-llm-sse.ts"
   },
   "dependencies": {
     "@asciidoctor/core": "^4.2.1",
