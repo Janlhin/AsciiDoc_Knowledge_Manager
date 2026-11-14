@@ -295,7 +295,10 @@ export class Vault {
     this.contentCache.clear();
     this.contentCacheChars = 0;
     this.tree.set(tree);
-    this.events.emit("vault:changed", { reason: "load" });
+    this.events.emit("vault:changed", {
+      reason: "load",
+      path: this.adapter.getVaultPath(),
+    });
     // watch for external filesystem changes (no-op for the memory adapter)
     try {
       await this.adapter.startWatch((paths) => void this.handleExternalChanges(paths));

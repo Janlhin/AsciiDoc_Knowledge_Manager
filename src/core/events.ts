@@ -2,7 +2,11 @@
 
 export interface EventMap {
   /** vault tree structure changed (create/rename/delete or vault (re)loaded) */
-  "vault:changed": { reason: "load" | "create" | "rename" | "delete" | "modify" };
+  "vault:changed": {
+    reason: "load" | "create" | "rename" | "delete" | "modify";
+    /** vault root at load time; absent/null for a memory adapter (T-035) */
+    path?: string | null;
+  };
   /** a file's content was modified (after save) */
   "file:modified": { path: string };
   "file:created": { path: string };
