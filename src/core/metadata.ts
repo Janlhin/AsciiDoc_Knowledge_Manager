@@ -314,26 +314,66 @@ export function parseNote(path: string, content: string): NoteMetadata {
   const blocks: BlockRef[] = [];
   {
     const blockIndexById = new Map<string, number>(); // lowercased id -> index
-    const lineStarts: number[] = [0];
-    for (let i = 0; i < content.length; i++) {
-      if (content.charCodeAt(i) === 10 /* \n */) lineStarts.push(i + 1);
-    }
-    const lineCount = lineStarts.length;
-    const lineEndAt = (li: number): number => {
-      let end = li + 1 < lineCount ? lineStarts[li + 1] - 1 : content.length;
-      if (end > lineStarts[li] && content.charCodeAt(end - 1) === 13 /* \r */) end--;
+    // A block marker is `\s^id` at a line END, so a matching line MUST contain
+    // a literal '^'. Slicing and regex-testing every line is O(lines) and
+    // dominates the parse of a large document (566k lines ~ 40ms). Instead,
+    // locate the '^' characters with one native scan and only examine the
+    // lines that contain one. Offsets stay aligned because masking replaces
+    // matched spans with same-length spaces, and line boundaries still come
+    // from `content` (a fenced block's newlines are blanked in `masked`, but
+    // the document's own line structure is what the marker sits in).
+    const isBlankRange = (from: number, to: number): boolean =>
+      withoutFm.slice(from, to).trim() === "";
+    // end offset (exclusive) of the line that starts at `from`
+    const lineEndAt = (from: number): number => {
+      const nl = content.indexOf("\n", from);
+      let end = nl === -1 ? content.length : nl;
+      if (end > from && content.charCodeAt(end - 1) === 13 /* \r */) end--;
       return end;
     };
-    const isBlank = (li: number): boolean =>
-      withoutFm.slice(lineStarts[li], lineEndAt(li)).trim() === "";
-    for (let li = 0; li < lineCount; li++) {
-      const m = BLOCK_MARKER_RE.exec(masked.slice(lineStarts[li], lineEndAt(li)));
+    // the line AFTER the one that starts at `from`, or null at the last line
+    const nextLine = (from: number): { start: number; end: number } | null => {
+      const nl = content.indexOf("\n", from);
+      if (nl === -1) return null;
+      const start = nl + 1;
+      const nl2 = content.indexOf("\n", start);
+      let end = nl2 === -1 ? content.length : nl2;
+      if (end > start && content.charCodeAt(end - 1) === 13 /* \r */) end--;
+      return { start, end };
+    };
+    // the line BEFORE the one that starts at `from`, or null at the first line
+    const prevLine = (from: number): { start: number; end: number } | null => {
+      if (from === 0) return null;
+      let end = from - 1; // the '\n' that terminates the previous line
+      if (end > 0 && content.charCodeAt(end - 1) === 13 /* \r */) end--;
+      const start = content.lastIndexOf("\n", end - 1) + 1;
+      return { start, end };
+    };
+    let searchFrom = 0;
+    let lastLineStart = -1;
+    for (;;) {
+      const caret = masked.indexOf("^", searchFrom);
+      if (caret === -1) break;
+      searchFrom = caret + 1;
+      const lineStart = content.lastIndexOf("\n", caret - 1) + 1;
+      if (lineStart === lastLineStart) continue; // another '^' on the same line
+      lastLineStart = lineStart;
+      const m = BLOCK_MARKER_RE.exec(masked.slice(lineStart, lineEndAt(lineStart)));
       if (!m) continue;
-      let start = li;
-      while (start > 0 && !isBlank(start - 1)) start--;
-      let end = li;
-      while (end + 1 < lineCount && !isBlank(end + 1)) end++;
-      const ref: BlockRef = { id: m[1], from: lineStarts[start], to: lineEndAt(end) };
+      // expand up/down over the contiguous non-blank run (paragraph span)
+      let startOffset = lineStart;
+      let prev = prevLine(lineStart);
+      while (prev !== null && !isBlankRange(prev.start, prev.end)) {
+        startOffset = prev.start;
+        prev = prevLine(prev.start);
+      }
+      let endOffset = lineEndAt(lineStart);
+      let next = nextLine(lineStart);
+      while (next !== null && !isBlankRange(next.start, next.end)) {
+        endOffset = next.end;
+        next = nextLine(next.start);
+      }
+      const ref: BlockRef = { id: m[1], from: startOffset, to: endOffset };
       const existing = blockIndexById.get(m[1].toLowerCase());
       if (existing !== undefined) blocks[existing] = ref;
       else {

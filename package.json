@@ -37,6 +37,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck:scripts": "tsc -p scripts/tsconfig.json",
     "verify": "npm run typecheck && npm run typecheck:scripts && npm run build",
+    "profile:hotspots": "node scripts/profile-hotspots.ts",
+    "profile:bigfile": "node scripts/profile-bigfile.ts",
+    "verify:block-scan": "node scripts/verify-block-scan.ts",
     "report:index": "node scripts/adoc-index-report.ts"
   },
   "dependencies": {

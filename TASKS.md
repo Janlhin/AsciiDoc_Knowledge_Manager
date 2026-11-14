@@ -113,6 +113,22 @@
   2. ADKM 仓库存在 `docs/technical-decisions/ADR-0005-*.adoc`，其中「优先学习」9 项逐项有结论或明确的「不适用 + 理由」，每项挂 Evidence ID；
   3. geode/TASKS.md 新增 T-026 及之后的实现待办，每条注明其来源 ADR-0005 的条目号。
 
+### T-027 Rust 侧用 rayon 并行读文件，把启动期的 IO 等待分摊到多核
+
+- **提出**：2026-11-13
+- **问题**：启动期最大的单项不是 CPU，是 IO。实测：真实 app 的索引耗时明显高于同一份数据走内存 vault 的耗时，差额即**等磁盘的时间**（测试库：磁盘读 69MB / 416 个文件 vs 内存 vault，两者相差数倍）；同时 profiling 显示启动期 CPU **绝大部分为 idle**——多核在闲着，瓶颈是 IO 等待而非算力。这也是用户反馈的「进入软件会卡一下，之后就流畅」的来源之一。
+- **方法**：只做 IO、不搬业务逻辑——这是 rayon 在本项目唯一划算的用法：在 Rust 侧把 vault 文件的读取并行化（`paths.par_iter().map(read_to_string)`）。**前端一行不动，不需要 Worker。**
+- **解决**：—
+- **完成判据**：启动期索引耗时的「等磁盘」部分显著下降（用同一测试库对比改动前后的 `metadataIndexMs`，且总耗时应降至磁盘读取理论下限的数倍以内）；`npm run verify` 与关窗测试仍全绿。
+
+### T-028 BacklinksPanel 的未链接提及扫描改为懒加载，消除启动期 87ms 长任务
+
+- **提出**：2026-11-13
+- **问题**：`src/features/backlinks/BacklinksPanel.tsx:296-312` 在启动时无条件执行 `app.metadata.getAll().filter(...).sort(localeCompare)`，随后对全库 **416 个文件逐个 `vault.read` 并全文搜索**——这是启动期剩余 87ms 主线程长任务的来源（叠加 React 重渲染）。
+- **方法**（用户 2026-11-13 已定：结果缓存按 revision 失效）：把「未链接提及」扫描结果缓存起来，缓存键取 `MetadataIndex.revision`——索引每次变更都会 `bump()` 一次 revision，因此 revision 变化即天然触发重算，无需额外的失效机制。面板打开时若有有效缓存则**秒开**，无缓存才实扫。
+- **解决**：—
+- **完成判据**：启动期不再出现由本扫描导致的主线程长任务（用 Long Task 探针确认）；且**实机验证**两件事——①首次打开面板仍能正确列出结果；②改动某篇笔记后重新打开面板，结果随之更新（验证 revision 失效生效，不能只看构建通过）。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
@@ -138,4 +154,5 @@
 | T-022 | 2026-11-13 | CSS→SCSS 收尾：`src/` 内仅剩的 2 个 `.css` 改名为 `.scss`（`compat/obsidian/theme-bridge.css`→`.scss`、`features/export/export.css`→`.scss`），同步更新 `themes.ts` / `export.ts` 的 `?raw` 导入路径，并在 `src/raw-import.d.ts` 补 `*.scss?raw` 模块声明（否则 `tsc --noEmit` 报 TS2307）；另修正两处指向已不存在的 `app.css` / `theme-bridge.css` 的过期注释。SCSS 是 CSS 超集，无需改语法。验收：`src` 内 `.css` 归零（23→25 个 `.scss`），`npm run build` 通过 |
 | T-023 | 2026-11-13 | JS→TS 收尾：`scripts/` 下 4 个 `.mjs`（adoc-index-report / gen-blueprint-seed / gen-icon / verify-format-libs）全部转为 `.ts` 并补齐类型（NodeNext ESM；`xlsx` 经 `createRequire` 取 CJS 运行时同时保留 `typeof import("xlsx")` 类型；`mammoth` 用 `scripts/shims.d.ts` 补声明）；新增 `scripts/tsconfig.json` 独立类型检查（`npm run typecheck:scripts`，已并入 `npm run verify`），根 tsconfig 加 `"types": []` 避免 `@types/node` 污染浏览器端；同步更新 package.json 与 README/MANIFEST/DECISIONS/TASKS/docs 中的脚本路径。验收：`node scripts/verify-format-libs.ts` 4 项全 PASS（与原 `.mjs` 一致）。**刻意保留的 JS**：`compat-fixtures/*/main.js` 与 `demo-vault/.geode/plugins/hello-status.js` 是运行时经 `new Function()` 求值的 Obsidian 插件载荷，必须是 JS，转 TS 会破坏兼容性测试的真实性 |
 | T-024 | 2026-11-13 | 待办体系：JS→TS / CSS→SCSS / CPU 多线程 三项待办已登记。CPU 多线程经用户确认先做**性能画像**再决定并行化范围——现状是 Rust 后端极薄（仅 main.rs 一处 `std::thread::spawn`、无 rayon/tokio），前端 5.3 万行 TS 的解析/图谱(416 节点)/索引/重写全跑在 UI 主线程且无任何 Web Worker，重计算堵在 UI 线程是早前「卡顿」的潜在根因 |
+| T-026 | 2026-11-13 | 前端性能画像（CPU 多线程待办的第一阶段，**用实测数据否定了多线程化**）：经 WebView2 CDP（`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` 注入调试端口，无需改代码）+ Long Task API + 项目自带 `perfMark` 埋点测得：**启动期主线程阻塞 185ms**（85ms + 100ms 两个长任务），CPU 采样 88.7% 为 idle。根因是**单个 50MB 文件**——`Knowledge/书籍库/诸子百家系列.md`（18,487,265 字符 / 566,721 行），占全库 69MB 的 73%；其 `parseNote` 中 **block 标记扫描占 57%**（每行一次 `masked.slice` + 正则 exec）。**已修**：改为先用一次原生 `indexOf("^")` 定位候选行、只处理含 `^` 的行，成本从「按行数」变为「按标记数」；行为等价经 22 个边界用例（CRLF/代码围栏内标记/行首 `^`/重复 id/EOF 无换行/跨段范围等，18 个含真实标记）+ 416 个真实文件逐项比对，0 不匹配。**实测收益**：该文件 parseNote 84.9→39.4ms、parseDocument 181→38.6ms；全库 rebuildAll 193→134ms、解析总耗时 182.7→82.1ms、平均每文件 0.439→0.197ms、最慢文件 118.25→39.55ms；真实 app 启动长任务 185→141ms。**结论：不需要 Worker 化**——热点是单文件内的算法复杂度问题，Worker 化反而要序列化 18.5MB 字符串；且 `rebuildNameMap` 实测仅 0.25ms、`getGraph` 1.4ms、图谱 settle 1112ms 属动画帧预算内，均非热点。已新增可复跑工具 `npm run profile:hotspots / profile:bigfile / verify:block-scan` |
 

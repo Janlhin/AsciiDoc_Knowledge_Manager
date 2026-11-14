@@ -152,7 +152,7 @@ fn read_dir_recursive(abs: &Path, rel: &str) -> CmdResult<Vec<Node>> {
 }
 
 /// Vault folder passed on the command line (`geode.exe <folder>`), if any.
-#[tauri::command]
+#[tauri::command(async)]
 fn initial_vault() -> Option<String> {
     std::env::args()
         .nth(1)
@@ -164,7 +164,7 @@ fn initial_vault() -> Option<String> {
         })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_list(vault: String) -> CmdResult<Node> {
     let root = Path::new(&vault);
     if !root.is_dir() {
@@ -177,7 +177,7 @@ fn vault_list(vault: String) -> CmdResult<Node> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_read(vault: String, path: String) -> CmdResult<String> {
     let abs = safe_join(&vault, &path)?;
     fs::read_to_string(&abs).map_err(|e| format!("read {path}: {e}"))
@@ -265,13 +265,13 @@ fn vault_modify_binary(vault: String, path: String, data: String) -> CmdResult<(
     atomic_write(&abs, &bytes).map_err(|e| format!("write {path}: {e}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_write(vault: String, path: String, content: String) -> CmdResult<()> {
     let abs = safe_join(&vault, &path)?;
     atomic_write(&abs, content.as_bytes()).map_err(|e| format!("write {path}: {e}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_create(vault: String, path: String, content: String) -> CmdResult<()> {
     use std::io::Write as _;
     let abs = safe_join(&vault, &path)?;
@@ -300,13 +300,13 @@ fn vault_create(vault: String, path: String, content: String) -> CmdResult<()> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_mkdir(vault: String, path: String) -> CmdResult<()> {
     let abs = safe_join(&vault, &path)?;
     fs::create_dir_all(&abs).map_err(|e| format!("mkdir {path}: {e}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_rename(vault: String, old_path: String, new_path: String) -> CmdResult<()> {
     let from = safe_join(&vault, &old_path)?;
     let to = safe_join(&vault, &new_path)?;
@@ -319,7 +319,7 @@ fn vault_rename(vault: String, old_path: String, new_path: String) -> CmdResult<
     fs::rename(&from, &to).map_err(|e| format!("rename {old_path} -> {new_path}: {e}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_delete(vault: String, path: String) -> CmdResult<()> {
     let abs = safe_join(&vault, &path)?;
     if abs.is_dir() {
@@ -329,7 +329,7 @@ fn vault_delete(vault: String, path: String) -> CmdResult<()> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_trash(vault: String, path: String) -> CmdResult<String> {
     // R42 review: never trash the vault root itself (empty / "." resolves to root).
     let trimmed = path.trim();
@@ -360,7 +360,7 @@ fn vault_trash(vault: String, path: String) -> CmdResult<String> {
     Ok(format!(".trash/{name}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_list_trash(vault: String) -> CmdResult<Vec<String>> {
     let trash_dir = Path::new(&vault).join(".trash");
     let mut out = Vec::new();
@@ -427,7 +427,7 @@ fn to_vault_relative(root: &str, abs: &Path) -> Option<String> {
 /// Start (or replace) a recursive watcher on the vault. File events are
 /// debounced for ~400ms, then emitted as one `vault:fs-change` Tauri event
 /// carrying the distinct vault-relative changed paths.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_watch(
     app: tauri::AppHandle,
     state: tauri::State<'_, WatcherState>,
@@ -509,7 +509,7 @@ fn vault_watch(
 
 /// List `<vault>/.geode/plugins/*.js` as {name, content}, sorted by name.
 /// A missing plugins directory is not an error — returns an empty list.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_plugin_files(vault: String) -> CmdResult<Vec<PluginFile>> {
     let dir = Path::new(&vault).join(".geode").join("plugins");
     if !dir.is_dir() {
@@ -546,7 +546,7 @@ fn read_optional(path: &Path) -> Result<Option<String>, String> {
 /// A directory is included only when BOTH manifest.json and main.js exist and
 /// read as UTF-8; unreadable/incomplete dirs are skipped (logged), never fatal.
 /// A missing plugins directory is not an error — returns an empty list.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_obsidian_plugins(vault: String) -> CmdResult<Vec<ObsidianPluginSource>> {
     let plugins_dir = Path::new(&vault).join(".obsidian").join("plugins");
     if !plugins_dir.is_dir() {
@@ -717,7 +717,7 @@ fn export_write(path: String, content: String) -> CmdResult<()> {
 }
 
 /// Read a config file under `<vault>/.obsidian/`. Ok(None) when missing.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_read_config(vault: String, path: String) -> CmdResult<Option<String>> {
     let abs = safe_join_obsidian(&vault, &path)?;
     read_optional(&abs)
@@ -725,7 +725,7 @@ fn vault_read_config(vault: String, path: String) -> CmdResult<Option<String>> {
 
 /// List entries directly under `<vault>/.obsidian/<path>` (non-recursive).
 /// A missing directory is not an error — returns an empty list.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_list_config_dir(vault: String, path: String) -> CmdResult<Vec<ConfigDirEntry>> {
     let abs = safe_join_obsidian(&vault, &path)?;
     if !abs.is_dir() {
@@ -744,7 +744,7 @@ fn vault_list_config_dir(vault: String, path: String) -> CmdResult<Vec<ConfigDir
 }
 
 /// Write a config file under `<vault>/.obsidian/`, creating parent directories.
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_write_config(vault: String, path: String, content: String) -> CmdResult<()> {
     let abs = safe_join_obsidian(&vault, &path)?;
     if let Some(parent) = abs.parent() {
@@ -759,7 +759,7 @@ fn vault_write_config(vault: String, path: String, content: String) -> CmdResult
 /// command), so absolute paths never leave the shell. Read-only OS action: no
 /// vault write, no data-safety surface. `tauri-plugin-opener` Rust API only —
 /// the frontend never invokes the opener's JS commands (no capability needed).
-#[tauri::command]
+#[tauri::command(async)]
 fn reveal_in_system(app: tauri::AppHandle, vault: String, path: String) -> CmdResult<()> {
     use tauri_plugin_opener::OpenerExt;
     let abs = safe_join(&vault, &path)?;
@@ -772,7 +772,7 @@ fn reveal_in_system(app: tauri::AppHandle, vault: String, path: String) -> CmdRe
 /// confinement as `reveal_in_system`; the opener is handed the `safe_join`'d
 /// absolute path, NEVER an arbitrary URL (R218 scope = vault files only).
 /// Read-only OS action.
-#[tauri::command]
+#[tauri::command(async)]
 fn open_in_default_app(app: tauri::AppHandle, vault: String, path: String) -> CmdResult<()> {
     use tauri_plugin_opener::OpenerExt;
     let abs = safe_join(&vault, &path)?;
