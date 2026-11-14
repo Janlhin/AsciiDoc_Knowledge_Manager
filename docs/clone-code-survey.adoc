@@ -1,0 +1,242 @@
+= 同类开源实现的代码级调研（与 Obsidian 本体反推互补）
+:doctype: article
+:encoding: utf-8
+:lang: zh-CN
+:toc: left
+:toclevels: 3
+
+本文是 `docs/obsidian-clone-report.adoc` 的**代码级**续篇。那份报告回答「谁更像 Obsidian」（产品形态、星标、发布流程）；本文回答「它们**怎么写的**」——技术栈、Rust 侧职责边界、索引与持久化方案、测试规模。
+
+两者口径不同，不可互相替代：产品层看得到「有没有双向链接」，代码层才看得到「双向链接的索引存在哪、变更时怎么增量维护」。
+
+== 样本与方法
+
+本地已克隆 14 个相关仓库，剔除空仓库（`logseq` 目录为空）与无关项（`spike`、`adkm-web`、`kb` 之外的私有试验）后，逐个统计：
+
+* 按扩展名统计有效行数（排除 `node_modules` / `target` / `dist` / `build`）；
+* 解析 `package.json` 与 `Cargo.toml` 判定技术栈；
+* 统计 Rust 文件、`#[tauri::command]` 数量、`#[test]` 文件数、JS 测试文件数；
+* 对关键项目做源码级抽查（表结构、索引触发、失效策略）。
+
+.量级与栈
+[cols="1,2,1,1,2"]
+|===
+|项目 |LOC 分布 |总行 |Rust 命令数 |栈
+
+|sb（SilverBullet）
+|ts:208k rs:132k tsx:24k
+|365,646
+|—
+|Deno 服务端 + CM6
+
+|lokus
+|js:113k jsx:74k rs:37k
+|248,234
+|250
+|Tauri + ProseMirror + React
+
+|joplin
+|ts:156k tsx:27k js:7k
+|191,626
+|—
+|Electron + TS
+
+|kb（knowledge-base）
+|rs:78k tsx:77k ts:22k
+|180,118
+|351
+|Tauri + tiptap + React
+
+|yamlink
+|js:137k
+|137,570
+|—
+|React
+
+|otterly
+|ts:86k svelte:17k rs:12k
+|117,484
+|77
+|Tauri + CM6 + Svelte
+
+|mdit
+|ts:50k tsx:28k rs:17k
+|96,703
+|36
+|Tauri + Rust crates 拆分
+
+|nodum
+|py:40k tsx:24k ts:20k
+|85,744
+|—
+|Python 后端 + TS 前端
+
+|opensidian
+|js:35k rs:32k
+|68,730
+|137
+|Tauri + 原生 JS
+
+|**geode（本仓库）**
+|**ts:38k tsx:18k rs:1k**
+|**58,492**
+|**2**
+|**Tauri + CM6 + React**
+
+|Cherit
+|svelte:1k ts:1k
+|3,891
+|5
+|Tauri + CM6
+|===
+
+== 四个发现
+
+=== 发现一：geode 是唯一「Rust 只做胶水 + 零前端测试」的项目
+
+同栈项目把**重活放进 Rust**，geode 把重活放在 TS：
+
+[cols="1,2,2"]
+|===
+|项目 |Rust 侧实际承担 |证据
+
+|otterly
+|Markdown 解析（`comrak`）、gitignore 式遍历（`ignore`/`globset`）、文件监听（`notify`）、**SQLite 全文索引**（`rusqlite`）
+|`src-tauri/Cargo.toml`、`features/search/{db,service,link_parser,tag_parser}.rs`
+
+|kb
+|数据库 schema（3,601 行）、同步（`sync_v1/manifest.rs`）、AI 服务（5,612 行）
+|`src-tauri/src/database/`、`services/`
+
+|lokus
+|`note_engine/`（engine / mutation / team_sync）
+|`src-tauri/src/note_engine/`
+
+|mdit
+|独立 crate：`vault-indexer`、`vault-indexing`（links / search / chunking）、`vault-watch`
+|`crates/`
+
+|**geode**
+|**文件监听、HTTP、系统凭据库**
+|`src-tauri/src/main.rs`（1,114 行，2 个命令）
+|===
+
+这不是「Rust 一定更好」，而是**职责分配**的差异：geode 的 `notify` 只负责通知，真正的解析与索引仍在 JS 主线程侧。代价在启动期——T-027/T-028 记录的两次优化都是围绕「JS 侧索引太慢」做的。
+
+同表还有一条更硬的差距：
+
+[cols="2,1,1"]
+|===
+|项目 |Rust 测试文件 |JS 测试文件
+
+|opensidian |83 |0
+|kb |73 |34
+|lokus |40 |18
+|mdit |31 |90
+|otterly |18 |151
+|Cherit |1 |1
+|**geode** |**1** |**0**
+|===
+
+`geode` 的 1 个 Rust 测试是本轮之前刚加的 SSE 帧解析。**在七个可直接比较的项目里，geode 是唯一前端零测试、且 Rust 侧近乎零测试的。** 这与「跟 Obsidian 差距大」无关——这是与同量级同类项目的差距。
+
+=== 发现二：持久化检索索引是同类标配，做法高度趋同
+
+`otterly` 是最贴近 geode 的参照（同为 Tauri + CM6，Rust 仅 12k），它的检索层可以直接读：
+
+[source,sql]
+----
+CREATE TABLE IF NOT EXISTS notes (...);
+CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(title, name, path, body);
+CREATE TABLE IF NOT EXISTS outlinks (...);
+CREATE INDEX IF NOT EXISTS idx_outlinks_target ON outlinks(target_path);
+CREATE TABLE IF NOT EXISTS note_tags (...);
+CREATE INDEX IF NOT EXISTS idx_note_tags_key ON note_tags(tag_key);
+PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
+----
+
+排序用 BM25 并按列加权（标题 10、文件名 12、路径 5、正文 1），高亮用 `snippet()`：
+
+[source,sql]
+----
+SELECT ..., snippet(notes_fts, 3, '<b>', '</b>', '...', 30) AS snippet,
+       bm25(notes_fts, 10.0, 12.0, 5.0, 1.0) AS rank
+FROM notes_fts WHERE notes_fts MATCH ?1
+----
+
+更重要的是**结构变更是一等公民**，不是一个 `rebuild` 打发：
+
+`index_build` / `index_cancel` / `index_rebuild` / `index_upsert_note` / `index_remove_note` / `index_remove_notes_by_prefix` / `index_rename_folder` / `index_rename_note`
+
+对照 geode：`MetadataIndex` 全部在内存，启动期 `rebuildAll()`，`rev` 计数器只服务于**运行期**的惰性缓存，进程重启即全部重算。这正是用户反馈「进入软件会卡一下」的结构性来源。
+
+=== 发现三（最值得抄的一条）：派生数据必须由「产生它的规则版本」失效
+
+`otterly/src-tauri/src/features/search/db.rs` 用 `PRAGMA user_version` 存的是**标签解析器的规则版本**，不是 schema 版本。源码注释写明了动机：
+
+[quote]
+----
+Stored tags are only as good as the parser rules that made them. A db from
+before tags, or from other rules, has every note in the manifest, so sync would
+skip unchanged notes and they would keep their old tags. Empty the manifest and
+the next sync re-parses the whole vault once.
+----
+
+落地做法：`stored_version != TAG_PARSER_VERSION` 时清空 manifest 与全部派生表，让下一次同步**整体重解析一遍**。
+
+这一条直接命中 geode 的隐患：`metadata.ts` 里的 `TAG_RE`、frontmatter 解析、标题提取规则一旦改动，**没有任何机制让已算出的结果失效**。今天不出问题，只因为索引不持久化、每次启动都重算——一旦按发现二补上持久化索引，这个坑立刻生效，且表现是「升级后旧笔记的标签/反链静默错误」，极难定位。
+
+=== 发现四：同栈最优参照是 otterly，不是 lokus
+
+* `lokus` 星最多但 **LICENSE 是 Fair Core License**（延迟开源，非 OSI 认可），且用 ProseMirror 而非 CM6——借鉴成本与法务风险都更高。
+* `opensidian` 最像 Obsidian（连「默认不信任社区代码」的安全模型都复刻），但 **`main.rs` 11,740 行、137 个命令挤在单文件**。这是反面教材：可读，不可学。
+* `mdit` 的 crate 拆法（`vault-indexer` / `vault-indexing` / `vault-watch`，且带 `FakeVaultIndexingRuntime` 供测试）是目前看到最干净的 Rust 分层，但它同时维护 141 个 tag 与大量 TS 侧能力，规模不在一个量级。
+* `nodum` 用 Python 做后端，栈不同，参考价值限于数据模型。
+
+== 对 ADKM 的结论
+
+[cols="1,2,1"]
+|===
+|判断 |理由 |处置
+
+|**要做**：持久化检索索引
+|发现二；直接治「启动卡一下」，且是同类标配而非过度设计
+|T-039（需硬边界 #5 放行 `rusqlite`）
+
+|**要做**：派生规则版本化
+|发现三；补上索引持久化后它立即成为正确性前提，不是可选项
+|T-039 内一并实现
+
+|**要做**：测试基线
+|发现一；七个可比项目里唯一零前端测试
+|T-040
+
+|**不做**：把 Markdown 解析搬到 Rust
+|geode 的 TS 解析器已带增量与 `rev` 失效；搬过去要重写全部语义并跨语言对齐，收益仅在启动期，而 T-039 已覆盖该收益
+|记录为已评估、不采纳
+
+|**不做**：单文件巨型 `main.rs`
+|opensidian 的反面教材
+|现有 2 命令结构应随 T-039 按 `features/` 拆，不合并
+|===
+
+一个必须说明的前提：上表「要做」的第一项**违反硬边界 #5**（新增运行时依赖）。`rusqlite`（bundled）会把 SQLite C 源码编进二进制，显著增加体积与构建时间，并让「纯文件 vault、无数据库」这个性质改变——数据库文件应落在应用数据目录、按库分目录，而不是写进 vault。这一项需要显式放行后才能动手。
+
+== 与方法论的关系
+
+ADR-0005 的结论是「对压缩单包目标，取证顺序应为 数据契约 → 运行时行为 → 静态语义」。本文补充了第四条通道，且是**性价比最高的一条**：
+
+**同类开源实现的源码 → 设计取舍**
+
+它不需要反编译、不受许可限制（读 MIT/Apache 代码学设计合法，搬运代码才需守许可），且能直接看到「踩过什么坑」——发现三的注释就是别人踩坑后写下的结论。后续 T-025 系列的取证应把这条通道排在静态语义之前。
+
+== 修订记录
+
+[cols="1,1,3"]
+|===
+|日期 |版本 |变更
+
+|2026-11-15
+|1.0
+|首次发布。14 个本地仓库量级与栈统计；四项发现；对 ADKM 的四条结论（两项要做、两项明确不做）。
+|===
