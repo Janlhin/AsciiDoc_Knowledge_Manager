@@ -839,6 +839,51 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     };
   }, [tab.id, tab.mode, handle]);
 
+  /**
+   * Scroll the rendered reading view to a source offset. Heading targets are
+   * located by ordinal in the metadata index (the preview renders headings
+   * 1:1); other targets fall back to a proportional approximation. Shared by
+   * the one-shot reveal path (R15) and outline navigation (T-029), so neither
+   * needs to switch the tab out of preview.
+   */
+  const scrollPreviewToSource = useCallback(
+    (from: number): "scrolled" | "fallback" | "unmounted" => {
+      const content = previewContentRef.current;
+      const scroller = previewScrollRef.current;
+      if (!content || !scroller || !handle) return "unmounted";
+      const meta = app.metadata.getMetadata(handle.path);
+      const ordinal = (meta?.headings ?? []).findIndex((h) => h.from === from);
+      let target: HTMLElement | null = null;
+      if (ordinal >= 0) {
+        const els = Array.from(
+          content.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
+        ).filter((el) => !el.closest(".geode-embed-note"));
+        target = els[ordinal] ?? null;
+      }
+      if (!target) {
+        const len = meta?.contentLength || handle.getText().length || 1;
+        scroller.scrollTop =
+          (from / len) * scroller.scrollHeight - scroller.clientHeight / 2;
+        return "fallback";
+      }
+      target.scrollIntoView({ block: "center" });
+      // restart cleanly if a previous flash is still running
+      const prev = previewFlashElRef.current;
+      if (prev) prev.classList.remove("preview-reveal-flash");
+      void target.offsetWidth; // reflow so re-adding the class replays the animation
+      target.classList.add("preview-reveal-flash");
+      previewFlashElRef.current = target;
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = window.setTimeout(() => {
+        flashTimerRef.current = null;
+        previewFlashElRef.current?.classList.remove("preview-reveal-flash");
+        previewFlashElRef.current = null;
+      }, 1200);
+      return "scrolled";
+    },
+    [app, handle],
+  );
+
   /* ---------- outline navigation (geode:scroll-to-heading) ---------- */
 
   useEffect(() => {
@@ -848,8 +893,10 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
       // split panes can host the same file in several instances — only the
       // active pane's ACTIVE tab may jump (and steal focus/flip view mode)
       if (app.workspace.getActiveTab()?.id !== tab.id) return;
+      // T-029: navigation must NOT change the view mode. In preview, scroll the
+      // rendered DOM and leave the tab in preview until the user switches it.
       if (tab.mode === "preview") {
-        app.workspace.setTabMode(tab.id, "live"); // editor mounts, user re-clicks
+        scrollPreviewToSource(detail.from);
         return;
       }
       const view = viewRef.current;
@@ -864,7 +911,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     };
     window.addEventListener("geode:scroll-to-heading", onJump);
     return () => window.removeEventListener("geode:scroll-to-heading", onJump);
-  }, [app, tab.id, tab.mode]);
+  }, [app, tab.id, tab.mode, scrollPreviewToSource]);
 
   /* ---------- focus restoration after modals close ---------- */
 
@@ -970,45 +1017,8 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     // rendered from the CURRENT previewHtml when this fires).
     if (!reveal || !handle || reveal.path !== handle.path) return;
     if (isPreview) {
-      const content = previewContentRef.current;
-      const scroller = previewScrollRef.current;
-      if (!content || !scroller) return; // not committed yet — stay pending
-      // Heading reveal: exact `from` match against the metadata index, then
-      // locate by document-order ordinal — the preview pipeline renders
-      // headings 1:1, so the ordinal is stabler than text matching. Headings
-      // inside hydrated note embeds (.geode-embed-note) are excluded so late
-      // embed hydration cannot shift the ordinals.
-      const headings = app.metadata.getMetadata(handle.path)?.headings ?? [];
-      const ordinal = headings.findIndex((h) => h.from === reveal.from);
-      let target: HTMLElement | null = null;
-      if (ordinal >= 0) {
-        const els = Array.from(
-          content.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
-        ).filter((el) => !el.closest(".geode-embed-note"));
-        target = els[ordinal] ?? null;
-      }
-      if (target) {
-        target.scrollIntoView({ block: "center" });
-        // restart cleanly if a previous flash is still running
-        const prev = previewFlashElRef.current;
-        if (prev) prev.classList.remove("preview-reveal-flash");
-        void target.offsetWidth; // reflow so re-adding the class replays the animation
-        target.classList.add("preview-reveal-flash");
-        previewFlashElRef.current = target;
-        if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
-        flashTimerRef.current = window.setTimeout(() => {
-          flashTimerRef.current = null;
-          previewFlashElRef.current?.classList.remove("preview-reveal-flash");
-          previewFlashElRef.current = null;
-        }, 1200);
-      } else {
-        // Block / unlocatable target: proportional approximation against the
-        // raw source length (reveal.from shares that coordinate space). No
-        // flash — approximate by design (recorded口径).
-        const len = app.metadata.getMetadata(handle.path)?.contentLength || handle.getText().length || 1;
-        scroller.scrollTop =
-          (reveal.from / len) * scroller.scrollHeight - scroller.clientHeight / 2;
-      }
+      // "unmounted" = the reading view is not committed yet — stay pending.
+      if (scrollPreviewToSource(reveal.from) === "unmounted") return;
       app.workspace.revealTarget.set(null);
       return;
     }
