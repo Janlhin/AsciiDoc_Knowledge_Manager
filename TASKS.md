@@ -129,20 +129,6 @@
 - **解决**：—
 - **完成判据**：启动期不再出现由本扫描导致的主线程长任务（用 Long Task 探针确认）；且**实机验证**两件事——①首次打开面板仍能正确列出结果；②改动某篇笔记后重新打开面板，结果随之更新（验证 revision 失效生效，不能只看构建通过）。
 
-### T-029 大纲点击不应强制切换视图模式（preview 下点大纲被切到代码编辑态）
-
-- **提出**：2026-11-14
-- **问题**：右侧「大纲」面板点击条目时，`OutlinePanel.jumpTo`（`src/features/outline/OutlinePanel.tsx:124-138`）先 `openFile(activePath)` 再派发 `geode:scroll-to-heading` 事件。`openFile` 对同文件复用既存 tab、不改 `mode`，因此模式翻转不在此处。真正根因在编辑器侧监听器 `onJump`（`src/features/editor/EditorPane.tsx:842-867`）：当 `tab.mode === "preview"` 时执行 `app.workspace.setTabMode(tab.id, "live")` 后 `return`——即**把阅读视图强制切到可编辑态，并吞掉本次跳转**；真正的滚动（`CodeMirror` 的 `scrollIntoView`）只在 live/source 模式才执行。
-- **方法**：**只改导航行为，不改默认模式**（默认模式见 T-031）。
-  1. `onJump` 删除 preview 分支的 `setTabMode(...)` 调用；
-  2. preview 态改为在已渲染 DOM 中按 `data-heading-from` / 标题文本定位 heading 节点并 `scrollIntoView`；
-  3. 不新增任何写 `mode` 的路径。
-- **解决**：—
-- **完成判据**：Playwright——
-  ① preview 点大纲某条目：`tab.mode` 仍为 `"preview"`，且对应 heading 进入视口；
-  ② source 点大纲：`tab.mode` 仍为 `"source"`，且光标/滚动到位。
-  用例 `npx playwright test` 退出码 0。
-
 ### T-031 默认打开模式改为代码编辑（source），且在手动切换前不被改写
 
 - **提出**：2026-11-15
@@ -205,3 +191,5 @@
 | T-030d | 2026-11-15 | 传输绑定：`secrets.ts` / `client.ts`，Tauri 事件流 + fetch 双通道、`AbortSignal` → `llm_cancel`、`testProvider` 复用 `http_request`；`npm run typecheck` 通过 |
 | T-030e | 2026-11-15 | 右侧 `ai` 面板：`AiPanel` + `ai.scss` + tab + `sparkles` + 面板 i18n；输出仅文本/围栏代码块（不注入 HTML）；附带笔记上限 12,000 字符、源文件 >2 MB 跳过；面板行为待实机目视 |
 | T-030f | 2026-11-15 | 设置页「AI」「钥匙串」分区：7 预设、URL/模型/密钥/温度/max tokens/测试连接/删除；密钥仅显示「已存入」；`settingsNav` 深链 |
+| T-029 | 2026-11-15 | 大纲点击不再切换视图模式：删除 `onJump` 的 preview→live 分支；抽出 `scrollPreviewToSource()` 复用 R15 reveal（按元数据标题序号定位 + `preview-reveal-flash`）；preview 下点大纲只滚动，模式保持不变。`npm run verify` 通过 |
+| T-033 | 2026-11-15 | 同文档锚点点击不滚动：`localizeLinks` 不再把 `href="#..."` 改写为 `internal-link`（Asciidoctor id `_xxx` 无法被 `resolveSubpath` 解析）；预览点击对 `#fragment` 按 id 定位并 `scrollIntoView`，同时覆盖 Markdown `[x](#id)`。`npm run verify` 通过 |
