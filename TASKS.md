@@ -107,7 +107,7 @@
   - *代码逻辑*：⑥ 模块边界与依赖方向；⑦ 事件总线/订阅模型；⑧ 状态单一真源与持久化时机；⑨ 缓存失效与重算边界。
   - *明确不学*：UI 像素级实现、主题皮肤细节、与 ADKM 定位无关的边缘功能、第三方许可代码的逐行搬运——**只取思想，不复制代码**。
 - **输出纪律**：每条结论必须挂 REA Evidence ID，明确区分「观察 / 推断 / 未知」；且必须映射到 ADKM 的具体落点（geode 的 `src/core/`、`src/features/` 对应模块）。**不可映射到 ADKM 落点的结论不进 ADR**，避免把逆向笔记堆成与项目无关的赏析。
-- **解决**：—
+- **解决**：2026-11-15 阶段二/三完成，结论落于 `docs/technical-decisions/ADR-0005-obsidian-rea-findings.adoc`（九项逐项结论 + 方法学边界），派生 T-036 / T-037 / T-038。关键负面结论：`app.js` 为 3.22 MB 压缩单包，静态语义分析必然超时，⑥⑦ 两项在制品层面不可得。
 - **完成判据**：
   1. `REA 分析子命令` 退出码 0，且输出含 Evidence 记录与模块图；
   2. ADKM 仓库存在 `docs/technical-decisions/ADR-0005-*.adoc`，其中「优先学习」9 项逐项有结论或明确的「不适用 + 理由」，每项挂 Evidence ID；
@@ -159,6 +159,73 @@
   ③ 在设置里把 `app:command-palette` 改为 `Mod+Shift+P` 后，hover 提示同步变为 `Ctrl+Shift+P`；
   ④ `formatHotkey` 单测覆盖 `Mod+P` → Windows `Ctrl+P` / macOS `⌘P`。
 
+### T-036 把「契约优先」的取证顺序写回逆向路线文档
+
+- **提出**：2026-11-15
+- **问题**：`docs/obsidian-reverse-engineering.adoc` 的九项学习清单里，⑥（模块边界）⑦（事件总线）经 ADR-0005 证实**在制品层面不可得**（`app.js` 3.22 MB 压缩单包，模块边界已被打包器抹平），而清单仍把它们列为「阶段二下钻」目标，会持续消耗预算。
+- **方法**：
+  1. 在该文档「学习范围」把 ⑥⑦ 标为**不适用 + 理由**（引 ADR-0005「方法学结论」）；
+  2. 把取证顺序改写为**数据契约 → 运行时行为 → 静态语义**，并注明反编译只对未压缩/可分包目标有效；
+  3. ②（插件 API 契约）改为以官方 `obsidian.d.ts` 为真源，不再走 REA。
+- **解决**：—
+- **完成判据**：文档中 ⑥⑦ 带「不适用」标识与证据编号；取证顺序段落与 ADR-0005 一致；`docs/` 下无第二份互相矛盾的取证顺序描述。
+
+### T-037 运行时取证一轮：启动耗时、IndexedDB 键、大库虚拟化
+
+- **提出**：2026-11-15
+- **问题**：ADR-0005 中 ①③⑤ 三项（索引是否持久化、解析上下文分层、大库调度）**未取得证据**——静态路径取不到，且它们决定了 ADKM 启动期优化的上限。
+- **方法**：
+  1. 同一测试库分别测 Obsidian 与 ADKM 的冷启动到可交互耗时，记录是否二次启动更快（若有加速即证明存在持久化索引）；
+  2. 查 Obsidian 的 IndexedDB 数据库与键空间，判断索引落在哪一层；
+  3. 造 ≥1 万文件库，观察大纲/反链/搜索在滚动时的 DOM 节点数是否随视口有界（虚拟化判据）。
+- **解决**：—
+- **完成判据**：三项各有一张可复现的测量记录（命令 + 数值 + 结论），写入 ADR-0005 增补节；结论区分观察与推断。
+
+### T-038 重渲染器改为动态 import，压低首屏体积
+
+- **提出**：2026-11-15
+- **问题**：ADR-0005 项 ④ 观察到 Obsidian 把 pdfjs / mathjax / prism / codemirror 各自作为**独立按需分包**交付，主包不背它们；ADKM 目前把这些重渲染器静态引入，首屏必须为「可能用不到的能力」付下载与解析代价。
+- **方法**：把 `@asciidoctor/core`、`epubjs`、`xlsx`、`mammoth` 改为在首次需要时 `await import(...)`；保留失败降级（加载失败 → 提示 + 纯文本回退）。
+- **解决**：—
+- **完成判据**：`npm run build` 后首屏 chunk 体积显著下降（给出改动前后数值）；打开 md 笔记不触发任何重渲染器 chunk；打开 .adoc / .epub / .xlsx 各自只按需加载对应 chunk；`npm run verify` 通过。
+
+
+### T-039 持久化检索索引（SQLite FTS5）并让派生数据按解析规则版本失效
+
+- **提出**：2026-11-15
+- **问题**：两条同源。① `MetadataIndex` 只在内存，进程重启即 `rebuildAll()` 全量重算，是「进入软件卡一下」的结构性来源；同类项目（otterly / kb / lokus / mdit）都把检索索引持久化，且把结构变更（改名/移动/删除）做成一等命令而不是整体重建。② 一旦索引持久化，`metadata.ts` 的解析规则（`TAG_RE`、frontmatter、标题提取）改动后**没有任何机制让旧结果失效**，表现会是「升级后旧笔记的标签/反链静默错误」。
+- **参照实现**（代码级，见 `docs/clone-code-survey.adoc`）：
+  - `otterly/src-tauri/src/features/search/db.rs`：`notes` + `notes_fts`(fts5) + `outlinks`(索引 `target_path`) + `note_tags`(索引 `tag_key`)；`PRAGMA journal_mode=WAL; synchronous=NORMAL`；BM25 按列加权（标题 10 / 文件名 12 / 路径 5 / 正文 1）+ `snippet()` 高亮；
+  - 同一文件用 `PRAGMA user_version` 存**解析器规则版本**，版本不符则清空 manifest 让下次同步整体重解析——这正是 ② 的解法。
+- **方法**：
+  1. Rust 侧新增 `features/index/`（不得堆进 `main.rs`，见 T-039 备注里 opensidian 的反面教材）：`open(db_path)`、`upsert_note`、`remove_note`、`remove_by_prefix`、`rename_note`、`rename_folder`、`search`、`rebuild`、`cancel`；
+  2. 索引库落**应用数据目录、按 vault 分目录**，不写进 vault（保持「纯文件库」性质）；
+  3. `user_version` 存解析规则版本常量，与 TS 侧共享同一常量来源；
+  4. TS 侧 `MetadataIndex` 改为「内存为热缓存 + 持久层为真源」，启动时先读库再后台校验。
+- **解决**：—
+- **完成判据**：
+  ① `cargo test` 覆盖 schema 初始化、规则版本变更触发整体重解析、重命名后 `outlinks` 同步（对照 otterly 的 `tests/search_db_behavior.rs` 写法）；
+  ② 同一 416 文件测试库冷启动 `metadataIndexMs` 相比改动前显著下降（给出前后数值）；
+  ③ 改动 `TAG_RE` 后启动，旧笔记标签被重算而不是保留旧值；
+  ④ vault 内不出现任何 `.db`/`-wal`/`-shm` 文件；
+  ⑤ `npm run verify` 通过。
+- **前置**：**违反硬边界 #5**——`rusqlite`（bundled）会把 SQLite C 源码编进二进制，显著增加体积与构建时间。**需用户显式放行**后方可动手。
+
+### T-040 建立测试基线：前端零测试 → 关键路径可回归
+
+- **提出**：2026-11-15
+- **问题**：`docs/clone-code-survey.adoc` 实测，七个可直接比较的同类项目里，geode 是**唯一前端零测试**（JS 测试文件 0，Rust 测试 1）。后果是可验证的：2026-11-15 一天内修掉的 4 个缺陷（T-029 大纲切模式、T-033 锚点不跳、D-013 标题栏主题、T-034 右键菜单漏 WebView2）**全部由人工截图发现**，其中 2 个属于「类型检查通过、构建通过、行为错误」。
+- **方法**：
+  1. 只覆盖高频路径，不做覆盖率军备竞赛（参照 otterly 的 151 条，但只取前 10%）；
+  2. 优先 Playwright 六条：开笔记 → 切模式 → 点大纲 → 点锚点 → 阅读视图右键 → 多库切换后布局保留（T-035）；
+  3. 纯函数继续用现有 `scripts/verify-*.ts` 模式，不引入测试框架；
+  4. CI 侧只跑 `npm run verify` + 上述脚本。
+- **解决**：—
+- **完成判据**：
+  ① `npx playwright test` 六条用例全绿且总时长 < 60s；
+  ② 人为回退 T-029 的修复，对应用例必须转红（证明用例真的在守）；
+  ③ `npm run verify` 仍为唯一构建门禁，不被测试拖慢。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
@@ -193,3 +260,5 @@
 | T-030f | 2026-11-15 | 设置页「AI」「钥匙串」分区：7 预设、URL/模型/密钥/温度/max tokens/测试连接/删除；密钥仅显示「已存入」；`settingsNav` 深链 |
 | T-029 | 2026-11-15 | 大纲点击不再切换视图模式：删除 `onJump` 的 preview→live 分支；抽出 `scrollPreviewToSource()` 复用 R15 reveal（按元数据标题序号定位 + `preview-reveal-flash`）；preview 下点大纲只滚动，模式保持不变。`npm run verify` 通过 |
 | T-033 | 2026-11-15 | 同文档锚点点击不滚动：`localizeLinks` 不再把 `href="#..."` 改写为 `internal-link`（Asciidoctor id `_xxx` 无法被 `resolveSubpath` 解析）；预览点击对 `#fragment` 按 id 定位并 `scrollIntoView`，同时覆盖 Markdown `[x](#id)`。`npm run verify` 通过 |
+| T-034 | 2026-11-15 | 阅读视图右键菜单：新增通用 `ContextMenu` 组件（`.ctx-menu`，视口钳制、外点/Esc/滚动关闭）；预览右键提供复制 / 全选 / 打开链接 / 复制链接地址 / 在源码中编辑；新增全局 `contextmenu` 兜底，屏蔽 WebView2 默认菜单（输入框保留原生粘贴菜单）。`npm run verify` 通过 |
+| T-035 | 2026-11-15 | 工作区布局按库隔离：验收前 `localStorage["geode.workspace.v1"]` 是全局单键，打开第二个库会修剪并写回第一个库的标签，导致布局丢失。新增 `src/core/workspaceKeys.ts`（`normalizeVaultPath` / `workspaceStateKey` 纯函数，收敛 `C:\Vault`、`c:/vault/`、`C://Vault//`）；`vault:changed` 补 `path` 载荷；`Workspace.adoptVaultStorage()` 按库切换快照并把旧全局快照一次性迁移给首个库。`node scripts/verify-workspace-keys.ts` 16/16（脚本首次运行即抓出 `C://Vault//` 未收敛）、`npm run verify` 通过 |

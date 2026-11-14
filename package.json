@@ -43,7 +43,8 @@
     "verify:block-scan": "node scripts/verify-block-scan.ts",
     "report:index": "node scripts/adoc-index-report.ts",
     "verify:llm-sse": "node scripts/verify-llm-sse.ts",
-    "verify:readable-width": "node scripts/verify-readable-width.ts"
+    "verify:readable-width": "node scripts/verify-readable-width.ts",
+    "verify:workspace-keys": "node scripts/verify-workspace-keys.ts"
   },
   "dependencies": {
     "@asciidoctor/core": "^4.2.1",
