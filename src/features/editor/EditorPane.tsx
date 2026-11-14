@@ -35,6 +35,7 @@ import { findFolder } from "@core/explorerMove";
 import { parentPath, basename } from "@core/vault";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
+import { ContextMenu, type ContextMenuEntry } from "@features/contextmenu/ContextMenu";
 import {
   buildEditorExtensions,
   clearRevealFlash,
@@ -98,6 +99,18 @@ function saveSession(tabId: string, patch: Partial<PaneSession>): void {
  * data-line, deliberately out of scope this round — see ARCHITECTURE R29 显式偏差).
  * Module-level (not re-created per render); mirrors the callout fold idiom above.
  */
+type PreviewMenuLink =
+  | { kind: "internal"; target: string; subpath: string }
+  | { kind: "anchor"; id: string }
+  | { kind: "external"; href: string };
+
+interface PreviewMenuState {
+  x: number;
+  y: number;
+  link: PreviewMenuLink | null;
+  hasSelection: boolean;
+}
+
 function headingLevel(el: Element): number | null {
   const m = /^H([1-6])$/.exec(el.tagName);
   return m ? Number(m[1]) : null;
@@ -512,6 +525,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
   // mode slice in place, below), so tab.mode is NOT a dependency — only the
   // preview ↔ editor transition (this derived boolean) tears down / remounts.
   const isPreview = tab.mode === "preview";
+  const [previewMenu, setPreviewMenu] = useState<PreviewMenuState | null>(null);
 
   useEffect(() => {
     if (isPreview || !handle || !hostRef.current) return;
@@ -1041,6 +1055,66 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     }, 1200);
   }, [app, handle, isPreview, reveal, previewHtml]);
 
+  /** Scroll the reading view to an in-page target id (AsciiDoc ids, Markdown anchors). */
+  const scrollPreviewToAnchor = useCallback((id: string) => {
+    const scope = previewContentRef.current;
+    const target =
+      scope?.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ??
+      scope?.querySelector<HTMLElement>(`[name="${CSS.escape(id)}"]`);
+    target?.scrollIntoView({ block: "start" });
+  }, []);
+
+  const copyText = useCallback((text: string) => {
+    if (text !== "") void navigator.clipboard.writeText(text);
+  }, []);
+
+  const selectAllPreview = useCallback(() => {
+    const content = previewContentRef.current;
+    if (!content) return;
+    const range = document.createRange();
+    range.selectNodeContents(content);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, []);
+
+  const onPreviewContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.target instanceof Element ? e.target : null;
+    const anchor = el?.closest<HTMLAnchorElement>("a") ?? null;
+    let link: PreviewMenuLink | null = null;
+    if (anchor !== null) {
+      if (anchor.classList.contains("internal-link")) {
+        link = {
+          kind: "internal",
+          target: anchor.dataset.target ?? "",
+          subpath: anchor.dataset.subpath ?? "",
+        };
+      } else {
+        const href = anchor.getAttribute("href") ?? "";
+        if (href.startsWith("#") && href.length > 1) {
+          let id = href.slice(1);
+          try {
+            id = decodeURIComponent(id);
+          } catch {
+            /* keep the raw fragment */
+          }
+          link = { kind: "anchor", id };
+        } else if (/^https?:/i.test(href)) {
+          link = { kind: "external", href };
+        }
+      }
+    }
+    const selection = window.getSelection()?.toString() ?? "";
+    setPreviewMenu({
+      x: e.clientX,
+      y: e.clientY,
+      link,
+      hasSelection: selection.trim() !== "",
+    });
+  }, []);
+
   const onPreviewClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       // Element (not HTMLElement): clicks inside a rendered mermaid SVG land
@@ -1183,11 +1257,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
           } catch {
             /* keep the raw fragment */
           }
-          const scope = previewContentRef.current;
-          const target =
-            scope?.querySelector<HTMLElement>(`#${CSS.escape(id)}`) ??
-            scope?.querySelector<HTMLElement>(`[name="${CSS.escape(id)}"]`);
-          target?.scrollIntoView({ block: "start" });
+          scrollPreviewToAnchor(id);
           return;
         }
         if (!/^https?:/i.test(href)) e.preventDefault();
@@ -1204,6 +1274,84 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     },
     [app, tab.id],
   );
+
+  // A menu belongs to the current view; switching tab/mode dismisses it.
+  useEffect(() => {
+    setPreviewMenu(null);
+  }, [tab.id, tab.mode]);
+
+  const previewMenuItems: ContextMenuEntry[] = (() => {
+    if (previewMenu === null) return [];
+    const link = previewMenu.link;
+    const items: ContextMenuEntry[] = [
+      {
+        id: "copy",
+        label: t("ctxMenu.copy"),
+        icon: "copy",
+        disabled: !previewMenu.hasSelection,
+        onAction: () => copyText(window.getSelection()?.toString() ?? ""),
+      },
+      {
+        id: "select-all",
+        label: t("ctxMenu.selectAll"),
+        icon: "list",
+        onAction: selectAllPreview,
+      },
+    ];
+    if (link !== null) {
+      items.push({ id: "sep-link", separator: true });
+      if (link.kind === "internal") {
+        items.push({
+          id: "open-link",
+          label: t("ctxMenu.openLink"),
+          icon: "external-link",
+          disabled: link.target === "" && link.subpath === "",
+          onAction: () => {
+            if (handle) {
+              void openWikilink(app, link.target, handle.path, link.subpath);
+            }
+          },
+        });
+        items.push({
+          id: "copy-link",
+          label: t("ctxMenu.copyLink"),
+          icon: "link",
+          onAction: () =>
+            copyText(
+              `[[${link.target}${link.subpath !== "" ? `#${link.subpath}` : ""}]]`,
+            ),
+        });
+      } else if (link.kind === "anchor") {
+        items.push({
+          id: "open-link",
+          label: t("ctxMenu.openLink"),
+          icon: "external-link",
+          onAction: () => scrollPreviewToAnchor(link.id),
+        });
+        items.push({
+          id: "copy-link",
+          label: t("ctxMenu.copyLink"),
+          icon: "link",
+          onAction: () => copyText(`#${link.id}`),
+        });
+      } else {
+        items.push({
+          id: "copy-link",
+          label: t("ctxMenu.copyLink"),
+          icon: "link",
+          onAction: () => copyText(link.href),
+        });
+      }
+    }
+    items.push({ id: "sep-source", separator: true });
+    items.push({
+      id: "edit-source",
+      label: t("ctxMenu.editSource"),
+      icon: "pencil",
+      onAction: () => setMode("source"),
+    });
+    return items;
+  })();
 
   // R94: Obsidian "Show inline title" — the note's filename (no extension) as an H1
   // at the top of the content. R164: click to rename (→ renameWithLinkUpdate). It
@@ -1268,6 +1416,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
       <div
         className="editor-preview markdown-reading-view"
         onClick={onPreviewClick}
+        onContextMenu={onPreviewContextMenu}
         ref={previewScrollRef}
       >
         {/* R94: inline title at the very top of the scroller (scrolls with the note,
@@ -1386,6 +1535,14 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
         )}
       </div>
       {body}
+      {previewMenu !== null && (
+        <ContextMenu
+          x={previewMenu.x}
+          y={previewMenu.y}
+          items={previewMenuItems}
+          onClose={() => setPreviewMenu(null)}
+        />
+      )}
     </div>
   );
 }

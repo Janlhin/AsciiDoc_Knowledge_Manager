@@ -15,9 +15,9 @@ import { EventBus } from "./events";
 import { Store } from "./store";
 import { defaultNewTabMode, focusNewTab } from "./appearance";
 import { basename, isTauri, stripExtension } from "./vault";
+import { LEGACY_WORKSPACE_KEY, workspaceStateKey } from "./workspaceKeys";
 import { isAttachmentPath } from "./attachments";
 
-const PERSIST_KEY = "geode.workspace.v1";
 const RECENTLY_CLOSED_MAX = 20;
 const NAV_HISTORY_MAX = 50;
 
@@ -375,6 +375,10 @@ export class Workspace {
    *  Session-only. */
   readonly openLocalGraphRequest = new Store<boolean>(false);
   private flushers = new Set<() => void | Promise<void>>();
+  /** localStorage key holding THIS vault's layout (T-035). Starts on the
+   *  pre-isolation key so the constructor-time restore still works, then
+   *  adopts the per-vault key on the first `vault:changed`/load. */
+  private storageKey: string = LEGACY_WORKSPACE_KEY;
   /** Most-recent-LAST stack of user-closed tabs for Mod+Shift+T. Session-only —
    *  NOT persisted (avoids stale-path risk across restart). Only closeTab feeds
    *  it; reactive cleanups (delete/rename/missing) purge it. */
@@ -396,11 +400,12 @@ export class Workspace {
     // the new vault (closeMissingFileTabs' exists() guard would let such a stale
     // entry survive). Mirrors openVaultFlow's lastActiveFile reset + Document
     // manager's handle invalidation on the same event. (R36 review fix.)
-    events.on("vault:changed", ({ reason }) => {
+    events.on("vault:changed", ({ reason, path }) => {
       if (reason === "load") {
         this.recentlyClosed = [];
         this.tabHistory.clear();
         this.currentSearchQuery.set(""); // R239: don't carry a query across a vault switch
+        this.adoptVaultStorage(path ?? null);
       }
     });
   }
@@ -1313,7 +1318,7 @@ export class Workspace {
     try {
       const s = this.state.get();
       localStorage.setItem(
-        PERSIST_KEY,
+        this.storageKey,
         JSON.stringify({ ...s, modal: null }),
       );
     } catch {
@@ -1324,11 +1329,76 @@ export class Workspace {
   private restore() {
     if (isBenchSession()) return;
     try {
-      const raw = localStorage.getItem(PERSIST_KEY);
+      const raw = localStorage.getItem(this.storageKey);
       if (!raw) return;
       this.state.set(sanitizeState(JSON.parse(raw)));
     } catch {
       /* corrupted state — start fresh */
+    }
+  }
+
+  /**
+   * T-035: point persistence at the snapshot belonging to `vaultPath`.
+   *
+   * Two vaults used to share one global snapshot: opening the second one pruned
+   * the first one's tabs (their paths are gone there) and wrote the pruned
+   * result back, so the first vault came back empty. Each vault now owns a key.
+   * The pre-isolation snapshot cannot be attributed to any vault, so the first
+   * vault loaded after the upgrade adopts it once and the global key is dropped.
+   */
+  private adoptVaultStorage(vaultPath: string | null): void {
+    const nextKey = workspaceStateKey(vaultPath);
+    if (nextKey === this.storageKey) return;
+    this.storageKey = nextKey;
+
+    let raw = this.readPersisted(nextKey);
+    if (raw === null) {
+      const legacy = this.readPersisted(LEGACY_WORKSPACE_KEY);
+      if (legacy !== null) {
+        raw = legacy;
+        this.writePersisted(nextKey, legacy);
+        this.removePersisted(LEGACY_WORKSPACE_KEY);
+      }
+    }
+    if (raw === null) {
+      // Nothing stored for this vault yet: start clean rather than inheriting
+      // the previous vault's tabs.
+      this.state.set(defaultState());
+    } else {
+      try {
+        this.state.set(sanitizeState(JSON.parse(raw)));
+      } catch {
+        this.state.set(defaultState());
+      }
+    }
+    this.lastActiveFile.set(this.getActiveFile());
+    this.emitActiveFile();
+  }
+
+  private readPersisted(key: string): string | null {
+    if (isBenchSession()) return null;
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  private writePersisted(key: string, value: string): void {
+    if (isBenchSession()) return;
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* storage unavailable — fine */
+    }
+  }
+
+  private removePersisted(key: string): void {
+    if (isBenchSession()) return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* storage unavailable — fine */
     }
   }
 }
