@@ -17,6 +17,7 @@ import type { NewTabMode } from "@core/appearance";
 import { resolveAttachmentDeletion } from "@core/attachmentDeletion";
 import { MIN_PANE_FRACTION, allTabs, findTabLeaf, isFilelessSingletonView } from "@core/workspace";
 import { getCommandName } from "@core/commands";
+import { startSearchIndex } from "@core/indexer";
 import type { PaneLeaf, PaneNode, PaneSplit, TabState } from "@core/types";
 import type { SidebarPanelContribution } from "@core/plugins";
 import { Icon } from "./icons";
@@ -181,6 +182,11 @@ export function App() {
       setDraggingTabId(null);
     }
   }, [draggingTabId, ws.root]);
+
+  /* ---- keep the derived search index in step with the vault (T-039) ---- */
+  useEffect(() => {
+    startSearchIndex(app);
+  }, [app]);
 
   /* ---- register core commands once ---- */
   useEffect(() => {
