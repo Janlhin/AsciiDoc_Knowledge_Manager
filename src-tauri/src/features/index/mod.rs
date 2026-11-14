@@ -553,6 +553,48 @@ mod tests {
         assert_eq!(removed, 1);
     }
 
+    /// Perf measurement, not a gate: what a warm start pays to fetch every row.
+    /// Run with `cargo test -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "perf measurement"]
+    fn bench_known_415_rows() {
+        use std::time::Instant;
+        // ~1.5 KB of realistic NoteMetadata JSON per row.
+        let heading = r#"{"level":2,"text":"标准研磨日志","from":1234,"to":1256}"#;
+        let link = r#"{"target":"Knowledge/规范/档案/书籍化定义修订案","from":88,"to":120}"#;
+        let mut meta = String::from(r#"{"path":"Knowledge/x.md","aliases":["a","b"],"headings":["#);
+        for i in 0..12 {
+            if i > 0 { meta.push(','); }
+            meta.push_str(heading);
+        }
+        meta.push_str(r#"],"links":["#);
+        for i in 0..6 {
+            if i > 0 { meta.push(','); }
+            meta.push_str(link);
+        }
+        meta.push_str(r#"],"tags":[{"tag":"规范","from":3}],"blocks":[],"footnotes":[],"footnoteRefs":[],"contentLength":20480}"#);
+
+        let mut conn = db();
+        let t_ins = Instant::now();
+        for i in 0..415 {
+            let mut n = note(&format!("Knowledge/n{i}.md"), "n", "body", &[], &[]);
+            n.meta = meta.clone();
+            upsert(&mut conn, &n).unwrap();
+        }
+        let insert_ms = t_ins.elapsed().as_secs_f64() * 1000.0;
+
+        let t_read = Instant::now();
+        let rows = known(&conn).unwrap();
+        let read_ms = t_read.elapsed().as_secs_f64() * 1000.0;
+
+        let bytes: usize = rows.iter().map(|r| r.meta.len()).sum();
+        println!(
+            "insert 415 rows: {insert_ms:.1} ms | known() (fetch all meta_json): {read_ms:.1} ms | payload: {:.1} MB",
+            bytes as f64 / 1_048_576.0
+        );
+        assert_eq!(rows.len(), 415);
+    }
+
     #[test]
     fn metadata_json_round_trips_for_warm_start_hydration() {
         let mut conn = db();
