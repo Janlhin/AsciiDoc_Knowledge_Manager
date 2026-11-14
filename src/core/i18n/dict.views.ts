@@ -110,6 +110,9 @@ export const en = {
   "settings.focusNewTab": "Always focus new tabs",
   "settings.focusNewTabDesc": "When creating or opening a file, immediately switch to that tab.",
   "settings.readableLineLength": "Readable line length",
+  "settings.readableLineWidth": "Readable line width",
+  "settings.readableLineWidthDesc":
+    "Width of the reading column in em. Applies to the editor and to the reading view (Markdown and AsciiDoc).",
   "settings.spellcheck": "Spellcheck",
   "settings.strictLineBreaks": "Strict line breaks",
   "settings.strictLineBreaksDesc": "When off, a single line break in your note shows as a line break in reading view. When on, you need two spaces or a blank line.",
@@ -590,6 +593,9 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.focusNewTab": "始终聚焦新标签页",
   "settings.focusNewTabDesc": "创建或打开文件时，立即切换至该标签页。",
   "settings.readableLineLength": "可读行宽",
+  "settings.readableLineWidth": "可读行宽宽度",
+  "settings.readableLineWidthDesc":
+    "阅读栏宽度（单位 em）。同时作用于编辑器与阅读视图（Markdown 与 AsciiDoc）。",
   "settings.spellcheck": "拼写检查",
   "settings.strictLineBreaks": "严格换行",
   "settings.strictLineBreaksDesc": "关闭时，笔记中的单次换行在阅读视图中显示为换行；开启时，需两个空格或一个空行才换行。",

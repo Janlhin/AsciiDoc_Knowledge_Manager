@@ -9,6 +9,7 @@ import { Store } from "./store";
 import type { ExplorerSortKey } from "./vault";
 
 const READABLE_KEY = "geode.readableLineLength";
+const READABLE_WIDTH_KEY = "geode.readableLineWidth";
 const SPELLCHECK_KEY = "geode.spellcheck";
 const ACCENT_KEY = "geode.accentColor";
 
@@ -29,19 +30,64 @@ function persistBool(key: string, value: boolean): void {
   }
 }
 
-/** Cap the editor/preview body width at ~46em, centered (default ON = the prior
+/** Cap the editor/preview body width, centered (default ON = the prior
  *  always-on behavior). OFF → full width via `--readable-line-width: none`; the
  *  editor + preview CSS read `var(--readable-line-width, 46em)`. */
 export const readableLineLength = new Store<boolean>(readBool(READABLE_KEY, true));
 
+/** Width of that column, in `em` — only consulted while the toggle is ON.
+ *  Range mirrors what the CSS actually renders well: below ~30em code blocks
+ *  wrap constantly, above ~100em the cap stops doing anything on 1080p. */
+export const READABLE_LINE_WIDTH_MIN = 30;
+export const READABLE_LINE_WIDTH_MAX = 100;
+export const READABLE_LINE_WIDTH_DEFAULT = 46;
+
+function readInt(key: string, fallback: number, min: number, max: number): number {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(n)));
+  } catch {
+    return fallback;
+  }
+}
+
+export const readableLineWidth = new Store<number>(
+  readInt(
+    READABLE_WIDTH_KEY,
+    READABLE_LINE_WIDTH_DEFAULT,
+    READABLE_LINE_WIDTH_MIN,
+    READABLE_LINE_WIDTH_MAX,
+  ),
+);
+
 function applyReadableLineLength(on: boolean): void {
   try {
-    const el = document.documentElement;
-    if (on) el.style.removeProperty("--readable-line-width"); // → CSS 46em fallback
-    else el.style.setProperty("--readable-line-width", "none");
+    document.documentElement.style.setProperty(
+      "--readable-line-width",
+      on ? `${readableLineWidth.get()}em` : "none",
+    );
   } catch {
     /* no DOM (non-browser test context) */
   }
+}
+
+/** Set the reading column width. Takes effect immediately while the toggle is
+ *  ON; stored regardless, so re-enabling the toggle restores the chosen width. */
+export function setReadableLineWidth(em: number): void {
+  const clamped = Math.min(
+    READABLE_LINE_WIDTH_MAX,
+    Math.max(READABLE_LINE_WIDTH_MIN, Math.round(em)),
+  );
+  readableLineWidth.set(clamped);
+  try {
+    localStorage.setItem(READABLE_WIDTH_KEY, String(clamped));
+  } catch {
+    /* storage unavailable — session-only */
+  }
+  if (readableLineLength.get()) applyReadableLineLength(true);
 }
 
 export function setReadableLineLength(on: boolean): void {

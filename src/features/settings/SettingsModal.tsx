@@ -4,8 +4,12 @@ import { Icon } from "@app/icons";
 import { confirmAction } from "@core/confirm";
 import { clearSettingsSection, peekSettingsSection } from "@core/settingsNav";
 import {
+  READABLE_LINE_WIDTH_MAX,
+  READABLE_LINE_WIDTH_MIN,
   readableLineLength,
+  readableLineWidth,
   setReadableLineLength,
+  setReadableLineWidth,
   spellcheckEnabled,
   setSpellcheckEnabled,
   strictLineBreaks,
@@ -759,6 +763,7 @@ function EditorSection() {
   const t = useI18n();
   /* R50: appearance toggles — readable line length + editor spellcheck */
   const readable = useStore(readableLineLength);
+  const lineWidth = useStore(readableLineWidth);
   const spell = useStore(spellcheckEnabled);
   const strict = useStore(strictLineBreaks);
   const viewModeToggle = useStore(showViewModeToggle);
@@ -884,6 +889,32 @@ function EditorSection() {
         >
           <span className="settings-toggle-thumb" />
         </button>
+      </div>
+
+      <div className="setting-item">
+        <div className="setting-info">
+          <div className="setting-name">{t("settings.readableLineWidth")}</div>
+          <div className="setting-desc">{t("settings.readableLineWidthDesc")}</div>
+        </div>
+        <div className="settings-slider">
+          <input
+            type="range"
+            min={READABLE_LINE_WIDTH_MIN}
+            max={READABLE_LINE_WIDTH_MAX}
+            step={1}
+            value={lineWidth}
+            disabled={!readable}
+            aria-label={t("settings.readableLineWidth")}
+            data-testid="settings-readable-width"
+            onChange={(e) => setReadableLineWidth(Number(e.target.value))}
+          />
+          <span
+            className="settings-slider-value"
+            data-testid="settings-readable-width-value"
+          >
+            {lineWidth}em
+          </span>
+        </div>
       </div>
 
       {/* R87: strict line breaks (reading view); OFF = single newline → <br> (Obsidian default) */}
