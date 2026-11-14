@@ -787,7 +787,49 @@ fn open_in_default_app(app: tauri::AppHandle, vault: String, path: String) -> Cm
         .map_err(|e| format!("open {path}: {e}"))
 }
 
-/* ---------------- ADKM AI: SSE streaming ---------------- */
+/* ---------------- ADKM AI: OS credential store + SSE streaming ---------------- */
+
+/// Keychain namespace for every ADKM secret (Windows Credential Manager target
+/// prefix / macOS Keychain service). Stable — changing it orphans stored keys.
+const SECRET_SERVICE: &str = "adkm";
+
+/// Store (or overwrite) a secret in the OS credential store. Values never touch
+/// the vault or localStorage: they live in Credential Manager / Keychain.
+#[tauri::command(async)]
+fn secret_set(name: String, value: String) -> CmdResult<()> {
+    if name.trim().is_empty() {
+        return Err("secret_set: name must not be empty".into());
+    }
+    keyring::Entry::new(SECRET_SERVICE, &name)
+        .map_err(|e| format!("secret_set: {e}"))?
+        .set_password(&value)
+        .map_err(|e| format!("secret_set: {e}"))
+}
+
+/// Read a secret. A missing entry is `Ok(None)` — not an error, so the caller
+/// can distinguish "no key configured" from a real credential-store failure.
+#[tauri::command(async)]
+fn secret_get(name: String) -> CmdResult<Option<String>> {
+    let entry =
+        keyring::Entry::new(SECRET_SERVICE, &name).map_err(|e| format!("secret_get: {e}"))?;
+    match entry.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("secret_get: {e}")),
+    }
+}
+
+/// Delete a secret. Missing entries are a no-op (idempotent).
+#[tauri::command(async)]
+fn secret_delete(name: String) -> CmdResult<()> {
+    let entry =
+        keyring::Entry::new(SECRET_SERVICE, &name).map_err(|e| format!("secret_delete: {e}"))?;
+    match entry.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!("secret_delete: {e}")),
+    }
+}
 
 /// Frontend `llm_stream` payload (serde camelCase).
 #[derive(Deserialize)]
@@ -992,6 +1034,9 @@ fn main() {
             open_in_default_app,
             http_request,
             export_write,
+            secret_set,
+            secret_get,
+            secret_delete,
             llm_stream,
             llm_cancel
         ])
@@ -1026,7 +1071,7 @@ fn main() {
 
 #[cfg(test)]
 mod ai_tests {
-    use super::sse_data_payload;
+    use super::{secret_delete, secret_get, secret_set, sse_data_payload};
 
     #[test]
     fn sse_frames() {
@@ -1036,5 +1081,33 @@ mod ai_tests {
         assert_eq!(sse_data_payload("event: message"), None);
         assert_eq!(sse_data_payload(": keep-alive"), None);
         assert_eq!(sse_data_payload("data:   "), None);
+    }
+
+    /// Writes to the real OS credential store, then removes what it created.
+    /// Ignored by default (a headless CI runner may have no store); run with:
+    ///   cargo test -- --ignored
+    #[test]
+    #[ignore = "writes to the OS credential store"]
+    fn credential_store_roundtrip() {
+        // Second name mirrors the real `defaultSecretName()` shape (`llm:<id>`),
+        // which contains a colon — prove the store accepts it.
+        for name in [
+            "adkm-selftest-roundtrip".to_string(),
+            "llm:selftest".to_string(),
+        ] {
+            secret_set(name.clone(), "value-1".to_string()).expect("set");
+            assert_eq!(
+                secret_get(name.clone()).expect("get"),
+                Some("value-1".to_string())
+            );
+            secret_set(name.clone(), "value-2".to_string()).expect("overwrite");
+            assert_eq!(
+                secret_get(name.clone()).expect("get overwritten"),
+                Some("value-2".to_string())
+            );
+            secret_delete(name.clone()).expect("delete");
+            assert_eq!(secret_get(name.clone()).expect("get after delete"), None);
+            secret_delete(name).expect("delete is idempotent");
+        }
     }
 }

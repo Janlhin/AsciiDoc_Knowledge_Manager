@@ -21,6 +21,11 @@ serde_json = "1"
 notify = "8"
 ureq = "2"
 base64 = "0.22"
+# ADKM AI: OS credential store for API keys (Windows Credential Manager /
+# macOS Keychain). Hard-boundary #5 (new runtime dependency) explicitly
+# unlocked by the user 2026-11-14 for LLM key storage only — never for
+# arbitrary network or filesystem access.
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
 
 [profile.release]
 panic = "abort"
