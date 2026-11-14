@@ -8,10 +8,11 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 
@@ -67,6 +68,11 @@ struct ConfigDirEntry {
 /// Active vault filesystem watcher. Replacing the inner watcher drops the old
 /// one, which disconnects its mpsc channel and lets its debounce thread exit.
 struct WatcherState(Mutex<Option<RecommendedWatcher>>);
+
+/// In-flight LLM streams: request id → cooperative cancel flag. Cancellation is
+/// polled line-by-line while reading the SSE response (no socket shutdown race).
+#[derive(Default)]
+struct LlmCancels(Mutex<HashMap<String, Arc<AtomicBool>>>);
 
 type CmdResult<T> = Result<T, String>;
 
@@ -781,6 +787,179 @@ fn open_in_default_app(app: tauri::AppHandle, vault: String, path: String) -> Cm
         .map_err(|e| format!("open {path}: {e}"))
 }
 
+/* ---------------- ADKM AI: SSE streaming ---------------- */
+
+/// Frontend `llm_stream` payload (serde camelCase).
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LlmStreamRequest {
+    request_id: String,
+    url: String,
+    headers: HashMap<String, String>,
+    body_text: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LlmChunkPayload {
+    request_id: String,
+    /// Raw `data:` payload from the SSE frame (JSON for OpenAI-compatible APIs).
+    data: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LlmDonePayload {
+    request_id: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LlmErrorPayload {
+    request_id: String,
+    message: String,
+}
+
+/// Cap on a single streamed response body (anti-abuse, mirrors HTTP_BODY_LIMIT).
+const LLM_STREAM_LIMIT: usize = 4 * 1024 * 1024;
+
+/// Start an SSE request and return immediately. Deltas are pushed as
+/// `llm:chunk` events; termination is exactly one `llm:done` or `llm:error`,
+/// all keyed by `requestId` so concurrent panels cannot cross-talk.
+#[tauri::command]
+fn llm_stream(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, LlmCancels>,
+    req: LlmStreamRequest,
+) -> CmdResult<()> {
+    if !(req.url.starts_with("http://") || req.url.starts_with("https://")) {
+        return Err(format!(
+            "llm_stream: only http/https URLs are allowed, got '{}'",
+            req.url
+        ));
+    }
+    let flag = Arc::new(AtomicBool::new(false));
+    {
+        let mut map = state
+            .0
+            .lock()
+            .map_err(|_| "llm_stream: cancel registry poisoned".to_string())?;
+        map.insert(req.request_id.clone(), flag.clone());
+    }
+    std::thread::spawn(move || {
+        let outcome = run_llm_stream(&app, &req, &flag);
+        let id = req.request_id.clone();
+        match outcome {
+            Ok(()) => {
+                let _ = app.emit("llm:done", LlmDonePayload { request_id: id.clone() });
+            }
+            Err(message) => {
+                let _ = app.emit(
+                    "llm:error",
+                    LlmErrorPayload {
+                        request_id: id.clone(),
+                        message,
+                    },
+                );
+            }
+        }
+        if let Some(state) = app.try_state::<LlmCancels>() {
+            if let Ok(mut map) = state.0.lock() {
+                map.remove(&id);
+            }
+        }
+    });
+    Ok(())
+}
+
+fn run_llm_stream(
+    app: &tauri::AppHandle,
+    req: &LlmStreamRequest,
+    flag: &AtomicBool,
+) -> CmdResult<()> {
+    // Rolling timeouts, not a total cap: a healthy stream may run for minutes,
+    // but must never hang forever on a dead connection.
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(20))
+        .timeout_read(Duration::from_secs(180))
+        .timeout_write(Duration::from_secs(30))
+        .build();
+    let mut request = agent.post(&req.url);
+    for (key, value) in &req.headers {
+        request = request.set(key, value);
+    }
+    let response = match request.send_string(&req.body_text) {
+        Ok(response) => response,
+        Err(ureq::Error::Status(code, response)) => {
+            // Surface the provider's JSON error text: "401 invalid api key" is
+            // what the user needs to see, not a bare status code.
+            let body = response.into_string().unwrap_or_default();
+            let body: String = body.chars().take(800).collect();
+            return Err(format!("HTTP {code}: {body}"));
+        }
+        Err(e) => return Err(format!("transport: {e}")),
+    };
+    let mut reader = BufReader::new(response.into_reader());
+    let mut line = String::new();
+    let mut total = 0usize;
+    loop {
+        if flag.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+        line.clear();
+        let read = reader
+            .read_line(&mut line)
+            .map_err(|e| format!("read: {e}"))?;
+        if read == 0 {
+            return Ok(());
+        }
+        total += read;
+        if total > LLM_STREAM_LIMIT {
+            return Err("response exceeded 4 MB".into());
+        }
+        // Only `data:` frames carry deltas; `event:` / `id:` / `retry:` /
+        // comment lines are ignored. Parsing JSON stays on the TS side so the
+        // Rust layer remains provider-agnostic.
+        let Some(data) = sse_data_payload(&line) else {
+            continue;
+        };
+        if data == "[DONE]" {
+            return Ok(());
+        }
+        app.emit(
+            "llm:chunk",
+            LlmChunkPayload {
+                request_id: req.request_id.clone(),
+                data: data.to_string(),
+            },
+        )
+        .map_err(|e| format!("emit: {e}"))?;
+    }
+}
+
+/// Payload of one SSE `data:` line, or None for other frames / empty payloads.
+/// Split out so the frame contract is unit-testable without a network.
+fn sse_data_payload(line: &str) -> Option<&str> {
+    let trimmed = line.trim_end_matches(['\r', '\n']);
+    let data = trimmed.strip_prefix("data:")?;
+    let data = data.trim_start();
+    if data.is_empty() {
+        return None;
+    }
+    Some(data)
+}
+
+/// Ask an in-flight stream to stop. Unknown ids are ignored (the stream may
+/// have finished between the click and the IPC arrival).
+#[tauri::command]
+fn llm_cancel(state: tauri::State<'_, LlmCancels>, request_id: String) {
+    if let Ok(map) = state.0.lock() {
+        if let Some(flag) = map.get(&request_id) {
+            flag.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -788,6 +967,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .manage(WatcherState(Mutex::new(None)))
+        .manage(LlmCancels::default())
         .invoke_handler(tauri::generate_handler![
             initial_vault,
             vault_list,
@@ -811,7 +991,9 @@ fn main() {
             reveal_in_system,
             open_in_default_app,
             http_request,
-            export_write
+            export_write,
+            llm_stream,
+            llm_cancel
         ])
         .on_window_event(|window, event| {
             // Tauri v2 calls `api.prevent_close()` whenever the frontend has a
@@ -840,4 +1022,19 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Geode");
+}
+
+#[cfg(test)]
+mod ai_tests {
+    use super::sse_data_payload;
+
+    #[test]
+    fn sse_frames() {
+        assert_eq!(sse_data_payload("data: {\"x\":1}\n"), Some("{\"x\":1}"));
+        assert_eq!(sse_data_payload("data:{\"x\":1}\r\n"), Some("{\"x\":1}"));
+        assert_eq!(sse_data_payload("data:[DONE]"), Some("[DONE]"));
+        assert_eq!(sse_data_payload("event: message"), None);
+        assert_eq!(sse_data_payload(": keep-alive"), None);
+        assert_eq!(sse_data_payload("data:   "), None);
+    }
 }
