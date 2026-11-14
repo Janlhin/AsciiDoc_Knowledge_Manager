@@ -6,6 +6,10 @@
  * the existing 46em cap; spellcheck OFF).
  */
 import { Store } from "./store";
+import {
+  READABLE_LINE_WIDTH_DEFAULT,
+  clampReadableLineWidth,
+} from "./readableWidth";
 import type { ExplorerSortKey } from "./vault";
 
 const READABLE_KEY = "geode.readableLineLength";
@@ -35,32 +39,28 @@ function persistBool(key: string, value: boolean): void {
  *  editor + preview CSS read `var(--readable-line-width, 46em)`. */
 export const readableLineLength = new Store<boolean>(readBool(READABLE_KEY, true));
 
-/** Width of that column, in `em` — only consulted while the toggle is ON.
- *  Range mirrors what the CSS actually renders well: below ~30em code blocks
- *  wrap constantly, above ~100em the cap stops doing anything on 1080p. */
-export const READABLE_LINE_WIDTH_MIN = 30;
-export const READABLE_LINE_WIDTH_MAX = 100;
-export const READABLE_LINE_WIDTH_DEFAULT = 46;
+/* Bounds live in ./readableWidth so they can be verified without a DOM. */
+export {
+  READABLE_LINE_WIDTH_DEFAULT,
+  READABLE_LINE_WIDTH_MAX,
+  READABLE_LINE_WIDTH_MIN,
+} from "./readableWidth";
 
-function readInt(key: string, fallback: number, min: number, max: number): number {
+function readNumber(key: string, fallback: number): number {
   try {
     const raw = localStorage.getItem(key);
     if (raw === null) return fallback;
     const n = Number(raw);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(max, Math.max(min, Math.round(n)));
+    return Number.isFinite(n) ? n : fallback;
   } catch {
     return fallback;
   }
 }
 
+/** Width of that column, in `em` — only consulted while the toggle is ON.
+ *  Anything unreadable or out of range falls back to a sane column. */
 export const readableLineWidth = new Store<number>(
-  readInt(
-    READABLE_WIDTH_KEY,
-    READABLE_LINE_WIDTH_DEFAULT,
-    READABLE_LINE_WIDTH_MIN,
-    READABLE_LINE_WIDTH_MAX,
-  ),
+  clampReadableLineWidth(readNumber(READABLE_WIDTH_KEY, READABLE_LINE_WIDTH_DEFAULT)),
 );
 
 function applyReadableLineLength(on: boolean): void {
@@ -77,10 +77,7 @@ function applyReadableLineLength(on: boolean): void {
 /** Set the reading column width. Takes effect immediately while the toggle is
  *  ON; stored regardless, so re-enabling the toggle restores the chosen width. */
 export function setReadableLineWidth(em: number): void {
-  const clamped = Math.min(
-    READABLE_LINE_WIDTH_MAX,
-    Math.max(READABLE_LINE_WIDTH_MIN, Math.round(em)),
-  );
+  const clamped = clampReadableLineWidth(em);
   readableLineWidth.set(clamped);
   try {
     localStorage.setItem(READABLE_WIDTH_KEY, String(clamped));
