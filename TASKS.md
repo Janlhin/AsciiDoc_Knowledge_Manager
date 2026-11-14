@@ -199,6 +199,28 @@
 - **解决**：—
 - **完成判据**：① 清空 localStorage 后新开笔记，`tab.mode === "source"`；② 手动切到 live 后再开新笔记，新笔记仍为 source（默认值不继承上一 tab）；③ 设置页修改默认值后，新开 tab 立即生效；④ `npm run verify` 通过。
 
+### T-032 功能区快捷键提示改为从命令注册表派生（消除手写不一致）
+
+- **提出**：2026-11-15
+- **问题**：ribbon 按钮的快捷键提示**手写在 i18n 文案里**，与命令注册表脱节。实测：
+  - `app.ribbonGraph` / `app.ribbonPalette` / `app.ribbonSettings` 文案硬编码 `(Ctrl+G)` / `(Ctrl+P)` / `(Ctrl+,)`；
+  - `app:show-search` 有默认键 `Mod+Shift+F`，但 `app.ribbonSearch` 无提示——同一动作，提示不一致；
+  - 手写文案不跟随「设置 → 快捷键」的用户改键；
+  - `Mod` 在 macOS 应显示为 ⌘，写死 `Ctrl` 在 Mac 上是错的。
+  另：插件面板缺合法单 SVG 图标时，`SidebarPanelIcon`（`src/app/App.tsx:1711`）渲染标题首字母（如 «N»），视觉上像孤立字符。
+- **方法**：
+  1. 删除 4 条 i18n 文案中的 `(Ctrl+X)`，恢复纯名称；
+  2. 新增 `formatHotkey(hotkey)`：`Mod` → Windows `Ctrl` / macOS `⌘`（复用 `isMacPlatform`），其余按规范顺序输出；
+  3. 新增 `ribbonTitle(labelKey, commandId)`：`t(labelKey)` + 有效键（`app.commands.getEffectiveHotkey(id)`），无键则不加括号；
+  4. ribbon 按钮改为按 command id 取标题：`app:open-graph` / `app:command-palette` / `app:open-settings` / `app:show-search`；
+  5. 插件面板兜底图标单列处理（要求插件提供图标，或改用通用图标）——需先定契约，不在本条强制。
+- **解决**：—
+- **完成判据**：
+  ① `npm run verify` 通过；
+  ② 手动/Playwright：hover 四个按钮，提示分别为「关系图谱 (Ctrl+G)」「命令面板 (Ctrl+P)」「设置 (Ctrl+,)」「搜索 (Ctrl+Shift+F)」；
+  ③ 在设置里把 `app:command-palette` 改为 `Mod+Shift+P` 后，hover 提示同步变为 `Ctrl+Shift+P`；
+  ④ `formatHotkey` 单测覆盖 `Mod+P` → Windows `Ctrl+P` / macOS `⌘P`。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
