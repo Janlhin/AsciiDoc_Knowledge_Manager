@@ -14,7 +14,7 @@ import type {
 import { EventBus } from "./events";
 import { Store } from "./store";
 import { defaultNewTabMode, focusNewTab } from "./appearance";
-import { basename, stripExtension } from "./vault";
+import { basename, isTauri, stripExtension } from "./vault";
 import { isAttachmentPath } from "./attachments";
 
 const PERSIST_KEY = "geode.workspace.v1";
@@ -36,6 +36,22 @@ function systemPrefersDark(): boolean {
   } catch {
     return true;
   }
+}
+
+/** Match the NATIVE window chrome (title bar / border) to the in-app theme.
+ *  Tauri-only: `data-theme` colours the webview alone, so without this the
+ *  native title bar keeps following the OS and a light strip sits above a dark
+ *  app. "system" → null lets the OS drive both, which is the same semantics as
+ *  `resolveTheme`; concrete kinds force the frame to match the page. */
+function syncNativeWindowTheme(kind: ThemeKind): void {
+  if (!isTauri()) return;
+  void import("@tauri-apps/api/window")
+    .then(({ getCurrentWindow }) =>
+      getCurrentWindow().setTheme(kind === "system" ? null : kind),
+    )
+    .catch(() => {
+      /* Browser dev, or a platform where the window theme is unsupported. */
+    });
 }
 
 /** R81: which tab ids a "close others / right / all" action removes — pinned tabs
@@ -1117,6 +1133,7 @@ export class Workspace {
     const resolved = resolveTheme(theme, systemPrefersDark());
     document.documentElement.dataset.theme = resolved;
     this.events.emit("theme:changed", { theme: resolved });
+    syncNativeWindowTheme(theme);
   }
 
   toggleTheme() {
@@ -1134,6 +1151,7 @@ export class Workspace {
         const resolved = resolveTheme("system", mq.matches);
         document.documentElement.dataset.theme = resolved;
         this.events.emit("theme:changed", { theme: resolved });
+        syncNativeWindowTheme("system");
       });
     } catch {
       /* no matchMedia (non-browser context) */
@@ -1173,6 +1191,7 @@ export class Workspace {
   applyDocumentEffects() {
     const s = this.state.get();
     document.documentElement.dataset.theme = resolveTheme(s.theme, systemPrefersDark());
+    syncNativeWindowTheme(s.theme);
     document.documentElement.style.setProperty("--editor-font-size", `${s.fontSize}px`);
   }
 
