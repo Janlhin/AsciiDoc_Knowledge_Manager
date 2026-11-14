@@ -190,6 +190,42 @@
 - **完成判据**：`npm run build` 后首屏 chunk 体积显著下降（给出改动前后数值）；打开 md 笔记不触发任何重渲染器 chunk；打开 .adoc / .epub / .xlsx 各自只按需加载对应 chunk；`npm run verify` 通过。
 
 
+### T-039 持久化检索索引（SQLite FTS5）并让派生数据按解析规则版本失效
+
+- **提出**：2026-11-15
+- **问题**：两条同源。① `MetadataIndex` 只在内存，进程重启即 `rebuildAll()` 全量重算，是「进入软件卡一下」的结构性来源；同类项目（otterly / kb / lokus / mdit）都把检索索引持久化，且把结构变更（改名/移动/删除）做成一等命令而不是整体重建。② 一旦索引持久化，`metadata.ts` 的解析规则（`TAG_RE`、frontmatter、标题提取）改动后**没有任何机制让旧结果失效**，表现会是「升级后旧笔记的标签/反链静默错误」。
+- **参照实现**（代码级，见 `docs/clone-code-survey.adoc`）：
+  - `otterly/src-tauri/src/features/search/db.rs`：`notes` + `notes_fts`(fts5) + `outlinks`(索引 `target_path`) + `note_tags`(索引 `tag_key`)；`PRAGMA journal_mode=WAL; synchronous=NORMAL`；BM25 按列加权（标题 10 / 文件名 12 / 路径 5 / 正文 1）+ `snippet()` 高亮；
+  - 同一文件用 `PRAGMA user_version` 存**解析器规则版本**，版本不符则清空 manifest 让下次同步整体重解析——这正是 ② 的解法。
+- **方法**：
+  1. Rust 侧新增 `features/index/`（不得堆进 `main.rs`，见 T-039 备注里 opensidian 的反面教材）：`open(db_path)`、`upsert_note`、`remove_note`、`remove_by_prefix`、`rename_note`、`rename_folder`、`search`、`rebuild`、`cancel`；
+  2. 索引库落**应用数据目录、按 vault 分目录**，不写进 vault（保持「纯文件库」性质）；
+  3. `user_version` 存解析规则版本常量，与 TS 侧共享同一常量来源；
+  4. TS 侧 `MetadataIndex` 改为「内存为热缓存 + 持久层为真源」，启动时先读库再后台校验。
+- **解决**：—
+- **完成判据**：
+  ① `cargo test` 覆盖 schema 初始化、规则版本变更触发整体重解析、重命名后 `outlinks` 同步（对照 otterly 的 `tests/search_db_behavior.rs` 写法）；
+  ② 同一 416 文件测试库冷启动 `metadataIndexMs` 相比改动前显著下降（给出前后数值）；
+  ③ 改动 `TAG_RE` 后启动，旧笔记标签被重算而不是保留旧值；
+  ④ vault 内不出现任何 `.db`/`-wal`/`-shm` 文件；
+  ⑤ `npm run verify` 通过。
+- **前置**：**违反硬边界 #5**——`rusqlite`（bundled）会把 SQLite C 源码编进二进制，显著增加体积与构建时间。**需用户显式放行**后方可动手。
+
+### T-040 建立测试基线：前端零测试 → 关键路径可回归
+
+- **提出**：2026-11-15
+- **问题**：`docs/clone-code-survey.adoc` 实测，七个可直接比较的同类项目里，geode 是**唯一前端零测试**（JS 测试文件 0，Rust 测试 1）。后果是可验证的：2026-11-15 一天内修掉的 4 个缺陷（T-029 大纲切模式、T-033 锚点不跳、D-013 标题栏主题、T-034 右键菜单漏 WebView2）**全部由人工截图发现**，其中 2 个属于「类型检查通过、构建通过、行为错误」。
+- **方法**：
+  1. 只覆盖高频路径，不做覆盖率军备竞赛（参照 otterly 的 151 条，但只取前 10%）；
+  2. 优先 Playwright 六条：开笔记 → 切模式 → 点大纲 → 点锚点 → 阅读视图右键 → 多库切换后布局保留（T-035）；
+  3. 纯函数继续用现有 `scripts/verify-*.ts` 模式，不引入测试框架；
+  4. CI 侧只跑 `npm run verify` + 上述脚本。
+- **解决**：—
+- **完成判据**：
+  ① `npx playwright test` 六条用例全绿且总时长 < 60s；
+  ② 人为回退 T-029 的修复，对应用例必须转红（证明用例真的在守）；
+  ③ `npm run verify` 仍为唯一构建门禁，不被测试拖慢。
+
 ## 待裁决
 
 | 编号 | 时间 | 问题 | 现状 |
