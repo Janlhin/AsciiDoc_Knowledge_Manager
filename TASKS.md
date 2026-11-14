@@ -143,54 +143,6 @@
   ② source 点大纲：`tab.mode` 仍为 `"source"`，且光标/滚动到位。
   用例 `npx playwright test` 退出码 0。
 
-### T-030a Rust：SSE 流式传输（llm_stream / llm_cancel）
-
-- **提出**：2026-11-15
-- **问题**：现有 `http_request`（ureq）非流式、30 秒总超时、10 MB 上限，无法承载长回答；而 UI 主线程不能被阻塞。
-- **方法**：`ureq::AgentBuilder` + `timeout_read` 滚动超时（非总超时）→ `BufReader::read_line` 逐行读；仅 `data:` 帧经 `llm:chunk` 推送，`llm:done` / `llm:error` 各恰好一次；`llm_cancel` 用 `AtomicBool` 协作取消；`std::thread::spawn` 后命令立即返回。`sse_data_payload` 抽为纯函数以便单测。
-- **解决**：—（草案：`docs/drafts/ai-support-2026-11-14/01-rust-sse-transport.patch`）
-- **完成判据**：`cargo test`（`sse_frames`）通过；`cargo check` 通过；命令已注册。
-
-### T-030b Rust：系统凭据库（secret_set / secret_get / secret_delete）
-
-- **提出**：2026-11-15
-- **问题**：API Key 不能明文落盘；`keyring` 属硬边界 #5（新增运行时依赖），必须**单点审批**，不得夹带在功能任务里。
-- **方法**：`keyring` 3.6.3（`windows-native` / `apple-native`）；三个命令为 `#[tauri::command(async)]`；`NoEntry` 视为 `None` / 幂等删除。
-- **解决**：—（草案：`02-rust-credential-store.patch`）
-- **完成判据**：`cargo test -- --ignored` 通过（写入→覆盖→读取→删除→幂等删除，含 `llm:` 冒号命名）；`cargo test` 通过。
-
-### T-030c TS：协议核心与校验脚本
-
-- **提出**：2026-11-15
-- **问题**：SSE 增量解析、供应商配置持久化、输出安全渲染需要与网络层解耦并可离线验证。
-- **方法**：`src/core/llm/{types,store,sse}.ts`（纯函数 + localStorage 配置，Key 不入库）+ `src/core/settingsNav.ts` + `scripts/verify-llm-sse.ts` + npm script + `scripts/tsconfig.json`。
-- **解决**：—（草案：`03-ts-protocol-core.patch`）
-- **完成判据**：`node scripts/verify-llm-sse.ts` 15/15；`npm run typecheck:scripts` 通过。
-
-### T-030d TS：传输绑定（secrets / client）
-
-- **提出**：2026-11-15
-- **问题**：需要把 Tauri 事件流与浏览器 fetch 统一为一个 API，并处理取消与错误体。
-- **方法**：`secrets.ts` 封装 `secret_*`（浏览器降级 localStorage，仅开发）；`client.ts` 双通道流式、`AbortSignal` → `llm_cancel`、`testProvider` 复用 `http_request`。
-- **解决**：—（草案：`04-ts-stream-binding.patch`）
-- **完成判据**：`npm run typecheck` 通过；模块未被 UI 引用时也可编译。
-
-### T-030e UI：AI 侧边栏对话面板
-
-- **提出**：2026-11-15
-- **问题**：需要一等公民的对话入口，且模型输出不得引发 XSS。
-- **方法**：`AiPanel` + `ai.scss`；`RightPanelKind` 增 `"ai"`、右侧 tab、`sparkles` 图标；输出仅按 ``` 围栏切分为文本/代码段（React 文本节点，不注入 HTML）；附带笔记上限 12,000 字符、源文件 >2 MB 跳过。
-- **解决**：—（草案：`05-ai-panel.patch`）
-- **完成判据**：Playwright/实机——面板可打开；无供应商时显示配置引导；发送后逐字出现；停止可中止；关闭「附带笔记」后请求不含笔记内容。
-
-### T-030f UI：设置页「AI」与「钥匙串」分区
-
-- **提出**：2026-11-15
-- **问题**：供应商与密钥需要可配置、可验证、可撤销。
-- **方法**：AI 分区（7 个预设、Base URL、模型、密钥、温度、max tokens、测试连接、删除）+ 钥匙串分区（列出/删除名称，值不可回显）+ `settingsNav` 深链 + i18n + 样式。
-- **解决**：—（草案：`06-ai-settings.patch`）
-- **完成判据**：添加预设→保存→重开设置仍在；Key 仅显示「已存入凭据库」；测试连接返回成功或可读错误；删除后条目消失。
-
 ### T-031 默认打开模式改为代码编辑（source），且在手动切换前不被改写
 
 - **提出**：2026-11-15
@@ -225,3 +177,9 @@
 | T-023 | 2026-11-13 | JS→TS 收尾：`scripts/` 下 4 个 `.mjs`（adoc-index-report / gen-blueprint-seed / gen-icon / verify-format-libs）全部转为 `.ts` 并补齐类型（NodeNext ESM；`xlsx` 经 `createRequire` 取 CJS 运行时同时保留 `typeof import("xlsx")` 类型；`mammoth` 用 `scripts/shims.d.ts` 补声明）；新增 `scripts/tsconfig.json` 独立类型检查（`npm run typecheck:scripts`，已并入 `npm run verify`），根 tsconfig 加 `"types": []` 避免 `@types/node` 污染浏览器端；同步更新 package.json 与 README/MANIFEST/DECISIONS/TASKS/docs 中的脚本路径。验收：`node scripts/verify-format-libs.ts` 4 项全 PASS（与原 `.mjs` 一致）。**刻意保留的 JS**：`compat-fixtures/*/main.js` 与 `demo-vault/.geode/plugins/hello-status.js` 是运行时经 `new Function()` 求值的 Obsidian 插件载荷，必须是 JS，转 TS 会破坏兼容性测试的真实性 |
 | T-024 | 2026-11-13 | 待办体系：JS→TS / CSS→SCSS / CPU 多线程 三项待办已登记。CPU 多线程经用户确认先做**性能画像**再决定并行化范围——现状是 Rust 后端极薄（仅 main.rs 一处 `std::thread::spawn`、无 rayon/tokio），前端 5.3 万行 TS 的解析/图谱(416 节点)/索引/重写全跑在 UI 主线程且无任何 Web Worker，重计算堵在 UI 线程是早前「卡顿」的潜在根因 |
 | T-026 | 2026-11-13 | 前端性能画像（CPU 多线程待办的第一阶段，**用实测数据否定了多线程化**）：经 WebView2 CDP（`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` 注入调试端口，无需改代码）+ Long Task API + 项目自带 `perfMark` 埋点测得：**启动期主线程阻塞 185ms**（85ms + 100ms 两个长任务），CPU 采样 88.7% 为 idle。根因是**单个 50MB 文件**——`Knowledge/书籍库/诸子百家系列.md`（18,487,265 字符 / 566,721 行），占全库 69MB 的 73%；其 `parseNote` 中 **block 标记扫描占 57%**（每行一次 `masked.slice` + 正则 exec）。**已修**：改为先用一次原生 `indexOf("^")` 定位候选行、只处理含 `^` 的行，成本从「按行数」变为「按标记数」；行为等价经 22 个边界用例（CRLF/代码围栏内标记/行首 `^`/重复 id/EOF 无换行/跨段范围等，18 个含真实标记）+ 416 个真实文件逐项比对，0 不匹配。**实测收益**：该文件 parseNote 84.9→39.4ms、parseDocument 181→38.6ms；全库 rebuildAll 193→134ms、解析总耗时 182.7→82.1ms、平均每文件 0.439→0.197ms、最慢文件 118.25→39.55ms；真实 app 启动长任务 185→141ms。**结论：不需要 Worker 化**——热点是单文件内的算法复杂度问题，Worker 化反而要序列化 18.5MB 字符串；且 `rebuildNameMap` 实测仅 0.25ms、`getGraph` 1.4ms、图谱 settle 1112ms 属动画帧预算内，均非热点。已新增可复跑工具 `npm run profile:hotspots / profile:bigfile / verify:block-scan` |
+| T-030a | 2026-11-15 | Rust SSE 流式传输：`llm_stream` / `llm_cancel`；`ureq` 的 `into_reader()` 逐行读，`data:` 帧经 `llm:chunk` 推送，`llm:done` / `llm:error` 各一次，`AtomicBool` 协作取消；`cargo test`（`sse_frames`）通过 |
+| T-030b | 2026-11-15 | 系统凭据库：`keyring` 3.6.3（`windows-native` / `apple-native`）+ `secret_set/get/delete`；`cargo test -- --ignored` 通过（含 `llm:` 冒号命名、幂等删除）——硬边界 #5 单点落地 |
+| T-030c | 2026-11-15 | 协议核心：`core/llm/{types,store,sse}.ts`（纯函数 + localStorage 配置，Key 不入库）；`node scripts/verify-llm-sse.ts` 15/15 通过 |
+| T-030d | 2026-11-15 | 传输绑定：`secrets.ts` / `client.ts`，Tauri 事件流 + fetch 双通道、`AbortSignal` → `llm_cancel`、`testProvider` 复用 `http_request`；`npm run typecheck` 通过 |
+| T-030e | 2026-11-15 | 右侧 `ai` 面板：`AiPanel` + `ai.scss` + tab + `sparkles` + 面板 i18n；输出仅文本/围栏代码块（不注入 HTML）；附带笔记上限 12,000 字符、源文件 >2 MB 跳过；面板行为待实机目视 |
+| T-030f | 2026-11-15 | 设置页「AI」「钥匙串」分区：7 预设、URL/模型/密钥/温度/max tokens/测试连接/删除；密钥仅显示「已存入」；`settingsNav` 深链 |
