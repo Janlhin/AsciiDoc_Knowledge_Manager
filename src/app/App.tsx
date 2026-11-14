@@ -496,6 +496,9 @@ export function App() {
             platform: navigator.platform || navigator.userAgent || "unknown",
             locale: locale.get(),
             plugins,
+            // Filled by perfMark() during boot (metadata index, search scan, graph).
+            perf: (globalThis as unknown as { __geodePerf?: Record<string, number> })
+              .__geodePerf,
           });
           void navigator.clipboard.writeText(text).catch(() => {});
           showCommandNotice(t("debugInfo.copied"));
