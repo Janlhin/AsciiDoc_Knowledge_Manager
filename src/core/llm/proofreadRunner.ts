@@ -10,7 +10,7 @@
  * the two can never drift.
  */
 import { auditNote, type AuditIssue } from "@core/docAudit";
-import { parseNote, type MetadataIndex } from "@core/metadata";
+import { parseDocument, type MetadataIndex } from "@core/metadata";
 import { requestSettingsSection } from "@core/settingsNav";
 import type { Vault } from "@core/vault";
 import type { Workspace } from "@core/workspace";
@@ -77,12 +77,17 @@ export async function startProofread(deps: ProofreadDeps): Promise<ProofreadStar
   const meta = metadata.getMetadata(path);
   const fresh = meta !== undefined && meta.contentLength === content.length
     ? meta
-    : parseNote(path, content);
+    : parseDocument(path, content);
   let findings: AuditIssue[] = [];
   try {
     findings = auditNote(
       { path, content, meta: fresh },
-      { resolveLink: (target, fromPath) => metadata.resolveLink(target, fromPath) },
+      {
+        resolveLink: (target, fromPath) => metadata.resolveLink(target, fromPath),
+        // T-045: xref / include checks need the vault's path list; without it
+        // those two categories are silently skipped (see AuditEnv.files).
+        files: vault.getIndexableFiles().map((f) => f.path),
+      },
     );
   } catch {
     // A parser edge case must not block the AI turn; findings are only context.

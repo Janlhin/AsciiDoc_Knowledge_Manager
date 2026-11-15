@@ -9,7 +9,7 @@ import {
   DEFAULT_AUDIT_CONFIG, AUDIT_CATEGORIES,
   type AuditEnv, type AuditNoteInput, type AuditCategory,
 } from "@core/docAudit";
-import { parseNote } from "@core/metadata";
+import { parseDocument, parseNote } from "@core/metadata";
 
 /** Build an AuditNoteInput from raw markdown, with a controlled link resolver. */
 function note(content: string, resolve = (_t: string, _p: string) => "some/path.md"): { input: AuditNoteInput; env: AuditEnv } {
@@ -176,5 +176,70 @@ describe("T-046 — vault aggregation", () => {
   it("maskForScan preserves length so offsets stay valid", () => {
     const content = "---\ntitle: x\n---\n# H\n\n正文 `code` 结束。";
     expect(maskForScan(content).length).toBe(content.length);
+  });
+});
+
+describe("T-045 xref / include — two more categories", () => {
+  const FILES = ["docs/guide.adoc", "docs/chapter.adoc", "docs/partials/intro.adoc"];
+
+  /** Parse an .adoc note through the format dispatcher (syntax fields intact). */
+  function adoc(path: string, body: string) {
+    return { path, content: body, meta: parseDocument(path, body) };
+  }
+
+  it("accepts a file-relative xref and does not double-report it as broken-link", () => {
+    const note = adoc("docs/guide.adoc", "= Guide\n\nxref:chapter.adoc#sec[chapter]\n");
+    const issues = auditNote(note, { resolveLink: () => null, files: FILES });
+    expect(issues.filter((i) => i.category === "broken-link")).toEqual([]);
+    expect(issues.filter((i) => i.category === "broken-xref")).toEqual([]);
+  });
+
+  it("reports a missing xref target", () => {
+    const note = adoc("docs/guide.adoc", "= Guide\n\nxref:missing.adoc[]\n");
+    const issues = auditNote(note, { resolveLink: () => null, files: FILES });
+    const xref = issues.filter((i) => i.category === "broken-xref");
+    expect(xref).toHaveLength(1);
+    expect(xref[0]).toMatchObject({ severity: "error", line: 3 });
+    expect(xref[0].message).toContain("missing.adoc");
+  });
+
+  it("reports an ambiguous Antora resource id as a warning, not a hard error", () => {
+    const note = adoc("docs/guide.adoc", "= Guide\n\nxref:cmp:mod:intro.adoc[]\n");
+    const issues = auditNote(note, {
+      resolveLink: () => null,
+      files: [...FILES, "other/intro.adoc"],
+    });
+    const xref = issues.filter((i) => i.category === "broken-xref");
+    expect(xref).toHaveLength(1);
+    expect(xref[0].severity).toBe("warning");
+    expect(xref[0].message).toContain("无法确定");
+  });
+
+  it("reports a missing include target", () => {
+    const note = adoc("docs/guide.adoc", "= Guide\n\ninclude::partials/gone.adoc[]\n");
+    const issues = auditNote(note, { resolveLink: () => null, files: FILES });
+    const inc = issues.filter((i) => i.category === "broken-include");
+    expect(inc).toHaveLength(1);
+    expect(inc[0]).toMatchObject({ severity: "error", line: 3 });
+    expect(inc[0].message).toContain("partials/gone.adoc");
+  });
+
+  it("skips both checks when the caller supplies no file list", () => {
+    const note = adoc("docs/guide.adoc", "= Guide\n\nxref:missing.adoc[]\n\ninclude::gone.adoc[]\n");
+    const categories = auditNote(note, { resolveLink: () => null }).map((i) => i.category);
+    expect(categories).not.toContain("broken-xref");
+    expect(categories).not.toContain("broken-include");
+  });
+
+  it("reports an include cycle once, on the closing edge", () => {
+    const a = adoc("a.adoc", "= A\n\ninclude::b.adoc[]\n");
+    const b = adoc("b.adoc", "= B\n\ninclude::a.adoc[]\n");
+    const report = auditVault([a, b], { resolveLink: () => null });
+    const cycles = report.issues.filter(
+      (i) => i.category === "broken-include" && i.message.includes("循环引用"),
+    );
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0].message).toContain("a.adoc → b.adoc → a.adoc");
+    expect(cycles[0].severity).toBe("error");
   });
 });
