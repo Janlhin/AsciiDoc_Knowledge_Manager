@@ -254,13 +254,6 @@
 > 转正式实施前，先复制一条到「待办」并补齐判据——避免待命区变成愿望清单。
 > 排序依据：投入体量 / 与既有资产的契合度 / 是否属于同类项目已有而 ADKM 缺失。
 
-### T-042 命令补齐：101 → 280
-
-- **提出**：2026-11-15
-- **来源**：`docs/clone-code-survey.adoc` 量得 ADKM 101 条命令，Obsidian 280 条；旧审计也记「很多功能没有命令入口」。
-- **判断**：多数是**入口缺口**而非能力缺口——能力已实现，只是没注册成命令。单位成本最低的「像 Obsidian」收益。
-- **体量**：中（每条命令约 5–15 行 + i18n）；但需先产出「缺哪 179 条」的清单，否则会做成无序堆叠。
-
 ### T-043 Canvas（白板/画布视图）
 
 - **提出**：2026-11-15
@@ -357,3 +350,4 @@
 | T-027 | 2026-11-15 | **关闭，不再实施**：原方案用 rayon 并行读盘来降低启动期 IO 等待，但 T-039 二期落地后暖启动对 mtime/size 命中的文件直接反序列化，**读盘这一步本身被跳过**，并行读已无可优化对象。冷启动首次回填仍读盘，但只发生一次。保留原判据中的测量方法供后续性能复核 |
 | T-038 | 2026-11-15 | **代码层面已满足**（复核结论，无需再实施）：台账原写「重渲染器静态引入」，实测四个均已 `await import(...)` — `core/asciidoctorPreview.ts:23`、`features/attachment/{EpubPreview.tsx:28,XlsxPreview.tsx:99/164,DocxPreview.tsx:28}`；`core/math.ts`、`core/mermaid.ts` 同样懒加载。`npm run build` 产物中 `xlsx` 413 KB、`cytoscape` 424 KB 等均为独立 chunk，主包不背重渲染器。**未做的验证**：真机确认「打开 md 不触发重渲染器 chunk」，属 E2E 范畴，见 T-004 |
 | T-039 | 2026-11-15 | 持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` **1859.7 → 6.8 ms**（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms |
+| T-042 | 2026-11-15 | 命令补齐复核：**原判断不成立并已纠正**。实测 ADKM 175 条（非 101，旧正则漏了批量注册）、Obsidian 制品静态可提取 169 条（热键页 280 含动态/插件命令）、ID 字面差集 114 条（非 179）——其中约 70 条是**命名不同但功能已有**、约 40 条是**能力缺失**（Canvas/Bases/同步/发布/多窗口，由 T-043/T-044/T-048 覆盖或排除）。本轮落地：`docs/command-gap-matrix.adoc`（可复现取证 + 功能域矩阵）、补 4 条真命令（`app:set-reading-view/set-live-preview/set-source-mode/toggle-default-new-pane-mode`，均有 `available` + 真实 callback + en/zh 文案）、`scripts/verify-command-registry.ts` 并入 `npm run verify`（查重复 ID / i18n 缺失 / 无 callback，防审计 §11 的「假完成」）。**未凑数注册空命令，未改已有 ID 以免破坏用户热键绑定** |
