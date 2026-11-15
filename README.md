@@ -184,6 +184,8 @@ docs/               项目文档与规范原文
 | [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
 | [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |
 | [`CHANGELOG.adoc`](CHANGELOG.adoc) | 版本变更记录 |
+| [`docs/e2e-cdp-baseline.adoc`](docs/e2e-cdp-baseline.adoc) | E2E 基线：WebView2 CDP 六条用例与负向自检（T-004/T-040） |
+| [`docs/doc-audit-baseline.adoc`](docs/doc-audit-baseline.adoc) | 文档规范体检基线：六项规则、命令与结果面板（T-046，T-047 前置） |
 
 ## 来源与许可
 

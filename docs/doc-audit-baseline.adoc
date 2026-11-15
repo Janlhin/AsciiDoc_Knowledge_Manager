@@ -1,0 +1,78 @@
+= 文档规范体检基线（T-046 / T-047 前置）
+:日期: 2026-11-15
+
+== 结论
+
+方向 3（Docs-as-Code）首片：把 T-046 的六项文档检查做成**纯函数规则引擎 + 一条命令 + 一个结果面板**，零新增依赖。
+引擎不碰任何 app 单例——链接解析、配置、原文全部注入，因此可单测、可被 T-047 的 AI 校对原样复用为规则上下文。
+
+* `npm run verify` → 通过（命令 176 id 唯一、i18n 200 键、47 单测、构建）
+* `npx vitest run tests/doc-audit.test.ts` → **17/17** passed
+* 负向自检：故意让断链规则失效后，对应测试转红（exit 1），恢复后 17/17 —— 证明用例真的在守
+* 真实 UI 冒烟（CDP 驱动 release 版 + `demo-vault`）→ **11/11**：命令执行、扫描 7 篇、**8 条问题**、7 类筛选、点击跳转到问题行、重新体检
+
+== 六项规则
+
+[cols="1,2,1",options="header"]
+|===
+|类别 |判据 |默认严重度
+
+|`terminology` 术语一致性
+|词表中的规范写法之外出现变体（如 "front matter" → "frontmatter"）；大小写不敏感短语匹配
+|warning
+
+|`broken-link` 失效链接
+|wikilink / AsciiDoc xref 解析不到库中文件；外部链接、纯锚点、`include::` 片段跳过
+|error
+
+|`heading-skip` 标题跳级
+|相邻标题层级增量 > 1（H2 直接到 H4）
+|error
+
+|`frontmatter-missing` 元数据缺失
+|frontmatter 缺必填字段（默认 `title`，可配置）
+|warning
+
+|`structure` 章节结构
+|一级标题数量不为 1，或首个标题不是 H1
+|warning
+
+|`punctuation` 中文标点
+|中文后紧跟半角逗号/分号、中文之间的半角句点（warning）；半角问号/叹号（info）
+|warning/info
+|===
+
+术语词表取自仓库既有约定（`docs/ARCHITECTURE.md` 的「中文术语表」与英文技术写法），默认只收高置信条目，避免满屏误报。
+扫描复用索引解析器的同一套掩码（`maskCodeRegions` + 屏蔽 frontmatter），因此**代码块与 frontmatter 里的文字不触发检查**，且字符偏移保持稳定，可直接用于跳转。
+
+== 用法
+
+打开命令面板（Ctrl+P），执行「检查文档规范 / Audit note conventions」，会在主区打开一个单例标签页「文档体检」。
+面板按严重度与类别聚合，点任意问题行 → 打开对应笔记并滚动/高亮到问题行；顶部可重新体检、按类别筛选。
+
+实现分层：
+
+* `src/core/docAudit.ts` — 纯规则引擎（`auditNote` / `auditVault` / `AUDIT_RULE_DOCS`），零 I/O
+* `src/core/docAuditRunner.ts` — 唯一不纯的一步：读全库原文，配对元数据，调引擎，写 `workspace.docAuditReport`；显式接收 core 对象，不 import `@app`
+* `src/features/docaudit/DocAuditView.tsx` + `docaudit.scss` — 纯消费视图（渲染 / 筛选 / 跳转）
+* `src/app/App.tsx` — 注册命令 `tools:doc-audit`、主区单例视图接线
+
+配置入口是 `AuditConfig`（术语表、必填字段、跳级阈值、H1 约束、标点开关）。首片用 `DEFAULT_AUDIT_CONFIG`，未做设置 UI——属于可独立交付的下一步。
+
+== T-047 复用点
+
+`AUDIT_RULE_DOCS` 导出每条规则的 `{ category, title, criteria }`，正是 AI 按规范校对所需的规则上下文。
+T-047 可直接把它拼进提示词，让 AI「按本库规范检查当前章」，产出的问题复用 `AuditIssue` 结构（含 `line` / `from` / `path`），即可跳转列表。
+
+== 刻意不做 / 观察到的现象
+
+. **设置 UI 未做**：规则配置写死在 `DEFAULT_AUDIT_CONFIG`。`AuditConfig` 已经是注入式接口，接一个设置面板即可，但那会引入新的 UI 面，本片聚焦规则集与结果闭环。
+. **断链对附件也报**：`demo-vault/Home.md` 的 `![[geode-dot.png]]` 被判为「目标不存在」——因为 `resolveLink` 只解析笔记，不含附件路径。这是**诚实的结果**而非误报（该附件确实不在 demo-vault），但对图片附件应先走 `resolveAttachment` 再降级。记为后续改进点，本片不擅自放宽判据。
+. **元数据滞后兜底**：runner 发现 `getMetadata(path)` 的 `contentLength` 与当前原文不符时，用 `parseNote` 现算，避免刚保存的文件因索引未刷新而漏检。
+. **单例标签页**：体检视图是 fileless singleton（同 graph），点问题跳到笔记会切换标签；回来需点「文档体检」标签，报告仍在（存在 `workspace.docAuditReport` Store 里，会话内保留）。
+
+== 文件
+
+* `src/core/docAudit.ts` / `src/core/docAuditRunner.ts`
+* `src/features/docaudit/DocAuditView.tsx` / `docaudit.scss`
+* `tests/doc-audit.test.ts`（17 用例）

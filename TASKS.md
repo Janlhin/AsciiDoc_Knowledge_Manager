@@ -296,6 +296,9 @@
 - **参考实现**：`archive/adkm-web/server/git.ts`（77 行，只读 Git 状态：分支 / ahead-behind / 脏文件）与 `shared/types.ts` 的 `LinkStatus` 三态，可直接作为「断链」判据的语义起点。
 - **判断**：与 T-045 同源，但可独立交付；纯前端 + 元数据即可，依赖面小。
 - **体量**：中。可先做成一条命令 + 结果面板。
+- **解决**：**完成（2026-11-15）**。纯函数规则引擎 `src/core/docAudit.ts`（六项规则，注入 `resolveLink`/配置，零 I/O）+ `src/core/docAuditRunner.ts`（唯一不纯的读库步骤）+ 命令 `tools:doc-audit` + 主区单例结果面板 `src/features/docaudit/`。17 单测全绿、负向自检转红、真机 UI 冒烟 11/11（demo-vault 扫 7 篇得 8 条问题、7 类筛选、点击跳转、重新体检）。规则上下文 `AUDIT_RULE_DOCS` 供 T-047 复用。详见 `docs/doc-audit-baseline.adoc`。
+- **完成判据**：① 六项规则各有正向用例、干净文档零告警（已达成：17 单测）；② 负向自检证明用例在守（已达成：破坏断链规则后对应用例转红）；③ 真机可打开结果面板并跳转问题行（已达成：CDP 冒烟 11/11）；④ `npm run verify` 不被拖慢、零新增依赖（已达成）。
+- **仍缺（记入后续，不阻断本片）**：规则配置 UI（现为 `DEFAULT_AUDIT_CONFIG` 写死）；附件链接断链判定应先走 `resolveAttachment` 再降级（现对 `demo-vault` 中不存在的 `geode-dot.png` 如实报断链）。
 
 ### T-047 AI 按规范校对
 
