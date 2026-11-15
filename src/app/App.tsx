@@ -28,6 +28,8 @@ import { GraphView } from "@features/graph/GraphView";
 import { AttachmentView } from "@features/attachment/AttachmentView";
 import { AllPropertiesPanel } from "@features/allproperties/AllPropertiesPanel";
 import { BacklinksPanel } from "@features/backlinks/BacklinksPanel";
+import { DocAuditView } from "@features/docaudit/DocAuditView";
+import { runDocAudit } from "@core/docAuditRunner";
 import { BookmarksPanel } from "@features/bookmarks/BookmarksPanel";
 import { OutlinePanel } from "@features/outline/OutlinePanel";
 import { AiPanel } from "@features/ai/AiPanel";
@@ -427,6 +429,16 @@ export function App() {
         id: "app:rebuild-cache",
         name: () => t("cmd.rebuildCache"),
         callback: () => void app.metadata.rebuildAll().then(() => showCommandNotice(t("cmd.rebuildCacheDone"))),
+      }),
+      commands.register({
+        // T-046: scan the vault against documentation conventions, then focus
+        // the singleton result view. Async by nature (reads every note).
+        id: "tools:doc-audit",
+        name: () => t("cmd.docAudit"),
+        callback: () => {
+          workspace.openDocAudit();
+          void runDocAudit(app);
+        },
       }),
       commands.register({
         id: "app:open-settings",
@@ -1958,6 +1970,8 @@ function PaneLeafView({ leaf }: { leaf: PaneLeaf }) {
       <div className="main-outgoinglinks-view markdown-reading-view"><OutgoingLinksPanel /></div>
     ) : tab.viewType === "outline" ? (
       <div className="main-outline-view markdown-reading-view"><OutlinePanel /></div>
+    ) : tab.viewType === "docaudit" ? (
+      <DocAuditView />
     ) : tab.viewType === "attachment" ? (
       <AttachmentView key={tab.id} tab={tab} />
     ) : (
@@ -2170,6 +2184,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           : tab.viewType === "backlinks" ? t("app.backlinksTab")
           : tab.viewType === "outgoinglinks" ? t("app.outgoingLinksTab")
           : tab.viewType === "outline" ? t("app.outlineTab")
+          : tab.viewType === "docaudit" ? t("app.docAuditTab")
           : tab.title;
         return (
         <div
@@ -2202,6 +2217,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           {tab.viewType === "backlinks" && <Icon name="link" size={14} />}
           {tab.viewType === "outgoinglinks" && <Icon name="external-link" size={14} />}
           {tab.viewType === "outline" && <Icon name="list" size={14} />}
+          {tab.viewType === "docaudit" && <Icon name="file-text" size={14} />}
           {tab.viewType === "attachment" && <Icon name="file-text" size={14} />}
           {tab.pinned && (
             <span className="tab-pin" aria-label={t("app.pinnedTab")} title={t("app.pinnedTab")}>

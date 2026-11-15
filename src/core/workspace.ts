@@ -123,8 +123,8 @@ export const MIN_PANE_FRACTION = 0.12;
  * R211 root cause was missing the re-derivation), the duplicate guard, and split.
  * Adding a new such view = add it here (+ openX / render / title / icon / command).
  */
-export function isFilelessSingletonView(vt: unknown): vt is "graph" | "backlinks" | "outgoinglinks" | "outline" {
-  return vt === "graph" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline";
+export function isFilelessSingletonView(vt: unknown): vt is "graph" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" {
+  return vt === "graph" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline" || vt === "docaudit";
 }
 
 export function makeLeaf(tabs: TabState[] = [], activeTabId: string | null = null): PaneLeaf {
@@ -374,6 +374,9 @@ export class Workspace {
    *  sets it (after openGraph); GraphView flips its prefs.mode to "local" then clears.
    *  Session-only. */
   readonly openLocalGraphRequest = new Store<boolean>(false);
+  /** T-046: last document-audit report. Set by the tools:doc-audit command after
+   *  scanning the vault; DocAuditView reads it. Session-only, recomputed on demand. */
+  readonly docAuditReport = new Store<import("./docAudit").AuditReport | null>(null);
   private flushers = new Set<() => void | Promise<void>>();
   /** localStorage key holding THIS vault's layout (T-035). Starts on the
    *  pre-isolation key so the constructor-time restore still works, then
@@ -564,6 +567,10 @@ export class Workspace {
   /** R212: outline panel as a main-area tab. */
   openOutline() {
     this.openSingletonView("outline", "Outline");
+  }
+  /** T-046: document lint report as a main-area singleton tab. */
+  openDocAudit() {
+    this.openSingletonView("docaudit", "Doc audit");
   }
 
   closeTab(id: string) {
