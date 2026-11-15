@@ -281,6 +281,7 @@
 - **提出**：2026-11-15
 - **来源**：ADKM 的定位是「专业文档工程 + AsciiDoc 一等公民」，而 Obsidian 结构上不会做这条线。
 - **内容**：Antora 组件/版本切换、`xref` 全库校验、`include::` 链解析与缺失告警、发布前检查、按组件导出。
+- **参考实现**：`archive/adkm-web/shared/types.ts` 已把链接分为 `wikilink / markdown-link / xref / xref-short / link-macro / include` 六类并定义 `resolved / broken / unresolved` 三态；`archive/adkm-web/server/parsers/asciidoc.ts` 展示 xref/include 的解析边界。收录于 2026-11-15，见该目录 README。
 - **判断**：这是**唯一可能「超越」而非「对齐」**的方向。
 - **体量**：中到大（可分片：先做 xref 校验 + include 链，再做 Antora 集成）。
 
@@ -288,6 +289,7 @@
 
 - **提出**：2026-11-15
 - **内容**：术语一致性、失效链接、标题层级跳级、必填 frontmatter 缺失、章节结构偏差、中文标点混用。
+- **参考实现**：`archive/adkm-web/server/git.ts`（77 行，只读 Git 状态：分支 / ahead-behind / 脏文件）与 `shared/types.ts` 的 `LinkStatus` 三态，可直接作为「断链」判据的语义起点。
 - **判断**：与 T-045 同源，但可独立交付；纯前端 + 元数据即可，依赖面小。
 - **体量**：中。可先做成一条命令 + 结果面板。
 
