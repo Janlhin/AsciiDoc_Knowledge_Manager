@@ -1,0 +1,95 @@
+= Docs-as-Code 引用校验基线（T-045 首片）
+:日期: 2026-11-15
+
+== 结论
+
+T-045 的第一片只做**引用完整性**：`xref` 与 `include` 的解析、缺失告警与环检测。Antora 组件/版本切换、发布前检查、按组件导出不在本片。
+
+做法是把两类引用接进已有的体检引擎（T-046），而不是另起一套校验器：面板筛选、跳转、AI 校对提示词全部自动获得这两类规则。
+
+* `npx vitest run tests/docs-as-code.test.ts` → **21/21**
+* `npx vitest run tests/doc-audit.test.ts` → **23/23**（含 6 条新类别用例）
+* 负向自检 2 处：把 xref 改成仅库根解析 → 3 条用例转红；关闭环检测 → 3 条（含体检面板用例）转红；恢复后全绿
+* `npm run verify` → 通过（177 命令 id、90 单测通过 + 1 预期失败 + 1 跳过、构建成功）
+* 真机 E2E → **8/8**：新增 `docs-as-code-refs`，在一次性夹具库里断言「恰好 1 条失效 xref、1 条失效 include、1 条环告警」并点击跳转
+
+== 两类规则
+
+[cols="1,2,1",options="header"]
+|===
+|类别 |判据 |默认严重度
+
+|`broken-xref` 失效 xref
+|`xref:` / `<<路径>>` 按下列语义解析后找不到文件；Antora 资源 ID 命中多个同名文件时按「无法判定」处理
+|error（歧义为 warning）
+
+|`broken-include` 失效 include / 循环
+|`include::` 目标不存在；或全库包含关系形成 A→B→A 的环
+|error
+|===
+
+== 解析语义（本片的核心契约）
+
+AsciiDoc 的 `xref` 是**文件相对**的（`docs/a.adoc` 里的 `xref:b.adoc` 指 `docs/b.adoc`），按 wikilink 的库根/同名规则去判会验错东西。但本项目预览层把 `href` 交给 Markdown 解析器，用的是**库根相对**。两者不一致时，lint 若只认文件相对，就会出现「lint 说断了、点得开」。
+
+因此契约是「先文件相对，再库根相对」，并保留一条硬边界：
+
+[cols="1,2,1",options="header"]
+|===
+|目标形态 |解析顺序 |结果
+
+|`#anchor` 纯锚点
+|同文档引用，不查文件
+|resolved
+
+|`https://…` / `mailto:…`
+|外部链接，不检查
+|resolved
+
+|`xref:page.adoc#sec`（普通路径）
+|① 相对当前文件精确匹配；② 缺扩展名时补 `.adoc` / `.md`；③ 再试库根相对
+|命中即 resolved，否则 broken
+
+|`xref:./page.adoc` / `../page.adoc`（显式相对）
+|只按文件相对解析，**不回退库根**
+|broken 当且仅当真的不存在
+
+|`xref:c:m:page.adoc`、`xref:partial$x.adoc`（Antora 资源 ID / family）
+|按同名文件唯一匹配（本片不解析 `antora.yml`）
+|唯一 → resolved；0 个 → broken；多个 → unresolved
+
+|`include::partials/x.adoc[]`
+|文件相对（前导 `/` 为库根），**不做同名回退**
+|命中即 resolved，否则 broken
+
+|include 环
+|全库图检测，闭环那一行报一次
+|error
+|===
+
+「unresolved」是本片刻意的第三种状态：Antora 资源 ID 在没有 `antora.yml` 时无法判定真伪，报成 broken 会让多组件库里满屏误报，报成 resolved 又会漏。面板与 AI 结果里它是 warning，文案明确写「匹配到 N 个文件，无法确定」。
+
+== 与既有代码的关系
+
+* `src/core/docsAsCode.ts` — 全部纯函数：`parseXref` / `buildDocIndex` / `resolveXref` / `resolveInclude` / `includeEdges` / `findIncludeCycles`。零 I/O，路径表由调用方给。
+* `auditNote` 的 `broken-link` 不再吞掉 `xref` / `xref-short`（此前它们被丢给 wikilink 解析器，Antora 目标必然误报）。两类新检查需要 `AuditEnv.files`；没给就**静默跳过**并在接口注释里写明，因为单篇审计（AI 校对）拿不到全库路径。
+* `auditVault` 自动把 `notes` 的路径列表传给每条笔记，并在全库层面追加环告警（环跨文件，无法在单篇里判定）。
+* 顺手修掉一个真缺陷：两个 runner 的元数据兜底用的是 `parseNote`（Markdown 解析器），`.adoc` 文件在索引滞后时会被按 Markdown 解析，链接与标题全错。改为 `parseDocument`（按扩展名分派）。
+* AI 校对提示词从「六条规则」改为按 `AUDIT_RULE_DOCS` 自适应，新增两类自动进入上下文，不会出现提示词与规则集脱节的第二份文案。
+
+== 缺口（本片不做）
+
+. **不解析 `antora.yml`**：没有 component / version 概念，资源 ID 只能按同名文件近似。真正的组件/版本切换属于下一片。
+. **不校验锚点存在**：`xref:page.adoc#section` 只验证文件，不验证 `#section`（`[[id]]` 尚未进索引）。
+. **include 只查环，不设深度阈值**：10 层嵌套不会告警。
+. **不展开条件包含**：`ifdef::[]` 内的 include 按普通文本处理（与索引解析器的既有边界一致）。
+. **发布前检查 / 按组件导出 / xref 自动修复** 未做。
+
+== 文件
+
+* `src/core/docsAsCode.ts`
+* `src/core/docAudit.ts`（两个类别、`AuditEnv.files`、环检测）
+* `src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 修正、files 注入）
+* `src/core/i18n/dict.app.ts`（`docaudit.cat.broken-xref|broken-include`）
+* `tests/docs-as-code.test.ts`（21 用例）、`tests/doc-audit.test.ts`（+6）
+* `tests/e2e/run.mjs`（`docs-as-code-refs` 用例、`docs/` 夹具）

@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: six high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: eight high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -124,6 +124,48 @@ The final section. Alpha is repeated here for full-text search.
 `;
 
 
+/** AsciiDoc fixtures for the T-045 reference checks (docs/index.adoc). */
+const DOC_INDEX = `= E2E Docs
+:toc:
+
+Valid cross-reference: xref:chapter.adoc#details[chapter].
+
+Broken cross-reference: xref:missing.adoc[].
+
+Valid include:
+
+include::partials/intro.adoc[]
+
+Broken include:
+
+include::partials/gone.adoc[]
+`;
+
+const DOC_CHAPTER = `= Chapter
+
+Some body text.
+
+[[details]]
+== Details
+
+More text below the anchor.
+`;
+
+const DOC_INTRO = `= Intro
+
+Included text.
+`;
+
+const DOC_CYCLE_A = `= Cycle A
+
+include::cycle-b.adoc[]
+`;
+
+const DOC_CYCLE_B = `= Cycle B
+
+include::cycle-a.adoc[]
+`;
+
 /** Write the three fixture notes into a throwaway vault directory. */
 function prepareVault(dir) {
   mkdirSync(dir, { recursive: true });
@@ -132,6 +174,13 @@ function prepareVault(dir) {
   writeFileSync(path.join(dir, "E2E-Guide.adoc"), NOTE_ADOC, "utf-8");
   mkdirSync(path.join(dir, "sub"), { recursive: true });
   writeFileSync(path.join(dir, "sub", "Nested.md"), "# Delta\n", "utf-8");
+  // T-045: xref / include fixtures, including one broken target each and a cycle.
+  mkdirSync(path.join(dir, "docs", "partials"), { recursive: true });
+  writeFileSync(path.join(dir, "docs", "index.adoc"), DOC_INDEX, "utf-8");
+  writeFileSync(path.join(dir, "docs", "chapter.adoc"), DOC_CHAPTER, "utf-8");
+  writeFileSync(path.join(dir, "docs", "partials", "intro.adoc"), DOC_INTRO, "utf-8");
+  writeFileSync(path.join(dir, "docs", "cycle-a.adoc"), DOC_CYCLE_A, "utf-8");
+  writeFileSync(path.join(dir, "docs", "cycle-b.adoc"), DOC_CYCLE_B, "utf-8");
 }
 
 /**
@@ -177,7 +226,10 @@ async function main() {
   }
   await attach();
   let c = await connectCdp(port);
-  await c.waitFor(`!!document.querySelector('[data-testid="explorer"]') || !!document.querySelector('[data-testid="editor-pane"]')`, 20000, "app shell");
+  // Readiness must not assume which tab the previous run left active: a
+  // singleton view (audit / graph) has neither explorer nor editor-pane.
+  const APP_SHELL = `!!document.querySelector('[data-testid="app-root"]') && !!document.querySelector('[data-testid^="tab-bar-"]')`;
+  await c.waitFor(APP_SHELL, 20000, "app shell");
 
   /**
    * Reload the SPA and re-attach. Needed by the AI proofreading case: the LLM
@@ -193,11 +245,7 @@ async function main() {
     }
     await sleep(1200);
     c = await connectCdp(port);
-    await c.waitFor(
-      `!!document.querySelector('[data-testid="explorer"]') || !!document.querySelector('[data-testid="editor-pane"]')`,
-      25000,
-      "app shell after reload",
-    );
+    await c.waitFor(APP_SHELL, 25000, "app shell after reload");
   }
 
   // ---- 1. open a note -----------------------------------------------------
@@ -426,6 +474,50 @@ async function main() {
   } finally {
     await llm.close();
   }
+
+  // ---- 8. T-045 xref / include integrity in the audit panel --------------
+  await runCase("docs-as-code-refs", async () => {
+    await c.key("p", "KeyP", 80, 2); // Ctrl+P command palette
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "检查文档规范");
+    await sleep(350);
+    if ((await c.evaluate(`document.querySelectorAll('[data-testid="palette-item"]').length`)) === 0) {
+      await c.setInput('[data-testid="palette-input"]', "conventions");
+      await sleep(350);
+    }
+    assert(await c.click('[data-testid="palette-item"]'), "audit command not found in the palette");
+    await c.waitFor(`!!document.querySelector('[data-testid="doc-audit-view"]')`, 8000, "doc audit view");
+    await c.waitFor(
+      `document.querySelectorAll('[data-testid="doc-audit-issue"]').length > 0`,
+      25000,
+      "audit findings",
+    );
+    const state = await c.evaluate(`(() => {
+      const text = [...document.querySelectorAll('[data-testid="doc-audit-issue"]')]
+        .map((el) => el.textContent || "");
+      const cycle = text.filter((t) => t.includes("循环引用"));
+      return {
+        total: text.length,
+        xref: text.filter((t) => t.includes("missing.adoc")).length,
+        include: text.filter((t) => t.includes("partials/gone.adoc")).length,
+        cycles: cycle.length,
+        cycleCoversBoth: cycle.filter((t) => t.includes("cycle-a.adoc") && t.includes("cycle-b.adoc")).length,
+      };
+    })()`);
+    assert(state.xref === 1, `expected exactly one broken xref, got ${state.xref} (total=${state.total})`);
+    assert(state.include === 1, `expected exactly one missing include, got ${state.include} (total=${state.total})`);
+    assert(state.cycles === 1, `include cycle must be reported once, got ${state.cycles}`);
+    assert(state.cycleCoversBoth === 1, "cycle message does not name both files");
+
+    // A finding must navigate away from the singleton view to the offending note.
+    assert(await c.realClick('[data-testid="doc-audit-issue"]', 0), "could not click a finding");
+    await c.waitFor(
+      `!document.querySelector('[data-testid="doc-audit-view"]')`,
+      8000,
+      "note opened from the audit",
+    );
+    return `${state.total} findings: 1 xref, 1 include, 1 cycle; jump left the audit view`;
+  });
 
   c.close();
 
