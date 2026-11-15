@@ -17,10 +17,14 @@
  * product can actually open, while still honouring AsciiDoc semantics.
  *
  * Antora resource ids (`component:module:page.adoc`, `partial$x.adoc`) cannot be
- * resolved faithfully without parsing `antora.yml`, which this slice does not
- * do. They fall back to a **unique-basename** match; zero or several candidates
- * are reported honestly instead of guessed (see docs/docs-as-code-baseline.adoc).
+ * resolved faithfully without parsing `antora.yml`. Slice 2 does exactly that:
+ * when the caller supplies an `AntoraIndex` (built from the vault's descriptors)
+ * explicit resource ids are resolved through it. Without an index — or for a
+ * plain path target — the slice-1 **unique-basename** fallback still applies,
+ * and zero / several candidates are reported honestly instead of guessed
+ * (see docs/docs-as-code-baseline.adoc).
  */
+import { resolveAntoraResource, type AntoraIndex } from "./antora";
 import type { LinkRef } from "./types";
 
 /** Extensions a path-like target may omit before we try appending one. */
@@ -54,6 +58,7 @@ export interface ParsedXref {
   path: string;
   anchor: string;
   /** Antora resource-id segments, when the target uses them. */
+  version?: string;
   component?: string;
   module?: string;
   /** Antora family prefix (`partial$x.adoc`), when present. */
@@ -81,9 +86,17 @@ export function parseXref(raw: string): ParsedXref {
   let pathPart = hash >= 0 ? trimmed.slice(0, hash) : trimmed;
   const anchor = hash >= 0 ? trimmed.slice(hash + 1) : "";
 
+  let version: string | undefined;
   let component: string | undefined;
   let module: string | undefined;
   let family: string | undefined;
+
+  // `version@component:...` — the @ qualifier always precedes the component.
+  const at = pathPart.indexOf("@");
+  if (at > 0) {
+    version = pathPart.slice(0, at);
+    pathPart = pathPart.slice(at + 1);
+  }
 
   if (pathPart.includes(":")) {
     const parts = pathPart.split(":");
@@ -101,6 +114,7 @@ export function parseXref(raw: string): ParsedXref {
     raw: trimmed,
     path: pathPart,
     anchor,
+    ...(version === undefined ? {} : { version }),
     ...(component === undefined ? {} : { component }),
     ...(module === undefined ? {} : { module }),
     ...(family === undefined ? {} : { family }),
@@ -109,7 +123,7 @@ export function parseXref(raw: string): ParsedXref {
   };
 }
 
-export type ResolveVia = "anchor" | "relative" | "root" | "resource";
+export type ResolveVia = "anchor" | "relative" | "root" | "resource" | "antora";
 export type ResolveFailure = "missing" | "ambiguous";
 
 export interface DocResolution {
@@ -120,6 +134,8 @@ export interface DocResolution {
   failure?: ResolveFailure;
   /** Candidate count when `failure === "ambiguous"`. */
   candidates?: number;
+  /** What the candidates are, so the UI never says "files" for versions. */
+  reason?: "versions" | "files";
 }
 
 /** POSIX-style join/normalise; `..` beyond the root is clamped. */
@@ -162,19 +178,27 @@ function lookupUniqueName(name: string, index: DocIndex): DocResolution {
     if (alt !== undefined) return { status: "resolved", path: alt, via: "resource" };
     return { status: "broken", failure: "missing" };
   }
-  return { status: "unresolved", failure: "ambiguous", candidates: bucket.length };
+  return { status: "unresolved", failure: "ambiguous", candidates: bucket.length, reason: "files" };
 }
 
 /**
- * Resolve `xref:` / `<<path#anchor>>`. Order: anchor → resource id → relative →
- * root-relative (app compatibility). Explicitly relative targets (`./`, `../`)
- * never fall back to the root, because that would validate a file the author
- * did not mean.
+ * Resolve `xref:` / `<<path#anchor>>`. Order: anchor → Antora resource id
+ * (when descriptors exist) → relative → root-relative (app compatibility).
+ * Explicitly relative targets (`./`, `../`) never fall back to the root.
  */
-export function resolveXref(raw: string, fromPath: string, index: DocIndex): DocResolution {
+export function resolveXref(
+  raw: string,
+  fromPath: string,
+  index: DocIndex,
+  antora?: AntoraIndex,
+): DocResolution {
   const target = parseXref(raw);
   if (target.external) return { status: "resolved", via: "anchor" };
   if (target.anchorOnly) return { status: "resolved", via: "anchor" };
+  if (antora !== undefined) {
+    const fromAntora = resolveAntoraResource(target, fromPath, antora);
+    if (fromAntora !== null) return fromAntora;
+  }
   if (target.component !== undefined || target.family !== undefined) {
     return lookupUniqueName(target.path, index);
   }
@@ -202,10 +226,19 @@ export function resolveXref(raw: string, fromPath: string, index: DocIndex): Doc
  * including file (or the vault root for a leading `/`); there is no
  * basename fallback, because guessing here would hide a real build break.
  */
-export function resolveInclude(raw: string, fromPath: string, index: DocIndex): DocResolution {
+export function resolveInclude(
+  raw: string,
+  fromPath: string,
+  index: DocIndex,
+  antora?: AntoraIndex,
+): DocResolution {
   const target = parseXref(raw);
   if (target.external) return { status: "resolved", via: "anchor" };
   if (target.anchorOnly) return { status: "broken", failure: "missing" };
+  if (antora !== undefined) {
+    const fromAntora = resolveAntoraResource(target, fromPath, antora);
+    if (fromAntora !== null) return fromAntora;
+  }
   if (target.component !== undefined || target.family !== undefined) {
     return lookupUniqueName(target.path, index);
   }
@@ -234,12 +267,13 @@ export interface IncludeEdge {
 export function includeEdges(
   notes: ReadonlyArray<{ path: string; links?: ReadonlyArray<LinkRef> }>,
   index: DocIndex,
+  antora?: AntoraIndex,
 ): IncludeEdge[] {
   const out: IncludeEdge[] = [];
   for (const note of notes) {
     for (const link of note.links ?? []) {
       if (link.syntax !== "include") continue;
-      const resolution = resolveInclude(link.target, note.path, index);
+      const resolution = resolveInclude(link.target, note.path, index, antora);
       if (resolution.status !== "resolved" || resolution.path === undefined) continue;
       out.push({ from: note.path, to: resolution.path, target: link.target, at: link.from });
     }
