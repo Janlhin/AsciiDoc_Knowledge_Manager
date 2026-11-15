@@ -288,11 +288,48 @@ async function testPptx(): Promise<void> {
   ok(foundImage, `pptx slide image resolved via rels → media path`);
 }
 
+/**
+ * ADKM L4 extension — archive layer for the new READ-ONLY ebook formats.
+ * Mirrors the component logic (jszip unpack + numeric page ordering); the XML
+ * → text-block parsing itself is covered by tests/ebook-formats.test.ts under
+ * jsdom, because Node has no DOMParser.
+ */
+async function testEbookArchives(): Promise<void> {
+  const comic = new JSZip();
+  for (const name of ["page10.png", "page2.png", "page1.png", "readme.txt"]) {
+    comic.file(name, PNG_B64, { base64: true });
+  }
+  const comicBytes = await comic.generateAsync({ type: "uint8array" });
+  const cz = await JSZip.loadAsync(comicBytes);
+  const pages = Object.values(cz.files)
+    .filter((f) => !f.dir && /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i.test(f.name))
+    .map((f) => f.name)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  ok(pages.length === 3, "CBZ filters non-image entries");
+  ok(pages[0] === "page1.png" && pages[2] === "page10.png", "CBZ pages sort numerically");
+
+  const fbz = new JSZip();
+  fbz.file("novel.fb2",
+    '<?xml version="1.0"?><FictionBook><description><title-info>' +
+    '<book-title>Zipped Book</book-title></title-info></description>' +
+    "<body><p>Hello</p></body></FictionBook>");
+  const fbzBytes = await fbz.generateAsync({ type: "uint8array" });
+  const fz = await JSZip.loadAsync(fbzBytes);
+  const entry = Object.values(fz.files)
+    .find((f) => !f.dir && f.name.toLowerCase().endsWith(".fb2"));
+  ok(entry !== undefined, "FBZ exposes its inner .fb2 document");
+  if (entry) {
+    const xml = await entry.async("string");
+    ok(xml.includes("Zipped Book") && xml.includes("<body>"), "FBZ inner XML is readable");
+  }
+}
+
 (async () => {
   try {
     await testDocx();
     testXlsx();
     await testPptx();
+    await testEbookArchives();
   } catch (e) {
     console.error("EXCEPTION:", e);
     failures++;

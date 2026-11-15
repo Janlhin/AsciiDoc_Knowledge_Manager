@@ -6,6 +6,15 @@
 
 ## 待办
 
+### T-054 只读电子书格式扩展 + 共享图片阅读器（D-022）
+
+- **提出**：2026-11-15
+- **问题**：用户要求「更多支持电子书格式并不再追求修改」「图片也预览」；原注册表只有 EPUB，单张图片是裸 `<img>`，无翻页/缩放。
+- **方法**：零新增运行期依赖——`DOMParser` 解 FB2 XML、`jszip` 解 `.fb2.zip`/`.fbz`/`.cbz`；复合后缀由完整路径判定；新增 `useFormatResource` 统一可取消加载与资源释放；`ImageReader` 同时服务单图与漫画页；FB2 渲染为 React 文本节点。编辑能力冻结在 Excel，撤销 D-013 的 DOCX 真编辑 phase-2。B 档候选格式按「先搜寻后自研」检索评估后记入 `MANIFEST.md`，本片不引入。
+- **完成判据**：① `npx vitest run tests/ebook-formats.test.ts` 退出码 0；② `node scripts/verify-format-libs.ts` 退出码 0 且含 CBZ/FBZ 四项；③ 负向自检（破坏 FB2 作者拼接或数值排序）对应用例转红；④ `npm run verify` 退出码 0；⑤ 真机 `npm run test:e2e` 全绿，新增 `ebook-formats` 用例断言 FB2 / FB2.ZIP / CBZ 3 页数值排序 / 单图解码与缩放，`--self-check` 仍通过。
+- **解决**：**完成（2026-11-15）**。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.md` D-022。
+- **仍缺**：B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF 等）与「按格式配置阅读偏好」未做，见待裁决 Q-005。
+
 ### T-053 Portable command-path regression fixture
 
 - Proposed: 2026-11-15, nqble, following local commit review.
@@ -363,6 +372,7 @@
 | Q-002 | 2026-11-13 | 覆盖率阈值初始定多少（建议先 20%，逐层抬高） | 待 T-003 落地时定 |
 | Q-003 | 2026-11-13 | `oxfmt` 尚未到 1.0，是否等 1.0 再引入格式化 | 待定；当前 T-001 用 Prettier |
 | Q-004 | 2026-11-15 | 应用标识改名（`productName` / `identifier`）与数据目录迁移：新 identifier 用什么前缀、`package.json` 的 name 是否同步改 | **待定**。方案已定，参数未定；仓库名已改为 `AsciiDoc_Knowledge_Manager` |
+| Q-005 | 2026-11-15 | B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF…）是否放行新增运行期依赖，以及是否要求「连 Excel 保存也移除」的彻底只读 | **待定**。候选库已按「先搜寻后自研」检索评估并记入 `MANIFEST.md`；本片按 D-022 只做零新增依赖的 A 档与图片阅读器，未引入任何新包、未删已有写回能力 |
 
 **Q-004 待定方案（2026-11-15 已确认要做，缺两个参数）**
 

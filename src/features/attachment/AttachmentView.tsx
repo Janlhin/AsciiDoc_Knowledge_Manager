@@ -12,6 +12,7 @@ import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
 import { mediaKind, mediaMime, fileExtension } from "@core/attachments";
 import { formatPreviewer } from "./formatPreview";
+import { ImageReader } from "./ImageReader";
 import type { TabState } from "@core/types";
 
 export function AttachmentView({ tab }: { tab: TabState }) {
@@ -75,8 +76,10 @@ export function AttachmentView({ tab }: { tab: TabState }) {
     );
   } else if (kind !== "other" && url !== null) {
     if (kind === "image") {
-      // an <img> has no native error UI → fall back to the placeholder if it can't decode
-      body = <img className="attachment-image" data-testid="attachment-image" src={url} alt={name} onError={() => setFailed(true)} />;
+      // Shared reader adds paging/zoom while preserving the data-safety
+      // boundary: this effect still owns (and revokes) the blob URL, and an
+      // <img> decode failure still falls back to the read-only placeholder.
+      body = <ImageReader images={[{ src: url, name }]} single onError={() => setFailed(true)} />;
     } else if (kind === "audio") {
       body = <audio className="attachment-audio" data-testid="attachment-audio" src={url} controls />;
     } else if (kind === "video") {

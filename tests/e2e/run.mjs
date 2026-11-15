@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: eight high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: ten high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -11,9 +11,13 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { connectCdp, waitForCdp, sleep } from "./cdp.mjs";
 import { startMockLlm } from "./mock-llm.mjs";
+
+const requireCjs = createRequire(import.meta.url);
+const JSZip = requireCjs("jszip");
 
 const argv = process.argv.slice(2);
 const has = (flag) => argv.includes(flag);
@@ -189,8 +193,24 @@ Ambiguous version: xref:catalog:ROOT:index.adoc[].
 Unknown version: xref:9.9@catalog:ROOT:index.adoc[].
 `;
 
+/** 1×1 PNG for single-image and CBZ fixtures. */
+const PNG_B64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+function fb2(title, body) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
+             xmlns:l="http://www.w3.org/1999/xlink">
+  <description><title-info><book-title>${title}</book-title></title-info></description>
+  <body>${body}</body>
+</FictionBook>`;
+}
+
+const FB2_PLAIN = fb2("E2E FictionBook", "<title><p>Chapter One</p></title><p>Hello from FB2.</p>");
+const FB2_ZIPPED = fb2("Zipped FictionBook", "<p>Book came out of a ZIP archive.</p>");
+
 /** Write the fixture notes into a throwaway vault directory. */
-function prepareVault(dir) {
+async function prepareVault(dir) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "E2E-Note.md"), NOTE_A, "utf-8");
   writeFileSync(path.join(dir, "E2E-Other.md"), NOTE_B, "utf-8");
@@ -219,6 +239,18 @@ function prepareVault(dir) {
   writeFileSync(path.join(dir, "catalog", "2.1", "modules", "ROOT", "pages", "guide.adoc"),
     ANTORA_GUIDE, "utf-8");
   writeFileSync(path.join(dir, "antora-check.adoc"), ANTORA_CHECK, "utf-8");
+  // L4 extension: read-only FictionBook / comic ZIP / single image fixtures.
+  writeFileSync(path.join(dir, "sample.fb2"), FB2_PLAIN, "utf-8");
+  writeFileSync(path.join(dir, "sample.png"), Buffer.from(PNG_B64, "base64"));
+  const fbz = new JSZip();
+  fbz.file("book.fb2", FB2_ZIPPED);
+  writeFileSync(path.join(dir, "sample.fb2.zip"), await fbz.generateAsync({ type: "nodebuffer" }));
+  const cbz = new JSZip();
+  for (const name of ["page10.png", "page2.png", "page1.png"]) {
+    cbz.file(name, PNG_B64, { base64: true });
+  }
+  cbz.file("readme.txt", "not an image");
+  writeFileSync(path.join(dir, "sample.cbz"), await cbz.generateAsync({ type: "nodebuffer" }));
 }
 
 /**
@@ -258,7 +290,7 @@ async function main() {
   if (has("--prepare")) {
     const dir = argv[argv.indexOf("--prepare") + 1];
     if (!dir) throw new Error("--prepare needs a directory path");
-    prepareVault(dir);
+    await prepareVault(dir);
     console.log(`prepared E2E vault: ${dir}`);
     return 0;
   }
@@ -590,6 +622,65 @@ async function main() {
     assert(state.valid === 0,
       `a version-qualified valid id was reported as broken: ${state.valid}`);
     return `1 version ambiguity, 1 unknown version, 0 false positives`;
+  });
+
+  // ---- 10. L4 extension: read-only ebook formats + shared image reader ----
+  await runCase("ebook-formats", async () => {
+    // Earlier cases leave the left sidebar on the search panel; the explorer is
+    // a different left-panel tab and is not mounted at all until shown.
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "显示文件列表");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "show file explorer command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer"]')`, 8000, "explorer mounted");
+
+    const open = async (file, testid) => {
+      const clicked = await c.click(`[data-testid="explorer-item"][data-path="${file}"]`);
+      assert(clicked, `could not open ${file} from the explorer`);
+      await c.waitFor(
+        `!!document.querySelector('[data-testid="${testid}"]')`,
+        10000,
+        `${file} preview mounted`,
+      );
+    };
+
+    await open("sample.fb2", "fb2-preview");
+    let text = await c.evaluate(
+      `document.querySelector('[data-testid="fb2-preview"]').textContent`);
+    assert(text.includes("E2E FictionBook") && text.includes("Chapter One"),
+      `plain FB2 content missing: ${text}`);
+
+    await open("sample.fb2.zip", "fb2-preview");
+    text = await c.evaluate(
+      `document.querySelector('[data-testid="fb2-preview"]').textContent`);
+    assert(text.includes("Zipped FictionBook"), `zipped FB2 content missing: ${text}`);
+
+    await open("sample.cbz", "cbz-preview");
+    await c.waitFor(
+      `document.querySelector('[data-testid="image-position"]')?.textContent.includes("1 / 3")`,
+      8000,
+      "comic first page (3 images)",
+    );
+    assert(await c.click('[data-testid="image-next"]'), "comic next-page button");
+    await c.waitFor(
+      `document.querySelector('[data-testid="image-position"]')?.textContent.includes("2 / 3")`,
+      6000,
+      "comic page 2",
+    );
+    const alt = await c.evaluate(
+      `document.querySelector('[data-testid="attachment-image"]')?.getAttribute("alt")`);
+    assert(alt === "page2.png", `numeric page ordering broken: ${alt}`);
+
+    await open("sample.png", "image-reader");
+    const natural = await c.evaluate(
+      `document.querySelector('[data-testid="attachment-image"]')?.naturalWidth ?? 0`);
+    assert(natural > 0, "single image did not decode");
+    assert(await c.click('[data-testid="image-zoom-in"]'), "zoom-in button");
+    const zoom = await c.evaluate(
+      `document.querySelector('[data-testid="image-zoom"]')?.textContent`);
+    assert(zoom && zoom.includes("125"), `zoom did not change: ${zoom}`);
+    return "FB2 + FB2.ZIP + CBZ (3 numeric pages) + single image with zoom";
   });
 
   c.close();

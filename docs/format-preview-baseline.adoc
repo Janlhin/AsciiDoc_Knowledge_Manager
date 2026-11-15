@@ -1,0 +1,108 @@
+= 多格式只读预览基线（T-054 / D-022）
+:日期: 2026-11-15
+
+== 结论
+
+按用户决定「更多支持电子书格式并不再追求修改」「图片也预览」，本片**只扩展只读预览**：新增 FictionBook 2 与漫画 ZIP，并把单张图片升级为共享图片阅读器。编辑能力**冻结在 Excel**，不再扩展，D-013 的「DOCX 真编辑 phase-2」撤销。
+
+**零新增运行期依赖**：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`。B 档格式（MOBI/AZW3/DJVU/CBR/HEIC…）完成「先搜寻后自研」评估但**未引入任何新包**，见 `MANIFEST.md` 与待裁决 Q-005。
+
+* `npx vitest run tests/ebook-formats.test.ts` → 7/7
+* `node scripts/verify-format-libs.ts` → 8 项全 PASS（原 4 项 + CBZ/FBZ 4 项）
+* `npm run verify` → 退出码 0
+* 真机 CDP E2E → **10/10**（新增 `ebook-formats`），`--self-check` 仍 OK
+* 前置：合并 PR #27（EPUB 可取消加载 / `openFailed` 反馈 + 11 项组件回归）
+
+== 能力矩阵
+
+[cols="1,2,1,2",options="header"]
+|===
+|格式 |实现 |可否修改 |依赖
+
+|`.png/.jpg/.jpeg/.gif/.webp/.svg/.bmp/.ico/.avif`
+|`ImageReader`（单图模式：缩放，隐藏翻页）
+|只读
+|浏览器原生 `<img>`
+
+|`.cbz`
+|`CbzPreview` → jszip 解包 → 数值排序 → `ImageReader` 多页模式（翻页 + 缩放）
+|只读
+|`jszip`
+
+|`.fb2`
+|`Fb2Preview` → `DOMParser` → 文本/标题/内嵌图片块
+|只读
+|平台 API
+
+|`.fb2.zip` / `.fbz`
+|同上，先由 jszip 取出内部 `.fb2`
+|只读
+|`jszip`
+
+|`.epub`
+|epub.js 分页阅读器（PR #27 修复生命周期）
+|只读
+|`epubjs`
+
+|`.pdf`
+|`<embed>` 原生渲染
+|只读
+|WebView2
+
+|`.docx/.dotx`
+|mammoth → 语义 HTML
+|只读
+|`mammoth`
+
+|`.pptx/.pptm`
+|jszip 抽取文本/图片成卡片
+|只读
+|`jszip`
+
+|`.xlsx/.xlsm/.xls`
+|x-data-spreadsheet + SheetJS，显式「保存」写回
+|**可编辑（冻结，不再扩展）**
+|既有依赖
+|===
+
+== 架构与语义契约
+
+* **注册表单点扩展**：`formatPreviewer(path)` 按小写扩展名查 `FORMAT_PREVIEWERS`。新增组件只需注册，无需改 `AttachmentView`（`formatPreview.ts:16-18`）。
+* **复合后缀**：`fileExtension("book.fb2.zip")` 只返回 `zip`，因此先由 `ebookKindFromPath()` 按完整路径判定 `.fb2.zip` / `.fbz` / `.cbz`，再回落到单扩展名查表。
+* **不可当只读电子书加入的格式**：`.txt` / `.html` / `.htm` / `.xml` 在 `EDITABLE_TEXT_EXTS` 中（`src/core/attachments.ts:253-272`），会路由进 CodeMirror 编辑器；要改成只读需动路由并承担回归风险，本片不动。
+* **可取消加载契约**：`useFormatResource(path, loader)` 持有 loader 于 ref、effect 只依赖 `path`；loader 在每个 await 后检查 `isCancelled()`，返回 `dispose()` 释放 blob URL / 阅读器；取消后不 setState。新组件全部经此 hook，与 PR #27 为 EPUB 建立的契约一致；已验证的 `EpubPreview` 不重写。
+* **数据安全边界**：所有附件仍只经 `vault.readBinary()` 读取，二进制永不进入 `documents.acquire` / CodeMirror 自动保存链路（`AttachmentView.tsx:1-8`）。`ImageReader` 不拥有也不创建 blob URL。
+* **不可信内容**：FB2 解析为 `Fb2Block[]`，React 渲染文本节点，绝不 `innerHTML`；SVG 保持 `<img>` 上下文，不内联 DOM。FB2 内嵌 `<binary>` 解析为 `data:` URL。
+* **排序**：CBZ 内图片按数值自然排序（`page2` 在 `page10` 之前），非图片条目忽略；所有 object URL 在切换/关闭时 `revokeObjectURL`。
+
+== 检索评估（B 档，本片不引入）
+
+按规范检索顺序 0→3 执行：0/1（标准库 + 已有依赖）已满足本轮目标；2/3 对 MOBI/AZW3/DJVU/CBR/HEIC 等做了两轮检索（npm 包注册表 + GitHub + 包信息站点）。候选与排除理由逐项登记在 `MANIFEST.md`「格式扩展检索评估」。要点：
+
+. `foliate-js`（MIT）覆盖最广但作者明示 API 不稳定、维护放缓，替换现有 epub.js 链路风险过高。
+. `@mdgate/mobi`（MIT）只输出 Markdown，丢图片/结构，作为「只读预览」会静默丢内容。
+. `epubier` / `@lingo-reader/*` 需多个 peer 依赖与 worker 打包。
+. `libarchive.js`（CBR）需 wasm worker；`libheif-js`（HEIC）为 **LGPL-3.0** 且 9 MB，需专门评估弱著佐权义务。
+. DJVU / TIFF / JXL / PSD / RAW 未见许可清晰的成熟浏览器包。
+
+结论：登记为「评估过、未引入」，等用户单独放行后独立成片（Q-005）。
+
+== 缺口（诚实记录）
+
+. **编辑能力冻结**：保留 Excel 显式保存；若要求「连 Excel 也改成只读」，需单独一片移除 `XlsxPreview` 的保存与 `vault.modifyBinary` 路径，并同步 i18n / E2E / D-013 / T-018。
+. **大 CBZ 全量入内存**：`readBinary` 一次读完整个压缩包；>100 MB 漫画需改为按需/流式解压。
+. **FB2 覆盖有限**：只渲染 `title` / `subtitle` / `p` / `image` 与 section/epigraph/cite/poem 容器，表格、脚注、样式不还原；这是预览而非排版器。
+. **无阅读偏好**：字号/主题/进度记忆按格式配置未做。
+. **B 档全部未做**：见上节与 Q-005。
+. **真机验证范围**：E2E 用 1×1 PNG 与合成 FB2/CBZ 夹具，未覆盖真实大部头书籍或加密/DRM 文件。
+
+== 文件
+
+* `src/core/ebookFormats.ts`（纯函数：复合后缀、图片筛选、数值排序、FB2 解析）
+* `src/features/attachment/useFormatResource.ts`（可取消加载 hook）
+* `src/features/attachment/ImageReader.tsx` / `Fb2Preview.tsx` / `CbzPreview.tsx`
+* `src/features/attachment/formatPreview.ts` / `AttachmentView.tsx`（注册与单图接入）
+* `src/core/i18n/dict.views.ts`（en/zh 各 8 键）、`src/styles/app.scss`
+* `scripts/verify-format-libs.ts`（+4 项）、`tests/ebook-formats.test.ts`（7 用例）
+* `tests/e2e/run.mjs`（夹具 + 第 10 条用例）、`docs/e2e-cdp-baseline.adoc`
+* `MANIFEST.md`（检索评估留痕）、`DECISIONS.md` D-022、`TASKS.md` T-054 / Q-005、`CHANGELOG.adoc`
