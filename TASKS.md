@@ -6,6 +6,13 @@
 
 ## 待办
 
+### T-052 EPUB opening-failure feedback
+
+- Proposed: 2026-11-15, nqble. Desktop smoke testing found that a malformed EPUB never reached the existing display-error handler within seven seconds.
+- Method: handle epub.js's `openFailed` event, detach the listener during disposal, and retain cancellation guards. Add component coverage for event-only failure with a pending display promise and for late events after unmount.
+- Acceptance: new regression fails before the correction, passes afterward; full verify exits 0; repeat the real malformed-file desktop check. No new dependency.
+- Result: completed locally on 2026-11-15. Both new cases fail against the preceding component and pass with this change (11 component cases total). Full verify exits 0: 75 passed, one expected failure, one skipped. Additional typing of both new test files passes. Actual isolated Windows/WebView2 retest passes valid reading, 12 rapid open/close cycles, malformed-file error feedback and valid reading afterward. No observed unhandled promise rejection during the instrumented portion; memory/performance remain unmeasured.
+
 ### T-051 EPUB preview lifecycle regression
 
 - **提出**：2026-11-15，nqble。
@@ -13,6 +20,7 @@
 - **方法**：真实 ReactDOM 挂载测试、可控的读取/加载/显示 Promise；只模拟 I/O 与 epub.js。用户已批准 jsdom 作为开发依赖，不进入生产包。
 - **Result (2026-11-15)**: completed locally. Nine ReactDOM component cases pass, with file reads and epub.js mocked; stale work stops after reading/importing, and cleanup follows Book ownership. Full `npm run verify`: 73 passed, one expected failure, one skipped; exit 0. Additional typecheck includes both new test files. Real EPUB/WebView2 behavior and memory/performance remain untested.
 - **完成判据**：组件回归测试修复前失败、修复后通过，`npm run verify` 退出 0；真实 EPUB/WebView2 手工验证另记，不能用模拟测试代替。
+- Follow-up: T-052 records the subsequent real Windows desktop smoke test and the corrected opening-failure gap; its validation supersedes this entry's earlier untested-desktop limit.
 
 ### T-050 Command-check paths containing spaces
 

@@ -25,11 +25,16 @@ export function EpubPreview({ path }: { path: string }) {
       const ownedBook = book;
       book = null;
       try {
+        ownedBook?.off("openFailed", fail);
         // Book owns the rendition and destroys it; do not destroy it twice.
         ownedBook?.destroy();
       } catch {
         /* best-effort teardown if epub.js fails during destruction */
       }
+    };
+    const fail = (err: unknown) => {
+      dispose();
+      if (!cancelled) setError(err instanceof Error ? err.message : String(err));
     };
     setError(null);
     void (async () => {
@@ -42,6 +47,8 @@ export function EpubPreview({ path }: { path: string }) {
         if (!el) return;
         const arrayBuffer = bytes.slice().buffer;
         book = ePub(arrayBuffer);
+        // Failed opening emits an event; display() can remain pending forever.
+        book.on("openFailed", fail);
         const height = el.clientHeight || 640;
         const rendition = book.renderTo(el, {
           width: "100%",
@@ -51,8 +58,7 @@ export function EpubPreview({ path }: { path: string }) {
         });
         await rendition.display();
       } catch (err) {
-        dispose();
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        fail(err);
       }
     })();
     return () => {

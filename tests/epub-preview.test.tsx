@@ -25,18 +25,29 @@ let createElement: typeof import("react").createElement;
 let StrictMode: typeof import("react").StrictMode;
 let Component: typeof import("@features/attachment/EpubPreview").EpubPreview;
 let mounted: boolean;
+let openingFailureListeners: Set<(error: Error) => void>;
 
 beforeEach(async () => {
   vi.resetModules();
   reads = new Map();
   readOrder = [];
+  openingFailureListeners = new Set();
   importGate = deferred<void>(); displayGate = deferred<void>(); importStarted = false;
   renditionDestroy = vi.fn();
   const rendition = { display: vi.fn(() => displayGate.promise), destroy: renditionDestroy };
   renderTo = vi.fn(() => rendition);
   // Match installed epub.js ownership: Book.destroy() destroys its rendition.
   bookDestroy = vi.fn(() => renditionDestroy());
-  factory = vi.fn(() => ({ renderTo, destroy: bookDestroy }));
+  factory = vi.fn(() => ({
+    renderTo,
+    destroy: bookDestroy,
+    on: (event: string, listener: (error: Error) => void) => {
+      if (event === "openFailed") openingFailureListeners.add(listener);
+    },
+    off: (event: string, listener: (error: Error) => void) => {
+      if (event === "openFailed") openingFailureListeners.delete(listener);
+    },
+  }));
   const app = { vault: {
     readBinary: (path: string) => {
       const read = deferred<Uint8Array>();
@@ -86,6 +97,29 @@ afterEach(async () => {
 });
 
 describe("EPUB preview effect ownership", () => {
+  it("shows an opening error even when display never settles", async () => {
+    await load();
+    await act(async () => {
+      for (const listener of [...openingFailureListeners]) listener(new Error("Cannot load book"));
+    });
+    expect(host.querySelector('[data-testid="format-error"]')).not.toBeNull();
+    expect(bookDestroy).toHaveBeenCalledTimes(1);
+    expect(openingFailureListeners.size).toBe(0);
+    await unmount();
+    expect(bookDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("detaches the opening-failure listener and ignores a late callback after unmount", async () => {
+    await load();
+    const lateListeners = [...openingFailureListeners];
+    expect(lateListeners).toHaveLength(1);
+    await unmount();
+    expect(openingFailureListeners.size).toBe(0);
+    await act(async () => { lateListeners[0](new Error("late opening error")); });
+    expect(host.textContent).toBe("");
+    expect(bookDestroy).toHaveBeenCalledTimes(1);
+  });
+
   it("does not create a book after unmount during file reading", async () => {
     await show(); await unmount(); importGate.resolve(); await releaseRead();
     await new Promise<void>(resolve => setTimeout(resolve, 0));
