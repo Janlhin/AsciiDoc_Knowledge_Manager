@@ -241,3 +241,46 @@
 .search-file-chevron:hover {
   color: var(--text-normal);
 }
+
+/* ---- T-041: substring / full-text mode switch ---- */
+
+.search-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 0 12px 8px;
+  flex-shrink: 0;
+}
+
+.search-mode-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  background: var(--bg-active);
+  border: 1px solid transparent;
+}
+
+.search-mode-btn:hover {
+  color: var(--text-normal);
+  background: var(--bg-hover);
+}
+
+.search-mode-btn.is-active {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+
+.search-mode-note {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+  opacity: 0.85;
+}
+
+.search-index-snippet {
+  white-space: normal;
+  line-height: 1.55;
+}

@@ -9,6 +9,9 @@ import { parseSearchQuery, evaluateSearch } from "@core/search";
 import { excludedRaw, isExcluded } from "@core/excludedFiles";
 import type { SearchInput, SearchMatchRange, SearchParseErrorCode } from "@core/search";
 import "./search.scss";
+import { searchIndexed } from "@core/indexer";
+import type { IndexSearchHit } from "@core/searchIndex";
+import { orderIndexHits, parseSnippetParts } from "./indexResults";
 
 interface LineHit {
   lineNo: number;
@@ -194,6 +197,14 @@ function highlightRanges(text: string, marks: readonly SearchMatchRange[]): Reac
   return parts;
 }
 
+/** Render an FTS snippet as React text nodes. Only `<mark>` sentinels become
+ *  elements; note content containing HTML stays literal text. */
+function renderSnippet(snippet: string): ReactNode {
+  return parseSnippetParts(snippet).map((part, i) =>
+    part.hit ? <mark key={i}>{part.text}</mark> : <span key={i}>{part.text}</span>,
+  );
+}
+
 export function SearchPanel() {
   const app = useApp();
   const t = useI18n();
@@ -204,6 +215,12 @@ export function SearchPanel() {
   /** every matched file (unsorted, untruncated) — `results` is derived from it */
   const [allResults, setAllResults] = useState<FileResult[]>([]);
   const [searching, setSearching] = useState(false);
+  /** T-041: two co-existing semantics — substring (unchanged) / index (FTS5). */
+  const [searchMode, setSearchMode] = useState<"substring" | "index">(() =>
+    readSearchPref("geode.searchMode", "substring") === "index" ? "index" : "substring",
+  );
+  const [indexHits, setIndexHits] = useState<IndexSearchHit[]>([]);
+  const [indexUnavailable, setIndexUnavailable] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   // R80: toolbar prefs — sort + more-context persisted; collapse is per-session
   const [sortKey, setSortKey] = useState<SortKey>(() => readSearchPref("geode.searchSort", "relevance") as SortKey);
@@ -269,6 +286,7 @@ export function SearchPanel() {
   /* ---------- full-text mode ---------- */
 
   useEffect(() => {
+    if (searchMode === "index") return; // T-041: the index mode owns its own effect
     const expr = parsed && !parsed.error ? parsed.expr : null;
     if (!expr) {
       setAllResults([]);
@@ -325,7 +343,38 @@ export function SearchPanel() {
     return () => {
       cancelled = true;
     };
-  }, [app.vault, app.metadata, parsed, rev, excluded, matchCase]);
+  }, [app.vault, app.metadata, parsed, rev, excluded, matchCase, searchMode]);
+
+  /* ---------- T-041: index-backed full-text mode ---------- */
+  useEffect(() => {
+    if (searchMode !== "index") return;
+    const q = debounced.trim();
+    if (!q) {
+      setIndexHits([]);
+      setIndexUnavailable(false);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    void (async () => {
+      const t0 = performance.now();
+      const hits = await searchIndexed(q, MAX_FILE_RESULTS);
+      if (cancelled) return;
+      if (hits === null) {
+        setIndexUnavailable(true);
+        setIndexHits([]);
+      } else {
+        setIndexUnavailable(false);
+        setIndexHits(hits);
+      }
+      perfMark("searchIndexMs", performance.now() - t0);
+      setSearching(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchMode, debounced]);
 
   // R80: sort + truncate derived from allResults (re-sort never re-scans).
   const results = useMemo(
@@ -386,6 +435,14 @@ export function SearchPanel() {
     }
   };
   const allCollapsed = results.length > 0 && results.every((r) => collapsed.has(r.path));
+
+  const changeSearchMode = (mode: "substring" | "index"): void => {
+    setSearchMode(mode);
+    persistSearchPref("geode.searchMode", mode);
+    setIndexHits([]);
+    setIndexUnavailable(false);
+    setSearching(false);
+  };
 
   /* ---------- render ---------- */
 
@@ -521,6 +578,46 @@ export function SearchPanel() {
     );
   }
 
+  const indexBody: ReactNode = (() => {
+    if (!trimmed) return <div className="search-hint">{t("search.indexHint")}</div>;
+    if (searching && indexHits.length === 0 && !indexUnavailable) {
+      return <div className="search-hint">{t("search.searching")}</div>;
+    }
+    if (indexUnavailable) {
+      return (
+        <div className="search-hint search-error" data-testid="search-index-unavailable">
+          {t("search.indexUnavailable")}
+        </div>
+      );
+    }
+    if (indexHits.length === 0) {
+      return <div className="search-hint">{t("search.indexNoResults", { query: trimmed })}</div>;
+    }
+    return (
+      <>
+        <div className="search-meta">{t("search.indexMeta", { count: indexHits.length })}</div>
+        {orderIndexHits(indexHits).map((hit) => {
+          const base = (hit.path.split("/").pop() ?? hit.path).replace(/\.(md|adoc)$/i, "");
+          return (
+            <div className="search-file" key={hit.path} data-testid="search-result">
+              <div className="search-file-header" title={hit.path}>
+                <span className="search-file-name" onClick={() => openFile(hit.path)}>
+                  {base}
+                </span>
+              </div>
+              <div
+                className="search-line search-index-snippet"
+                onClick={() => openFile(hit.path)}
+              >
+                {renderSnippet(hit.snippet)}
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  })();
+
   return (
     <div className="search-panel" data-testid="search-panel">
       <div className="panel-header">{t("search.title")}</div>
@@ -556,7 +653,28 @@ export function SearchPanel() {
           </button>
         )}
       </div>
-      {allResults.length > 0 && (
+      <div className="search-mode-row" data-testid="search-mode-row">
+        <button
+          className={"search-mode-btn" + (searchMode === "substring" ? " is-active" : "")}
+          onClick={() => changeSearchMode("substring")}
+          aria-pressed={searchMode === "substring"}
+          data-testid="search-mode-substring"
+        >
+          {t("search.modeSubstring")}
+        </button>
+        <button
+          className={"search-mode-btn" + (searchMode === "index" ? " is-active" : "")}
+          onClick={() => changeSearchMode("index")}
+          aria-pressed={searchMode === "index"}
+          data-testid="search-mode-index"
+        >
+          {t("search.modeIndex")}
+        </button>
+        <span className="search-mode-note">
+          {t(searchMode === "index" ? "search.modeIndexNote" : "search.modeSubstringNote")}
+        </span>
+      </div>
+      {allResults.length > 0 && searchMode !== "index" && (
         <div className="search-toolbar" data-testid="search-toolbar">
           <select
             className="search-sort"
@@ -601,7 +719,7 @@ export function SearchPanel() {
           </button>
         </div>
       )}
-      <div className="search-results">{body}</div>
+      <div className="search-results">{searchMode === "index" ? indexBody : body}</div>
     </div>
   );
 }
