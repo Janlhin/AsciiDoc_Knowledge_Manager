@@ -6,6 +6,14 @@
 
 ## 待办
 
+### T-053 Portable command-path regression fixture
+
+- Proposed: 2026-11-15, nqble, following local commit review.
+- Problem: the original regression depended on a checkout path containing spaces; CI naming could hide a recurrence.
+- Method: copy the actual checker into a uniquely named temporary directory containing spaces, provide one valid command/i18n fixture, and assert that command was scanned. Bound child execution and remove only that created directory afterward.
+- Acceptance: the fixture fails with the previous URL conversion and passes with fileURLToPath; full verify exits 0.
+- Result: completed locally, 2026-11-15. The original checker fails on the deliberately spaced fixture with ENOENT and percent-encoded spaces; the corrected checker scans the expected one command and passes. Full verify exits 0 (75 passed, one expected failure, one skipped), additional test typecheck passes, and whitespace checks pass. Application source is unchanged, so the previous native smoke evidence remains applicable without a repeat desktop build.
+
 ### T-052 EPUB opening-failure feedback
 
 - Proposed: 2026-11-15, nqble. Desktop smoke testing found that a malformed EPUB never reached the existing display-error handler within seven seconds.
