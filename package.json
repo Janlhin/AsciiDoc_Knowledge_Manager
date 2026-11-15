@@ -37,14 +37,15 @@
     "typecheck": "tsc --noEmit",
     "typecheck:scripts": "tsc -p scripts/tsconfig.json",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run typecheck:scripts && npm test && npm run build",
+    "verify": "npm run typecheck && npm run typecheck:scripts && npm run verify:commands && npm test && npm run build",
     "profile:hotspots": "node scripts/profile-hotspots.ts",
     "profile:bigfile": "node scripts/profile-bigfile.ts",
     "verify:block-scan": "node scripts/verify-block-scan.ts",
     "report:index": "node scripts/adoc-index-report.ts",
     "verify:llm-sse": "node scripts/verify-llm-sse.ts",
     "verify:readable-width": "node scripts/verify-readable-width.ts",
-    "verify:workspace-keys": "node scripts/verify-workspace-keys.ts"
+    "verify:workspace-keys": "node scripts/verify-workspace-keys.ts",
+    "verify:commands": "node scripts/verify-command-registry.ts"
   },
   "dependencies": {
     "@asciidoctor/core": "^4.2.1",

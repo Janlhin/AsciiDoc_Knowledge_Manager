@@ -244,6 +244,45 @@ export function App() {
         hotkey: "Mod+Shift+E",
         callback: () => workspace.toggleActiveSourceMode(),
       }),
+      // T-042: direct view-mode selection. The two toggles above only cycle a
+      // pair of states, so "reading view" / "live preview" / "source" were not
+      // addressable from the palette or rebindable as named commands.
+      commands.register({
+        id: "app:set-reading-view",
+        name: () => t("cmd.setReadingView"),
+        available: () => workspace.getActiveTab()?.viewType === "markdown",
+        callback: () => {
+          const tab = workspace.getActiveTab();
+          if (tab?.viewType === "markdown") workspace.setTabMode(tab.id, "preview");
+        },
+      }),
+      commands.register({
+        id: "app:set-live-preview",
+        name: () => t("cmd.setLivePreview"),
+        available: () => workspace.getActiveTab()?.viewType === "markdown",
+        callback: () => {
+          const tab = workspace.getActiveTab();
+          if (tab?.viewType === "markdown") workspace.setTabMode(tab.id, "live");
+        },
+      }),
+      commands.register({
+        id: "app:set-source-mode",
+        name: () => t("cmd.setSourceMode"),
+        available: () => workspace.getActiveTab()?.viewType === "markdown",
+        callback: () => {
+          const tab = workspace.getActiveTab();
+          if (tab?.viewType === "markdown") workspace.setTabMode(tab.id, "source");
+        },
+      }),
+      commands.register({
+        id: "app:toggle-default-new-pane-mode",
+        name: () => t("cmd.toggleDefaultNewPaneMode"),
+        callback: () => {
+          const order: NewTabMode[] = ["source", "live", "preview"];
+          const next = order[(order.indexOf(defaultNewTabMode.get()) + 1) % order.length];
+          setDefaultNewTabMode(next);
+        },
+      }),
       commands.register({
         // R254: Obsidian "Toggle stacked tabs" — stack/unstack the active tab group
         id: "workspace:toggle-stacked-tabs",
