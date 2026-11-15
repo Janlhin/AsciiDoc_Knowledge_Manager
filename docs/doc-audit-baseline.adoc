@@ -11,7 +11,7 @@
 * 负向自检：故意让断链规则失效后，对应测试转红（exit 1），恢复后 17/17 —— 证明用例真的在守
 * 真实 UI 冒烟（CDP 驱动 release 版 + `demo-vault`）→ **11/11**：命令执行、扫描 7 篇、**8 条问题**、7 类筛选、点击跳转到问题行、重新体检
 
-== 六项规则
+== 六项规则（T-045 后为八项）
 
 [cols="1,2,1",options="header"]
 |===
@@ -68,11 +68,17 @@ T-047 已把它拼进提示词（`src/core/llm/proofread.ts`），让 AI「按�
 
 . **设置 UI 未做**：规则配置写死在 `DEFAULT_AUDIT_CONFIG`。`AuditConfig` 已经是注入式接口，接一个设置面板即可，但那会引入新的 UI 面，本片聚焦规则集与结果闭环。
 . **断链对附件也报**：`demo-vault/Home.md` 的 `![[geode-dot.png]]` 被判为「目标不存在」——因为 `resolveLink` 只解析笔记，不含附件路径。这是**诚实的结果**而非误报（该附件确实不在 demo-vault），但对图片附件应先走 `resolveAttachment` 再降级。记为后续改进点，本片不擅自放宽判据。
-. **元数据滞后兜底**：runner 发现 `getMetadata(path)` 的 `contentLength` 与当前原文不符时，用 `parseNote` 现算，避免刚保存的文件因索引未刷新而漏检。
+. **元数据滞后兜底**：runner 发现 `getMetadata(path)` 的 `contentLength` 与当前原文不符时，用 `parseDocument` 现算（T-045 修正：此前误用 Markdown 解析器，`.adoc` 会解析错），避免刚保存的文件因索引未刷新而漏检。
 . **单例标签页**：体检视图是 fileless singleton（同 graph），点问题跳到笔记会切换标签；回来需点「文档体检」标签，报告仍在（存在 `workspace.docAuditReport` Store 里，会话内保留）。
 
 == 文件
 
 * `src/core/docAudit.ts` / `src/core/docAuditRunner.ts`
 * `src/features/docaudit/DocAuditView.tsx` / `docaudit.scss`
-* `tests/doc-audit.test.ts`（17 用例）
+* `tests/doc-audit.test.ts`（17 用例，T-045 追加 6 条）
+
+== 后续扩展
+
+T-045 首片在本引擎上追加 `broken-xref` / `broken-include` 两类（AsciiDoc 引用语义与 include 环），
+`AUDIT_CATEGORIES` 与 `AUDIT_RULE_DOCS` 随之变为八项，面板筛选与 AI 提示词自动跟随。为什么 xref 不是按 wikilink 解析、
+以及「无法判定」这一第三态，见 `docs/docs-as-code-baseline.adoc`。

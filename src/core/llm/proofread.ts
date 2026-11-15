@@ -109,7 +109,7 @@ function systemPromptZh(cfg: AuditConfig, findings: readonly AuditIssue[]): stri
   return [
     "你是 ADKM（本地优先的 Markdown 笔记库）内置的文档校对助手。唯一任务：严格按下述「本库文档规范」检查给定笔记，逐条给出可以直接定位的问题。不要做规范以外的风格点评，也不要重写整篇文档。",
     "",
-    "## 规则（`category` 只能取下列六个值之一）",
+    "## 规则（`category` 只能取下列规则之一）",
     rulesBlock(true),
     "",
     "## 本库词表（规范写法 ← 不推荐的写法）",
@@ -136,7 +136,7 @@ function systemPromptEn(cfg: AuditConfig, findings: readonly AuditIssue[]): stri
   return [
     "You are the documentation proofreader built into ADKM, a local-first Markdown vault. Your only job is to check the given note against the vault conventions below and report findings that can be located precisely. Do not critique style beyond these rules and do not rewrite the note.",
     "",
-    "## Rules (`category` must be exactly one of these six values)",
+    "## Rules (`category` must be exactly one of these values)",
     rulesBlock(false),
     "",
     "## Vault glossary (canonical ← discouraged)",

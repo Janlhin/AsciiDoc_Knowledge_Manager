@@ -290,6 +290,18 @@
 - **解决**：—
 - **完成判据**：给出可复现结论并写入 ADR；若确为缺陷，修复后在 E2E 补回「点 `:toc:` 目录锚点滚动」用例，把 T-033 纳入自动回归。
 
+### T-045 Docs-as-Code 引用校验（xref / include）
+
+- **提出**：2026-11-15
+- **来源**：ADKM 的定位是「专业文档工程 + AsciiDoc 一等公民」，而 Obsidian 结构上不会做这条线。
+- **内容**：Antora 组件/版本切换、`xref` 全库校验、`include::` 链解析与缺失告警、发布前检查、按组件导出。
+- **参考实现**：`archive/adkm-web/shared/types.ts` 已把链接分为 `wikilink / markdown-link / xref / xref-short / link-macro / include` 六类并定义 `resolved / broken / unresolved` 三态；`archive/adkm-web/server/parsers/asciidoc.ts` 展示 xref/include 的解析边界。收录于 2026-11-15，见该目录 README。
+- **判断**：这是**唯一可能「超越」而非「对齐」**的方向。分片交付，先做引用完整性，再做 Antora 集成。
+- **体量**：中到大。
+- **解决**：**首片完成（2026-11-15）**。纯函数 `src/core/docsAsCode.ts`（`parseXref` / `resolveXref` / `resolveInclude` / `includeEdges` / `findIncludeCycles`）；文档体检新增 `broken-xref` / `broken-include` 两类（`AuditEnv.files` 注入路径表，单篇审计缺省时诚实跳过）；`auditVault` 追加全库 include 环检测（闭环只报一次）；AI 校对提示词随 `AUDIT_RULE_DOCS` 自动变为八条。语义契约：xref 先文件相对、再库根相对（兼容产品点击），显式 `./` 不回退；Antora 资源 ID 唯一同名才解析，多个时按 `unresolved` 报 warning。顺带修正 `.adoc` 元数据兜底误用 Markdown 解析器。21 新单测 + 6 条体检用例、负向自检两处转红、真机 E2E 8/8（新增 `docs-as-code-refs`）。详见 `docs/docs-as-code-baseline.adoc`。
+- **完成判据（首片）**：① `npx vitest run tests/docs-as-code.test.ts tests/doc-audit.test.ts` 退出码 0（已达成：21 + 23）；② 负向自检证明用例在守（已达成：把 xref 改为仅库根解析 → 3 条转红；关闭环检测 → 3 条转红）；③ 真机 `npm run test:e2e` 8/8，`docs-as-code-refs` 断言恰好 1 条失效 xref + 1 条失效 include + 1 条环并点击跳转（已达成）；④ `npm run verify` 退出码 0、零新增依赖（已达成：90 单测通过）。
+- **仍缺（下一片）**：解析 `antora.yml` 以实现组件/版本切换；`#anchor` 存在性校验（`[[id]]` 未进索引）；include 深度阈值；条件包含 `ifdef`；发布前检查与按组件导出；xref 自动修复。
+
 ## 待命（候选功能，未排期）
 
 > 本节记录**已评估但未排期**的候选功能。它们不是任务：没有完成判据、没有承诺时间。
@@ -311,15 +323,6 @@
 - **判断**：**可复用 T-039 的 SQLite 索引作为地基**，比从零做便宜；但 UI（视图配置、筛选、排序、公式）仍是主要工作量。
 - **体量**：大。
 - **前置**：T-039 闭合（索引需成为可信真源，而不是旁路缓存）。
-
-### T-045 Docs-as-Code 工作流（差异化）
-
-- **提出**：2026-11-15
-- **来源**：ADKM 的定位是「专业文档工程 + AsciiDoc 一等公民」，而 Obsidian 结构上不会做这条线。
-- **内容**：Antora 组件/版本切换、`xref` 全库校验、`include::` 链解析与缺失告警、发布前检查、按组件导出。
-- **参考实现**：`archive/adkm-web/shared/types.ts` 已把链接分为 `wikilink / markdown-link / xref / xref-short / link-macro / include` 六类并定义 `resolved / broken / unresolved` 三态；`archive/adkm-web/server/parsers/asciidoc.ts` 展示 xref/include 的解析边界。收录于 2026-11-15，见该目录 README。
-- **判断**：这是**唯一可能「超越」而非「对齐」**的方向。
-- **体量**：中到大（可分片：先做 xref 校验 + include 链，再做 Antora 集成）。
 
 ### T-046 文档规范体检
 

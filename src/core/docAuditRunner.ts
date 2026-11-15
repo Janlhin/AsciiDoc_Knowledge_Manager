@@ -7,7 +7,7 @@
  * Both the command and the "re-run" button call this one implementation.
  */
 import { auditVault, type AuditNoteInput, type AuditReport } from "@core/docAudit";
-import { parseNote, type MetadataIndex } from "@core/metadata";
+import { parseDocument, type MetadataIndex } from "@core/metadata";
 import { Store } from "@core/store";
 import type { Vault } from "@core/vault";
 import type { Workspace } from "@core/workspace";
@@ -39,7 +39,7 @@ export async function runDocAudit(deps: DocAuditDeps): Promise<AuditReport> {
           // never a no-op merely because indexing has not caught up.
           meta: meta && meta.contentLength === content.length
             ? meta
-            : parseNote(f.path, content),
+            : parseDocument(f.path, content),
         };
       }),
     );

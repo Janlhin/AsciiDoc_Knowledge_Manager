@@ -5,7 +5,7 @@
  * is injected. That keeps the six checks unit-testable and lets T-047 reuse the
  * very same rule set as prompt context for AI proofreading.
  *
- * The six checks (TASKS.md T-046):
+ * The six original checks (TASKS.md T-046):
  *   1. terminology        — inconsistent term variants (configurable glossary)
  *   2. broken-link        — wikilink / xref that resolves to no file
  *   3. heading-skip       — heading level jumps more than one level
@@ -13,15 +13,23 @@
  *   5. structure          — H1 count / first-heading-level conventions
  *   6. punctuation        — halfwidth punctuation inside Chinese prose
  *
+ * T-045 adds the two Docs-as-Code reference checks, which need the vault's path
+ * list (`env.files`) and therefore stay silent when it is not supplied:
+ *   7. broken-xref        — AsciiDoc xref / <<path>> with no resolvable target
+ *   8. broken-include     — missing include:: target, or an include cycle
+ *
  * Scanning uses the same masking as the index parser (frontmatter + code
  * regions blanked) so matches keep stable offsets and never fire inside code.
  */
+import { buildDocIndex, findIncludeCycles, includeEdges, resolveInclude, resolveXref, type DocIndex } from "./docsAsCode";
 import { maskCodeRegions, parseFrontmatter } from "./metadata";
 import type { NoteMetadata } from "./types";
 
 export type AuditCategory =
   | "terminology"
   | "broken-link"
+  | "broken-xref"
+  | "broken-include"
   | "heading-skip"
   | "frontmatter-missing"
   | "structure"
@@ -30,7 +38,7 @@ export type AuditCategory =
 export type AuditSeverity = "error" | "warning" | "info";
 
 export const AUDIT_CATEGORIES: readonly AuditCategory[] = [
-  "terminology", "broken-link", "heading-skip",
+  "terminology", "broken-link", "broken-xref", "broken-include", "heading-skip",
   "frontmatter-missing", "structure", "punctuation",
 ];
 
@@ -98,6 +106,12 @@ export interface AuditEnv {
   /** Same contract as MetadataIndex.resolveLink: null = no such note. */
   resolveLink: (target: string, fromPath: string) => string | null;
   config?: Partial<AuditConfig>;
+  /**
+   * Every vault path (indexable files). Required for the T-045 xref / include
+   * checks: without it they are skipped, so a single-note audit (AI proofread
+   * on one note) still works but cannot judge those two categories.
+   */
+  files?: ReadonlyArray<string>;
 }
 
 export interface AuditReport {
@@ -128,6 +142,16 @@ export const AUDIT_RULE_DOCS: ReadonlyArray<{
     category: "broken-link", title: "失效链接",
     criteria: "wikilink / AsciiDoc xref 必须指向库中真实存在的笔记；外部链接、纯锚点、include 片段不检查。",
     criteriaEn: "A wikilink or AsciiDoc xref must point at a note that exists in this vault; external links, bare anchors and include fragments are out of scope.",
+  },
+  {
+    category: "broken-xref", title: "失效 xref",
+    criteria: "AsciiDoc xref / <<路径>> 必须能按「文件相对」或「库根相对」找到文件；Antora 资源 ID 在无唯一同名文件时按无法判定处理，不臆断。",
+    criteriaEn: "An AsciiDoc xref / <<path>> must resolve file-relative or vault-root-relative; an Antora resource id with no unique basename is reported as undecidable rather than guessed.",
+  },
+  {
+    category: "broken-include", title: "失效 include / 循环",
+    criteria: "include:: 目标必须存在（文件相对，前导 / 为库根），且包含关系不得形成 A→B→A 的环。",
+    criteriaEn: "An include:: target must exist (file-relative; a leading / means vault root), and includes must not form a cycle such as A→B→A.",
   },
   {
     category: "heading-skip", title: "标题层级跳级",
@@ -199,7 +223,7 @@ function isExternalOrAnchor(target: string): boolean {
   return /^(?:https?:|mailto:|tel:|ftp:|data:)/i.test(target) || target.startsWith("#");
 }
 
-/** Run all six checks against one note. Pure. */
+/** Run all checks against one note. Pure. */
 export function auditNote(note: AuditNoteInput, env: AuditEnv): AuditIssue[] {
   const cfg: AuditConfig = { ...DEFAULT_AUDIT_CONFIG, ...env.config };
   const out: AuditIssue[] = [];
@@ -221,16 +245,42 @@ export function auditNote(note: AuditNoteInput, env: AuditEnv): AuditIssue[] {
   }
 
   // 2. broken links ---------------------------------------------------------
+  // wikilink / markdown link / link-macro only: AsciiDoc xref and include have
+  // their own resolution rules (T-045) and must not be judged by this one.
   for (const link of meta.links) {
     const raw = link.target.trim();
     if (!raw || isExternalOrAnchor(raw)) continue;
-    // include:: pulls fragments/attachments, not notes — out of scope.
-    if (link.syntax === "include") continue;
+    if (link.syntax === "include" || link.syntax === "xref" || link.syntax === "xref-short") continue;
     const target = raw.split("#")[0].trim();
     if (!target) continue;
     if (env.resolveLink(target, path) === null) {
       out.push(issue(path, content, link.from, "broken-link", "error",
         `链接目标「${target}」在库中不存在`));
+    }
+  }
+
+  // 2b. xref / include (T-045) ---------------------------------------------
+  if (env.files !== undefined) {
+    const index: DocIndex = buildDocIndex(env.files);
+    for (const link of meta.links) {
+      const syntax = link.syntax;
+      if (syntax !== "xref" && syntax !== "xref-short" && syntax !== "include") continue;
+      const raw = link.target.trim();
+      if (raw === "") continue;
+      const isInclude = syntax === "include";
+      const resolution = isInclude
+        ? resolveInclude(raw, path, index)
+        : resolveXref(raw, path, index);
+      if (resolution.status === "resolved") continue;
+      const category: AuditCategory = isInclude ? "broken-include" : "broken-xref";
+      const label = isInclude ? "include" : "xref";
+      if (resolution.status === "unresolved") {
+        out.push(issue(path, content, link.from, category, "warning",
+          `${label} 目标「${raw}」匹配到 ${resolution.candidates ?? 0} 个文件，无法确定`));
+      } else {
+        out.push(issue(path, content, link.from, category, "error",
+          `${label} 目标「${raw}」在库中不存在`));
+      }
     }
   }
 
@@ -291,8 +341,26 @@ export function auditNote(note: AuditNoteInput, env: AuditEnv): AuditIssue[] {
 
 /** Audit a whole vault. Pure; `notes` are pre-read by the caller. */
 export function auditVault(notes: readonly AuditNoteInput[], env: AuditEnv): AuditReport {
+  const files = notes.map((n) => n.path);
+  const noteEnv: AuditEnv = { ...env, files };
   const issues: AuditIssue[] = [];
-  for (const note of notes) issues.push(...auditNote(note, env));
+  for (const note of notes) issues.push(...auditNote(note, noteEnv));
+
+  // Include cycles span notes: detect once over the whole graph and report the
+  // issue on the edge that closes the loop (the author's editable line).
+  const index = buildDocIndex(files);
+  const edges = includeEdges(notes.map((n) => ({ path: n.path, links: n.meta.links })), index);
+  if (edges.length > 0) {
+    const byPath = new Map(notes.map((n) => [n.path, n]));
+    for (const cycle of findIncludeCycles(edges)) {
+      const edge = edges.find((e) => e.from === cycle[0] && e.to === cycle[1]);
+      const note = byPath.get(cycle[0]);
+      if (edge === undefined || note === undefined) continue;
+      issues.push(issue(note.path, note.content, edge.at, "broken-include", "error",
+        `include 循环引用：${[...cycle, cycle[0]].join(" → ")}`));
+    }
+  }
+
   issues.sort((a, b) =>
     SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
     a.path.localeCompare(b.path) || a.line - b.line);
