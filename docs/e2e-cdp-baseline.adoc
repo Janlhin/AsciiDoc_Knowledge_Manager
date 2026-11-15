@@ -1,0 +1,76 @@
+= E2E 基线：WebView2 CDP 通道（T-004 / T-040）
+:日期: 2026-11-15
+
+== 结论
+
+用 **WebView2 DevTools Protocol** 建立六条高频路径的端到端回归，**零新增依赖**（只用 Node 内置模块 + 工具链已有的 `ws`）。
+没有引入 Playwright / tauri-driver / msedgedriver：它们需要新依赖与 driver 版本配对，而 CDP 通道在本项目已被性能取数验证过。
+
+* `npm run test:e2e` → 6/6 passed，退出码 0
+* `node tests/e2e/run.mjs --port=9222 --self-check` → 反转大纲用例的期望后该用例转红，自检退出码 0
+* 未并入 `npm run verify`：E2E 需要运行中的 GUI，不能拖慢构建门禁（T-040 判据 ③）
+
+== 运行方式
+
+[source,bash]
+----
+# 1) 准备一个一次性 vault（三个夹具笔记）
+node tests/e2e/run.mjs --prepare /tmp/geode-e2e-vault
+
+# 2) 用调试端口启动 release 版，指向该 vault
+WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222 \
+  ./src-tauri/target/release/geode.exe /tmp/geode-e2e-vault
+
+# 3) 另一个终端跑用例
+npm run test:e2e
+----
+
+端口绑定在 **IPv6 `::1`**（`localhost` 通、`127.0.0.1` 不通），`cdp.mjs` 已按此写死。
+runner **不负责启动应用**：沙箱不允许脚本 spawn GUI 进程，而且测试框架也不该拥有应用生命周期。
+环境变量覆盖：`E2E_PORT`、`GEODE_E2E_VAULT`、`GEODE_EXE`。
+
+== 六条用例
+
+[cols="1,2,1",options="header"]
+|===
+|用例 |断言 |守护
+
+|`open-note`
+|快速切换器检索并打开夹具笔记，长文档渲染出 >1200px 的可滚动内容
+|启动与文件加载
+
+|`view-modes`
+|`mode-source` → `.cm-editor`；`mode-preview` → 阅读视图
+|三种视图模式
+
+|`outline-keeps-mode`
+|阅读视图下点第三个大纲项：模式**仍为 preview** 且滚动 0 → 264
+|*T-029*（大纲点击不得切模式）
+
+|`wikilink-navigation`
+|阅读视图点 `a.internal-link` 打开目标笔记
+|预览点击委托 / 链接导航
+
+|`context-menu`
+|`contextmenu` 被 `preventDefault`，出现 `.ctx-menu` 且只有「复制」等应用项，无「刷新/检查」
+|*T-034*（不得漏出 WebView2 默认菜单）
+
+|`search-modes`
+|切到全文模式查询，结果区明确标注「索引命中 / 索引中没有匹配」，索引查询计时出现，未静默回退
+|*T-041*（两套语义并存）
+|===
+
+`--self-check` 把 `outline-keeps-mode` 的期望从「仍为 preview」反转为「变成 live」，要求**恰好这一条转红**；否则说明断言没有在守东西，自检失败。
+
+== 刻意不覆盖 / 观察到的现象
+
+. **同文档锚点点击（T-033）未纳入自动用例。** Markdown 渲染器 `html: false` 且标题只带 `data-line`、不生成 `id`，因此 `[x](#h)` 没有可定位的目标；AsciiDoc `:toc:` 才是 T-033 的真实载体，但在一次性 vault 的 release 版里该预览渲染为空（见下条）。等载体稳定后补回。
+. **一次性 vault 中 `.adoc` 阅读视图为空**（`preview` 的 `innerHTML` 为 0、无 `adoc-preview-view` class、大纲 0 项），但文件能被索引、搜索 snippet 有内容。尚不能判定是产品缺陷还是夹具/加载时序问题，已记入 T-049 待复核，本轮不擅自改产品代码。
+. `spike/` 下 17 个 `.mjs` 探针只有 `cdp-check.mjs` 是 CDP 检查，其余硬编码本机 node 版本目录与 `file://` 路径、不可移植，**未收录**；本基线按可移植标准重写。
+. 点击类交互分两种：绑在内部 `<button>` 的处理器（大纲行）必须用 `realClick()` 发真实鼠标事件；容器事件委托（预览内链接）用 DOM `click()` 冒泡即可。用错会静默「点不动」。
+
+== 文件
+
+* `tests/e2e/cdp.mjs` — 连接 / evaluate / 真实按键 / 真实鼠标 / 等待
+* `tests/e2e/run.mjs` — 夹具、六条用例、报告、`--prepare`、`--self-check`
+* `npm run test:e2e` — 入口
