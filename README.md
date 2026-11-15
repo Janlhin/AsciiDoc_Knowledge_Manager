@@ -49,7 +49,7 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
 | 能力 | 状态 |
 | --- | --- |
 | AsciiDoc 编辑器语言模式 | 阅读视图已正确，但编辑器里仍是纯文本 + Markdown 高亮；折叠、结构化导航也还依赖 Markdown 语法树 |
-| xref 校验 | 索引已能判定每条引用解析到哪，但**没有校验界面**。断链清单、悬空锚点、属性未定义分类都还没做 |
+| xref 校验 | **已有校验界面**（文档体检）：失效 `xref` / `include::`、include 环、Antora 组件/版本资源 ID。**仍缺**：锚点存在性、条件包含、组件/版本切换 UI、发布前检查 |
 | 双语对齐 | 未开始 |
 | Canvas（`.canvas`） | 未开始。设置里有开关，门后是空的 |
 | Git 集成 | 未开始。无任何 git 调用 |
@@ -184,10 +184,10 @@ docs/               项目文档与规范原文
 | [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
 | [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |
 | [`CHANGELOG.adoc`](CHANGELOG.adoc) | 版本变更记录 |
-| [`docs/e2e-cdp-baseline.adoc`](docs/e2e-cdp-baseline.adoc) | E2E 基线：WebView2 CDP 六条用例与负向自检（T-004/T-040） |
+| [`docs/e2e-cdp-baseline.adoc`](docs/e2e-cdp-baseline.adoc) | E2E 基线：WebView2 CDP 九条用例与负向自检（T-004/T-040） |
 | [`docs/doc-audit-baseline.adoc`](docs/doc-audit-baseline.adoc) | 文档规范体检基线：六项规则、命令与结果面板（T-046，T-047 前置） |
 | [`docs/ai-proofread-baseline.adoc`](docs/ai-proofread-baseline.adoc) | AI 按规范校对基线：提示词协议、解析降级矩阵与本地 mock E2E（T-047） |
-| [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 解析语义、环检测与两类新规则（T-045 首片） |
+| [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 语义、环检测、Antora 组件/版本资源 ID（T-045 两片） |
 
 ## 来源与许可
 

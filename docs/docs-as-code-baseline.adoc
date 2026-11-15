@@ -1,9 +1,9 @@
-= Docs-as-Code 引用校验基线（T-045 首片）
+= Docs-as-Code 引用校验基线（T-045 两片）
 :日期: 2026-11-15
 
 == 结论
 
-T-045 的第一片只做**引用完整性**：`xref` 与 `include` 的解析、缺失告警与环检测。Antora 组件/版本切换、发布前检查、按组件导出不在本片。
+T-045 分两片：**首片**做引用完整性（`xref` 与 `include` 的解析、缺失告警与环检测）；**第二片**读 `antora.yml` 建立组件/版本索引，让显式 Antora 资源 ID 按组件与版本精确解析。组件/版本切换 UI、发布前检查、按组件导出仍未做。
 
 做法是把两类引用接进已有的体检引擎（T-046），而不是另起一套校验器：面板筛选、跳转、AI 校对提示词全部自动获得这两类规则。
 
@@ -11,7 +11,8 @@ T-045 的第一片只做**引用完整性**：`xref` 与 `include` 的解析、�
 * `npx vitest run tests/doc-audit.test.ts` → **23/23**（含 6 条新类别用例）
 * 负向自检 2 处：把 xref 改成仅库根解析 → 3 条用例转红；关闭环检测 → 3 条（含体检面板用例）转红；恢复后全绿
 * `npm run verify` → 通过（177 命令 id、90 单测通过 + 1 预期失败 + 1 跳过、构建成功）
-* 真机 E2E → **8/8**：新增 `docs-as-code-refs`，在一次性夹具库里断言「恰好 1 条失效 xref、1 条失效 include、1 条环告警」并点击跳转
+* 真机 E2E → 首片 **8/8**：新增 `docs-as-code-refs`，在一次性夹具库里断言「恰好 1 条失效 xref、1 条失效 include、1 条环告警」并点击跳转；第二片 **9/9**：新增 `antora-components`
+* 第二片：`npx vitest run tests/antora.test.ts` → **19/19**；负向自检 2 处（允许猜版本 / 破坏 `partials` 家族映射）均使对应用例转红；`npm run verify` → 通过（109 单测通过 + 1 预期失败 + 1 跳过）
 
 == 两类规则
 
@@ -55,8 +56,8 @@ AsciiDoc 的 `xref` 是**文件相对**的（`docs/a.adoc` 里的 `xref:b.adoc` 
 |broken 当且仅当真的不存在
 
 |`xref:c:m:page.adoc`、`xref:partial$x.adoc`（Antora 资源 ID / family）
-|按同名文件唯一匹配（本片不解析 `antora.yml`）
-|唯一 → resolved；0 个 → broken；多个 → unresolved
+|**有 `antora.yml` 时**按组件/版本/模块/family 精确解析（见第二片）；**无描述符时**按同名文件唯一匹配
+|resolved；0 个 → broken；多个 → unresolved
 
 |`include::partials/x.adoc[]`
 |文件相对（前导 `/` 为库根），**不做同名回退**
@@ -67,7 +68,7 @@ AsciiDoc 的 `xref` 是**文件相对**的（`docs/a.adoc` 里的 `xref:b.adoc` 
 |error
 |===
 
-「unresolved」是本片刻意的第三种状态：Antora 资源 ID 在没有 `antora.yml` 时无法判定真伪，报成 broken 会让多组件库里满屏误报，报成 resolved 又会漏。面板与 AI 结果里它是 warning，文案明确写「匹配到 N 个文件，无法确定」。
+「unresolved」是刻意的第三种状态：没有 `antora.yml` 时资源 ID 按同名文件近似，多版本组件里省略版本无法判定——报成 broken 会让多组件库满屏误报，报成 resolved 又会漏。面板与 AI 结果里它是 warning，文案按歧义来源写明「匹配到 N 个文件」或「匹配到 N 个组件版本，无法确定」。
 
 == 与既有代码的关系
 
@@ -77,19 +78,58 @@ AsciiDoc 的 `xref` 是**文件相对**的（`docs/a.adoc` 里的 `xref:b.adoc` 
 * 顺手修掉一个真缺陷：两个 runner 的元数据兜底用的是 `parseNote`（Markdown 解析器），`.adoc` 文件在索引滞后时会被按 Markdown 解析，链接与标题全错。改为 `parseDocument`（按扩展名分派）。
 * AI 校对提示词从「六条规则」改为按 `AUDIT_RULE_DOCS` 自适应，新增两类自动进入上下文，不会出现提示词与规则集脱节的第二份文案。
 
-== 缺口（本片不做）
+== 第二片：Antora 组件 / 版本（2026-11-15）
 
-. **不解析 `antora.yml`**：没有 component / version 概念，资源 ID 只能按同名文件近似。真正的组件/版本切换属于下一片。
+`src/core/antora.ts` 全部是纯函数；`docAuditRunner.ts` 承担唯一的不纯步骤——枚举库内所有 `antora.yml` 并读取文本——再把索引经 `AuditEnv.antora` 注入体检引擎。复用依赖树中已有的 `js-yaml@4`（兼容层已授权使用），**零新增依赖**。描述符本身不是 indexable 笔记，不参与体检扫描；读不到或格式不合法的描述符一律跳过，绝不臆造组件。
+
+[cols="1,2,1",options="header"]
+|===
+|目标形态 |解析规则 |结果
+
+|`2.0@catalog:ROOT:index.adoc`
+|按 `version@component:module:path` 精确查资源索引
+|命中 → resolved（`via: antora`）；版本不存在 → broken
+
+|`catalog:ROOT:index.adoc`（省略版本）
+|优先采用**当前文件所属的版本**，否则仅当该组件只有一个版本
+|命中 → resolved；多版本且无当前版本 → unresolved（候选＝版本数）
+
+|`2.0@catalog:ROOT:partial$intro`
+|family `partial` → `partials/` 目录；缺扩展名时补 `.adoc` / `.md`
+|命中 → resolved
+
+|`ROOT:index.adoc`（两段式）
+|第一段不是组件名但确为当前组件的模块时，按 module 解释
+|命中 → resolved
+
+|`xref:index.adoc`（纯路径）
+|无资源 ID 段，仍按首片「文件相对 → 库根相对」
+|与首片完全一致
+
+|无 `antora.yml` 的库
+|索引为空，资源 ID 退回唯一同名匹配
+|与首片完全一致
+|===
+
+语义契约（D-021）：组件版本根＝`antora.yml` 所在目录；`version` 缺省视为无版本组件；只有 `modules/<module>/<family>/...` 下的文件进入索引（`pages`→`page`、`partials`→`partial`、`examples`→`example`、`images`→`image`、`attachments`→`attachment`）；`module` 缺省取当前文件所属模块或 `ROOT`，`family` 缺省 `page`；索引键统一小写比较。有描述符的库中，显式资源 ID **不再同名回退**，查不到即 broken。
+
+真机证据：一次性夹具库含 `catalog/2.0` 与 `catalog/2.1` 两个版本以及库根 `antora-check.adoc`。体检面板恰好 **1 条「2 个组件版本」warning、1 条未知版本 error**，版本限定的有效 xref **0 误报**；`--self-check` 反转大纲期望后仍只有该用例转红。
+
+== 缺口（两片之后仍未做）
+
+. **组件/版本切换 UI 未做**：本片只建立语义层与校验结果，没有产品级的切换视图或发布流程。
 . **不校验锚点存在**：`xref:page.adoc#section` 只验证文件，不验证 `#section`（`[[id]]` 尚未进索引）。
 . **include 只查环，不设深度阈值**：10 层嵌套不会告警。
 . **不展开条件包含**：`ifdef::[]` 内的 include 按普通文本处理（与索引解析器的既有边界一致）。
 . **发布前检查 / 按组件导出 / xref 自动修复** 未做。
+. **Antora 全语义未覆盖**：`latest` 版本别名、大小写敏感路径、`start_page` / `nav` / `asciidoc.attributes` 均未解析。
 
 == 文件
 
-* `src/core/docsAsCode.ts`
-* `src/core/docAudit.ts`（两个类别、`AuditEnv.files`、环检测）
-* `src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 修正、files 注入）
+* `src/core/docsAsCode.ts`（首片纯函数；第二片 `version` 段、`antora` 可选参数、`reason` 字段）
+* `src/core/antora.ts`（第二片：描述符解析、组件索引、资源 ID 查找）
+* `src/core/docAudit.ts`（两个类别、`AuditEnv.files` / `antora`、环检测）
+* `src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 修正、files / antora 注入）
 * `src/core/i18n/dict.app.ts`（`docaudit.cat.broken-xref|broken-include`）
-* `tests/docs-as-code.test.ts`（21 用例）、`tests/doc-audit.test.ts`（+6）
-* `tests/e2e/run.mjs`（`docs-as-code-refs` 用例、`docs/` 夹具）
+* `tests/docs-as-code.test.ts`（21 用例）、`tests/doc-audit.test.ts`（+6）、`tests/antora.test.ts`（19 用例）
+* `tests/e2e/run.mjs`（`docs-as-code-refs` 与 `antora-components` 用例、`docs/` 与 `catalog/` 夹具）
