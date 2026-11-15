@@ -60,6 +60,25 @@
 
 ---
 
+## 格式扩展检索评估（2026-11-15，未引入任何运行期依赖）
+
+按《强制工程校验规范》「先搜寻，后自研」的 0→6 顺序执行：级别 0/1（标准库 + 项目已有依赖）先落地 FB2 / CBZ / 图片阅读器；级别 2/3（npm 包注册表 + 代码托管平台）就其余格式做了两轮检索，关键词包括「JavaScript ebook parser MOBI AZW3 FB2 CBZ」「DJVU viewer wasm / libarchive.js CBR / HEIC decoder wasm」。检索结果如下，**本片不引入任何新包**，故无新增运行期登记项：
+
+| 候选 | 来源 | 许可 | 排除理由（本片） |
+| --- | --- | --- | --- |
+| `foliate-js` | github.com/johnfactotum/foliate-js | MIT | 覆盖 EPUB/MOBI/KF8/FB2/CBZ 且零依赖，但作者明示「API 不稳定、随时会变」，仓库近半年活动放缓；引入等于把已稳定的 epub.js 阅读链路整体换掉，风险与收益不匹配 |
+| `rebook` | npm `rebook@0.1.2` | 见包内声明 | 2026 年新包（0.1.2），TypeScript 且覆盖 MOBI/AZW3/FB2/CBZ，但版本成熟度不足，需独立评估片 |
+| `epubier` | npm `epubier@0.4.1` | 见包内声明 | drop-in 阅读器 UI，需 `pdfjs-dist` / `@lingo-reader/mobi-parser` / `libarchive.js` 等多个 peer 与 worker 打包，与本项目的组件化只读预览路径重复 |
+| `@mdgate/mobi` | npm `@mdgate/mobi@0.6.25` | MIT | 纯 TS 解析 MOBI/AZW3，但只输出 Markdown：**不提取图片/字体/音频、部分 AZW3 丢结构、不支持 NCX 与 DRM**，作为「只读电子书预览」会静默丢内容 |
+| `@lingo-reader/*` | github.com/hhk-png/lingo-reader | 见仓库声明 | 统一 API 覆盖 EPUB/MOBI/AZW3/FB2，但需多包组合 + 逐格式适配，属独立评估片 |
+| `libarchive.js` | npm（MIT；libarchive BSD-2-Clause） | MIT / BSD-2-Clause | 可解 CBR/CB7（RAR/7z），但需 wasm worker 与打包配置；本片已有 jszip 路径，先不叠加 |
+| `libheif-js` | npm `libheif-js@1.23.5` | **LGPL-3.0** | 可解 HEIC/HEIF，但 9 MB wasm 且弱著佐权许可，需专门做动态链接/替换义务评估；WebView2 原生不解码 HEIC，不能靠注册扩展名解决 |
+| DJVU / TIFF / JXL / PSD / RAW | 检索未见成熟且许可清晰的 npm 浏览器包（DJVU 方案多为站点自行编译 `djvu-rs` wasm） | — | 无可靠可复用实现，按级别 6 自研成本过高，暂不排期 |
+
+**结论**：级别 0/1 已满足「更多电子书格式 + 图片预览」的本轮目标；级别 2/3 的候选全部记为「评估过、未引入」，需用户单独放行后再开独立一片，并补齐 `MANIFEST.md` 逐项登记与许可结论。
+
+---
+
 ## 维护规则
 
 - 新增任何第三方源码副本、二进制或逆向产物，必须先在本文件登记再引入。

@@ -362,3 +362,26 @@
   - *本片做组件/版本切换 UI*：否决理由——解析与校验是切换的前提，先交付可机器判定的语义层。
 - **影响范围**：`src/core/antora.ts`（新）、`src/core/docsAsCode.ts`（`version` 段、`antora` 可选参数、`reason`）、`src/core/docAudit.ts` / `docAuditRunner.ts`、`tests/antora.test.ts`（新）、`tests/e2e/run.mjs`（夹具与第 9 条用例）。
 - **复审条件**：接入真实 Antora 语料后若出现 `start_page` / `nav` / `asciidoc.attributes` 影响的解析，或需要大小写敏感、`_include` 目录、`latest` 版本别名时，重开此决策；「发布前检查 / 按组件导出」独立成片。
+
+---
+
+## D-022 电子书格式扩展＝只读优先、编辑能力冻结、新依赖逐项放行
+
+- **日期**：2026-11-15
+- **状态**：**已实施**（2026-11-15）。用户明确「更多支持电子书格式并不再追求修改」「图片也预览」「都做了」。
+- **决策**：
+  1. 新增格式一律**只读**：FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）、漫画 ZIP（`.cbz`）；原有 EPUB / PDF / DOCX / PPTX 保持只读。
+  2. **共享图片阅读器**：单张图片（png/jpg/jpeg/gif/webp/svg/bmp/ico/avif）与 CBZ 内页共用 `ImageReader`（翻页 + 缩放），替换原先的裸 `<img>`，但 blob URL 仍由 `AttachmentView` 的 effect 拥有与释放。
+  3. **编辑能力冻结在 Excel**：保留 `XlsxPreview` 的显式「保存」写回，不再新增任何可编辑格式；**撤销 D-013 复审条件中的「DOCX 真编辑 phase-2」**，不再排期。
+  4. **零新增运行期依赖**：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`。MOBI/AZW3/DJVU/CBR/HEIC 等候选已按「先搜寻，后自研」检索评估并记入 `MANIFEST.md`，本片**不引入**，需用户单独放行后独立成片。
+  5. 所有新预览组件统一经 `useFormatResource`（可取消加载 + dispose），吸收 PR #27 为 EPUB 建立的生命周期契约；已合并 PR #27 的 `EpubPreview` 保持原实现，不重写已通过 11 项回归测试的组件。
+- **背景**：D-013 已否决 DOCX/PPTX/EPUB 的纯前端编辑；用户此次进一步明确放弃「修改」方向。而 `.fb2.zip` 这类复合后缀是 `fileExtension()` 看不到的，必须在 `formatPreviewer` 之前按完整路径判定；`.txt/.html/.xml` 又已被 `EDITABLE_TEXT_EXTS` 判为可编辑文本，不能当只读电子书加入注册表。
+- **被采纳方案**：纯解析/选择逻辑放 `src/core/ebookFormats.ts`（可单测）；组件只负责读字节与渲染；FB2 解析结果渲染为 React 文本节点而非 HTML，避免不可信书籍注入标记；CBZ 图片按数值排序并显式 `revokeObjectURL`。
+- **被否决的替代方案**：
+  - *把新格式塞进 Markdown 编辑器*：否决理由——二进制/未知扩展名进入 CodeMirror 自动保存链路会破坏数据（R105 边界）。
+  - *整体换用 foliate-js / epubier*：否决理由——API 不稳定或需多个 peer 依赖与 worker，与已验证的组件化只读路径重复，详见 `MANIFEST.md` 评估表。
+  - *用 `innerHTML` 渲染 FB2*：否决理由——本地文件也可能来自外部，React 文本节点已足够且零风险。
+  - *把 SVG 改成内联 DOM*：否决理由——会打开脚本执行面，保持 `<img>` 上下文。
+  - *重写 `EpubPreview` 以共用 hook*：否决理由——PR #27 刚用 11 项组件回归固定了竞态与 `openFailed` 行为，重构收益低于回归风险；新组件复用同一契约即可。
+- **影响范围**：`src/core/ebookFormats.ts`（新）、`src/features/attachment/{useFormatResource,ImageReader,Fb2Preview,CbzPreview}.tsx`（新）、`formatPreview.ts` / `AttachmentView.tsx` / `src/core/i18n/dict.views.ts` / `src/styles/app.scss`、`scripts/verify-format-libs.ts`、`tests/ebook-formats.test.ts`、`tests/e2e/run.mjs`、`MANIFEST.md`、台账与基线文档。
+- **复审条件**：用户放行 B 档格式或新解码依赖时重开；CBZ 大体量（>100 MB）需改为流式/按需解压（当前 `readBinary` 全量入内存）；若将来要求统一只读（连 Excel 保存也移除），单独成片。
