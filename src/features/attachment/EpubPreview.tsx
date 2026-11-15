@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { Book } from "epubjs";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
 
@@ -19,37 +20,44 @@ export function EpubPreview({ path }: { path: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    let book: any = null;
-    let rendition: any = null;
+    let book: Book | null = null;
+    const dispose = () => {
+      const ownedBook = book;
+      book = null;
+      try {
+        // Book owns the rendition and destroys it; do not destroy it twice.
+        ownedBook?.destroy();
+      } catch {
+        /* best-effort teardown if epub.js fails during destruction */
+      }
+    };
     setError(null);
     void (async () => {
       try {
         const bytes = await app.vault.readBinary(path);
+        if (cancelled) return;
         const ePub = (await import("epubjs")).default;
-        const arrayBuffer = bytes.slice().buffer;
-        book = (ePub as (b: ArrayBuffer) => any)(arrayBuffer);
+        if (cancelled) return;
         const el = containerRef.current;
         if (!el) return;
+        const arrayBuffer = bytes.slice().buffer;
+        book = ePub(arrayBuffer);
         const height = el.clientHeight || 640;
-        rendition = book.renderTo(el, {
+        const rendition = book.renderTo(el, {
           width: "100%",
           height,
           spread: "none",
           flow: "paginated",
-        }) as any;
-        await (rendition as any).display();
+        });
+        await rendition.display();
       } catch (err) {
+        dispose();
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       }
     })();
     return () => {
       cancelled = true;
-      try {
-        rendition?.destroy?.();
-        book?.destroy?.();
-      } catch {
-        /* ignore teardown errors */
-      }
+      dispose();
     };
   }, [app, path]);
 

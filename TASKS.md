@@ -6,6 +6,14 @@
 
 ## 待办
 
+### T-051 EPUB preview lifecycle regression
+
+- **提出**：2026-11-15，nqble。
+- **问题**：异步读取/模块加载完成前切换或卸载，旧任务仍可创建阅读器；错误视图保留资源。
+- **方法**：真实 ReactDOM 挂载测试、可控的读取/加载/显示 Promise；只模拟 I/O 与 epub.js。用户已批准 jsdom 作为开发依赖，不进入生产包。
+- **Result (2026-11-15)**: completed locally. Nine ReactDOM component cases pass, with file reads and epub.js mocked; stale work stops after reading/importing, and cleanup follows Book ownership. Full `npm run verify`: 73 passed, one expected failure, one skipped; exit 0. Additional typecheck includes both new test files. Real EPUB/WebView2 behavior and memory/performance remain untested.
+- **完成判据**：组件回归测试修复前失败、修复后通过，`npm run verify` 退出 0；真实 EPUB/WebView2 手工验证另记，不能用模拟测试代替。
+
 ### T-050 Command-check paths containing spaces
 
 - **提出**：2026-11-15，nqble。
