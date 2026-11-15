@@ -622,6 +622,23 @@ mod tests {
         assert_eq!((known[0].mtime, known[0].size), (1, 10));
     }
 
+    /// T-041: pin why the two search modes must stay separate. FTS5's
+    /// unicode61 tokenizer matches word *prefixes*, so a mid-word substring
+    /// cannot be found. The frontend's substring evaluator can. Merging the
+    /// two would silently drop results.
+    #[test]
+    fn index_tokenization_is_prefix_only() {
+        let mut conn = db();
+        upsert(&mut conn, &note("a.md", "Ownership", "ownership model", &[], &[])).unwrap();
+
+        assert_eq!(search(&conn, "owner", 10).unwrap().len(), 1, "word prefix hits");
+        assert_eq!(
+            search(&conn, "nership", 10).unwrap().len(),
+            0,
+            "mid-word substring must NOT hit: this is why an independent mode exists"
+        );
+    }
+
     #[test]
     fn vault_slug_is_stable_and_case_insensitive() {
         assert_eq!(vault_slug("C:\\Vault\\"), vault_slug("c:/vault"));

@@ -51,6 +51,15 @@ export const en = {
 
   // ---- search ----
   "search.title": "Search",
+  "search.modeSubstring": "Substring",
+  "search.modeIndex": "Full text",
+  "search.modeSubstringNote": "Exact substring match - all operators available",
+  "search.modeIndexNote": "BM25 ranking - index-backed, no operators",
+  "search.indexHint": "Type to search the whole vault through the persistent index.",
+  "search.indexUnavailable":
+    "Search index unavailable (no index open, or still building). Switch to Substring, or retry shortly.",
+  "search.indexNoResults": "No index results for \u201c{query}\u201d",
+  "search.indexMeta": "{count} index hits",
   "search.placeholder": "Search notes…",
   "search.clear": "Clear search",
   "search.sortBy": "Sort order",
@@ -293,6 +302,14 @@ export const zh: Record<keyof typeof en, string> = {
 
   // ---- search ----
   "search.title": "搜索",
+  "search.modeSubstring": "子串",
+  "search.modeIndex": "全文",
+  "search.modeSubstringNote": "精确子串匹配 · 支持全部运算符",
+  "search.modeIndexNote": "BM25 排序 · 索引检索，不支持运算符",
+  "search.indexHint": "输入关键词，通过持久索引检索全库。",
+  "search.indexUnavailable": "检索索引不可用（未打开或仍在构建）。可切回「子串」，或稍后重试。",
+  "search.indexNoResults": "索引中没有匹配\u201c{query}\u201d的结果。",
+  "search.indexMeta": "索引命中 {count} 条",
   "search.placeholder": "搜索笔记…",
   "search.clear": "清除搜索",
   "search.sortBy": "排序方式",
