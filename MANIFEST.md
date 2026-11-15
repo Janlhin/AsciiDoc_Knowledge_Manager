@@ -8,6 +8,14 @@
 
 ## 纳入产物的第三方源码
 
+### jsdom — development tests only
+
+- 来源：https://github.com/jsdom/jsdom；npm `jsdom@31.0.1`，MIT。
+- 完整性：版本固定；完整包 URL 与 integrity 见 `package-lock.json` 的 `node_modules/jsdom`。
+- 用途：ReactDOM EPUB 生命周期测试的 DOM 环境；用户于 2026-11-15 明确批准添加。
+- 边界：仅 devDependency；不进入生产应用。复用已有 React、ReactDOM、Vitest，不增加另一套测试运行器。
+- License conclusion: MIT permits this use. Retain the package's copyright and license notice when redistributing it; npm preserves those files. No jsdom runtime import is added to the application.
+
 ### Geode
 
 | 字段 | 内容 |

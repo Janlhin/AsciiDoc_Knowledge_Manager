@@ -6,6 +6,38 @@
 
 ## 待办
 
+### T-053 Portable command-path regression fixture
+
+- Proposed: 2026-11-15, nqble, following local commit review.
+- Problem: the original regression depended on a checkout path containing spaces; CI naming could hide a recurrence.
+- Method: copy the actual checker into a uniquely named temporary directory containing spaces, provide one valid command/i18n fixture, and assert that command was scanned. Bound child execution and remove only that created directory afterward.
+- Acceptance: the fixture fails with the previous URL conversion and passes with fileURLToPath; full verify exits 0.
+- Result: completed locally, 2026-11-15. The original checker fails on the deliberately spaced fixture with ENOENT and percent-encoded spaces; the corrected checker scans the expected one command and passes. Full verify exits 0 (75 passed, one expected failure, one skipped), additional test typecheck passes, and whitespace checks pass. Application source is unchanged, so the previous native smoke evidence remains applicable without a repeat desktop build.
+
+### T-052 EPUB opening-failure feedback
+
+- Proposed: 2026-11-15, nqble. Desktop smoke testing found that a malformed EPUB never reached the existing display-error handler within seven seconds.
+- Method: handle epub.js's `openFailed` event, detach the listener during disposal, and retain cancellation guards. Add component coverage for event-only failure with a pending display promise and for late events after unmount.
+- Acceptance: new regression fails before the correction, passes afterward; full verify exits 0; repeat the real malformed-file desktop check. No new dependency.
+- Result: completed locally on 2026-11-15. Both new cases fail against the preceding component and pass with this change (11 component cases total). Full verify exits 0: 75 passed, one expected failure, one skipped. Additional typing of both new test files passes. Actual isolated Windows/WebView2 retest passes valid reading, 12 rapid open/close cycles, malformed-file error feedback and valid reading afterward. No observed unhandled promise rejection during the instrumented portion; memory/performance remain unmeasured.
+
+### T-051 EPUB preview lifecycle regression
+
+- **提出**：2026-11-15，nqble。
+- **问题**：异步读取/模块加载完成前切换或卸载，旧任务仍可创建阅读器；错误视图保留资源。
+- **方法**：真实 ReactDOM 挂载测试、可控的读取/加载/显示 Promise；只模拟 I/O 与 epub.js。用户已批准 jsdom 作为开发依赖，不进入生产包。
+- **Result (2026-11-15)**: completed locally. Nine ReactDOM component cases pass, with file reads and epub.js mocked; stale work stops after reading/importing, and cleanup follows Book ownership. Full `npm run verify`: 73 passed, one expected failure, one skipped; exit 0. Additional typecheck includes both new test files. Real EPUB/WebView2 behavior and memory/performance remain untested.
+- **完成判据**：组件回归测试修复前失败、修复后通过，`npm run verify` 退出 0；真实 EPUB/WebView2 手工验证另记，不能用模拟测试代替。
+- Follow-up: T-052 records the subsequent real Windows desktop smoke test and the corrected opening-failure gap; its validation supersedes this entry's earlier untested-desktop limit.
+
+### T-050 Command-check paths containing spaces
+
+- **提出**：2026-11-15，nqble。
+- **问题**：未改动的 `npm run verify` 在含空格的 Windows 路径下失败；脚本将 URL pathname 中的 `%20` 当作真实目录名。
+- **方法**：使用 Node 的 `fileURLToPath` 转换模块 URL；增加直接执行命令检查脚本的回归测试。
+- **解决**：完成：回归测试在修复前失败、修复后通过；`npm run verify` 退出 0。作为 EPUB 生命周期修复前的独立工具链改动。
+- **完成判据**：路径含空格时脚本与回归测试退出 0；保留原有命令注册校验。
+
 ### T-001 接入 ESLint + Prettier（`--max-warnings=0`）
 
 - **提出**：2026-11-13
