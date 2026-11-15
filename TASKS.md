@@ -37,9 +37,9 @@
 
 - **提出**：2026-11-13
 - **问题**：有 UI 即强制。当前仅有上游的 `.calibration/*.mjs` 脚本，未接入标准通道。
-- **方法**：安装 `@playwright/test`；首批用例覆盖「打开 vault → 文件树渲染 → 打开文档 → 图谱渲染」。
-- **解决**：—
-- **完成判据**：`npx playwright test` 退出码 0。
+- **方法**：原计划安装 `@playwright/test`；2026-11-15 改道为 **WebView2 CDP 通道**（零新增依赖，复用已验证的性能取数链路）。
+- **解决**：**改道、部分完成（2026-11-15）**。`tests/e2e/{cdp.mjs,run.mjs}` 提供连接 / 真实按键 / 真实鼠标 / 等待与六条用例；`npm run test:e2e` 6/6 通过、`--self-check` 反转期望后对应用例转红。`@playwright/test` 与 tauri-driver **未引入**。详见 `docs/e2e-cdp-baseline.adoc`。
+- **完成判据（更新）**：① `npm run test:e2e` 六条全绿、退出码 0（已达成）；② 负向自检证明用例在守（已达成）；③ 若将来引入 Playwright，则 `npx playwright test` 退出码 0（未达成，当前无此计划）。
 
 ### T-005 接入 Husky + lint-staged + commitlint
 
@@ -225,11 +225,12 @@
   2. 优先 Playwright 六条：开笔记 → 切模式 → 点大纲 → 点锚点 → 阅读视图右键 → 多库切换后布局保留（T-035）；
   3. 纯函数继续用现有 `scripts/verify-*.ts` 模式，不引入测试框架；
   4. CI 侧只跑 `npm run verify` + 上述脚本。
-- **解决**：—
-- **完成判据**：
-  ① `npx playwright test` 六条用例全绿且总时长 < 60s；
-  ② 人为回退 T-029 的修复，对应用例必须转红（证明用例真的在守）；
-  ③ `npm run verify` 仍为唯一构建门禁，不被测试拖慢。
+- **解决**：**首片完成（2026-11-15）**。六条 E2E 走 CDP 通道（开笔记 / 切模式 / 点大纲不切模式 / wikilink 导航 / 阅读视图右键 / 搜索双模式），`npm run test:e2e` 6/6 通过；`--self-check` 把大纲用例的期望反转后该用例转红，证明不是空断言。E2E 未并入 `npm run verify`，构建门禁未被拖慢。详见 `docs/e2e-cdp-baseline.adoc`。
+- **完成判据（更新）**：
+  ① `npm run test:e2e` 六条全绿、退出码 0、总时长 < 60s（已达成）；
+  ② 负向自检：反转 `outline-keeps-mode` 期望后必须转红（已达成，等价于回退 T-029 的检测）；
+  ③ `npm run verify` 仍为唯一构建门禁，不被测试拖慢（已达成）。
+- **仍缺**：T-033 的同文档锚点用例（Markdown 标题无 id、临时库 adoc 预览为空，见 T-049）；覆盖率阈值（T-003 步骤 3）。
 
 ### T-041 索引检索的接入方式：trigram 分词器 vs 独立检索模式
 
@@ -247,6 +248,15 @@
   - `snippet` 的 `<mark>` 由 `parseSnippetParts()` 拆成纯文本片段、用 React 文本节点渲染；笔记正文里的 HTML 字串保持字面量，不构成注入。
   - 语义边界双向钉死：Rust `index_tokenization_is_prefix_only` 证明 `nership` 命中不了 `ownership`；`tests/search-semantics.test.ts` 证明子串路径能命中。防止将来有人把两条路径合并而静默丢结果。
   - **判据 ④ 实测（2026-11-15，release 版经 CDP 驱动 UI）**：查询「规范」首次 `searchIndexMs=151.5 ms`、重复 `87 ms`，返回 **59 条**「索引命中」；查询「研磨」`4.2 ms` 但 **0 条**——FTS5 `unicode61` 把连续中文整串当一个 token，这正是「两套语义并存」不能合并的又一实证（子串模式能命中「标准研磨日志」）。判据 ④ 闭合。
+
+### T-049 复核一次性 vault 中 AsciiDoc 阅读视图为空
+
+- **提出**：2026-11-15
+- **现象**：E2E 夹具的 `E2E-Guide.adoc`（含 `:toc:`）打开后，`[data-testid="preview"]` 的 `innerHTML` 为 **0**、class 无 `adoc-preview-view`、大纲 0 项；但该文件**能被索引**，搜索 snippet 有内容。用户 `Blueprint` 库里的 adoc 预览此前正常。
+- **待判**：产品缺陷 vs 夹具 / 动态 chunk 加载时序。本轮**未擅自改产品代码**。
+- **方法**：在真实库与一次性库分别复现；检查 `adocResult` 状态、`@asciidoctor/core` 动态 import 是否失败、`DocumentHandle` 是否为 null、扩展名注册路径。
+- **解决**：—
+- **完成判据**：给出可复现结论并写入 ADR；若确为缺陷，修复后在 E2E 补回「点 `:toc:` 目录锚点滚动」用例，把 T-033 纳入自动回归。
 
 ## 待命（候选功能，未排期）
 
