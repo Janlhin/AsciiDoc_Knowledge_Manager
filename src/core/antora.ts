@@ -60,6 +60,20 @@ export interface AntoraIndex {
   readonly owner: ReadonlyMap<string, AntoraOwner>;
   /** Lower-cased module names by `name@version` — O(1) module lookup. */
   readonly modulesByComponent: ReadonlyMap<string, ReadonlySet<string>>;
+  /**
+   * Explicitly selected component version (publishing / review view). When
+   * set, version-less resource ids resolve against THIS component, not the
+   * version of the file they happen to sit in. `version@…` ids still win.
+   */
+  readonly activeComponent?: AntoraComponent;
+}
+
+export interface AntoraVersionInfo {
+  readonly component: string;
+  /** "" for an unversioned component. */
+  readonly version: string;
+  /** Number of files indexed under this component version's modules/. */
+  readonly files: number;
 }
 
 /** The subset of a parsed xref needed for a resource-id lookup. */
@@ -158,6 +172,42 @@ export function buildAntoraIndex(
   return { components, byKey, byName, owner, modulesByComponent };
 }
 
+/**
+ * Every component version found in the vault, with the number of module files
+ * indexed under it. Pure: drives the audit panel's version picker.
+ */
+export function listComponentVersions(index: AntoraIndex): AntoraVersionInfo[] {
+  const counts = new Map<string, number>();
+  for (const entry of index.owner.values()) {
+    const key = componentKey(entry.component);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return index.components
+    .map((component) => ({
+      component: component.name,
+      version: component.version,
+      files: counts.get(componentKey(component)) ?? 0,
+    }))
+    .sort((a, b) =>
+      a.component.localeCompare(b.component) ||
+      a.version.localeCompare(b.version, undefined, { numeric: true }));
+}
+
+/**
+ * Pin the index to one component version. Unknown pairs are ignored (the
+ * caller keeps the previous behaviour) rather than inventing a component.
+ */
+export function withActiveVersion(
+  index: AntoraIndex,
+  component: string,
+  version: string,
+): AntoraIndex {
+  const active = index.components.find((c) =>
+    c.name.toLowerCase() === component.toLowerCase() &&
+    c.version.toLowerCase() === version.toLowerCase());
+  return active === undefined ? index : { ...index, activeComponent: active };
+}
+
 function lookupResource(
   component: AntoraComponent,
   module: string,
@@ -198,7 +248,9 @@ export function resolveAntoraResource(
     target.family !== undefined;
   if (!explicit) return null;
 
-  const from = index.owner.get(fromPath);
+  // A pinned version takes precedence over "the version of the current file".
+  const active = index.activeComponent;
+  const from = active === undefined ? index.owner.get(fromPath) : undefined;
   let component: AntoraComponent | undefined;
   let module = target.module;
 
@@ -212,12 +264,18 @@ export function resolveAntoraResource(
           isModuleOf(target.component, from.component, index)) {
         component = from.component;
         module = target.component;
+      } else if (target.version === undefined && active !== undefined &&
+          isModuleOf(target.component, active, index)) {
+        component = active;
+        module = target.component;
       } else {
         return { status: "broken", failure: "missing" };
       }
     } else if (target.version !== undefined) {
       component = matches.find((c) => c.version.toLowerCase() === target.version!.toLowerCase());
       if (component === undefined) return { status: "broken", failure: "missing" };
+    } else if (active !== undefined && matches.includes(active)) {
+      component = active;
     } else if (from !== undefined && matches.includes(from.component)) {
       component = from.component;
     } else if (matches.length === 1) {
@@ -225,6 +283,8 @@ export function resolveAntoraResource(
     } else {
       return { status: "unresolved", failure: "ambiguous", candidates: matches.length, reason: "versions" };
     }
+  } else if (active !== undefined) {
+    component = active;
   } else if (from !== undefined) {
     component = from.component;
   } else {
@@ -238,7 +298,8 @@ export function resolveAntoraResource(
   }
 
   const effectiveModule = module ??
-    (from !== undefined && from.component === component ? from.module : undefined) ?? "ROOT";
+    (active === undefined && from !== undefined && from.component === component
+      ? from.module : undefined) ?? "ROOT";
   const family = target.family ?? "page";
   const path = lookupResource(component, effectiveModule, family, target.path, index);
   if (path === undefined) return { status: "broken", failure: "missing" };
