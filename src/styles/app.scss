@@ -836,7 +836,14 @@ textarea:focus {
 .format-docx,
 .format-xlsx,
 .format-pptx,
-.format-epub {
+.format-epub,
+.format-fb2,
+.format-cbz {
+  position: absolute;
+  inset: 0;
+}
+/* Single images use the shared reader but have no format-* wrapper. */
+.attachment-view > .image-reader {
   position: absolute;
   inset: 0;
 }
@@ -927,6 +934,77 @@ textarea:focus {
   width: 100%;
   height: 100%;
   background: var(--background-primary, #fff);
+}
+
+/* FictionBook 2 — read-only semantic text (React text nodes, never innerHTML). */
+.format-fb2 {
+  overflow: auto;
+  padding: 32px 24px;
+}
+.format-fb2 > * {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.format-fb2 .fb2-authors {
+  color: var(--text-muted);
+}
+.format-fb2 .fb2-image {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Shared image reader — single images and CBZ pages. */
+.image-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.image-reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border, #e0e0e0);
+  flex: 0 0 auto;
+}
+.image-reader-spacer {
+  flex: 1;
+}
+.image-reader-btn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--background-modifier-border, #e0e0e0);
+  border-radius: 4px;
+  background: var(--background-primary, #fff);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+.image-reader-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.image-reader-position,
+.image-reader-zoom {
+  min-width: 56px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.image-reader-stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 16px;
+}
+.image-reader-stage .attachment-image.is-fit {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .vault-picker-card h1 {
