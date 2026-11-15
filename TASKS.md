@@ -6,6 +6,14 @@
 
 ## 待办
 
+### T-050 Command-check paths containing spaces
+
+- **提出**：2026-11-15，nqble。
+- **问题**：未改动的 `npm run verify` 在含空格的 Windows 路径下失败；脚本将 URL pathname 中的 `%20` 当作真实目录名。
+- **方法**：使用 Node 的 `fileURLToPath` 转换模块 URL；增加直接执行命令检查脚本的回归测试。
+- **解决**：完成：回归测试在修复前失败、修复后通过；`npm run verify` 退出 0。作为 EPUB 生命周期修复前的独立工具链改动。
+- **完成判据**：路径含空格时脚本与回归测试退出 0；保留原有命令注册校验。
+
 ### T-001 接入 ESLint + Prettier（`--max-warnings=0`）
 
 - **提出**：2026-11-13
