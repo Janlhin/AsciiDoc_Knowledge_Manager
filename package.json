@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:scripts": "tsc -p scripts/tsconfig.json",
     "test": "vitest run",
+    "test:e2e": "node tests/e2e/run.mjs --port=9222",
     "verify": "npm run typecheck && npm run typecheck:scripts && npm run verify:commands && npm test && npm run build",
     "profile:hotspots": "node scripts/profile-hotspots.ts",
     "profile:bigfile": "node scripts/profile-bigfile.ts",
