@@ -1,16 +1,20 @@
-= 多格式只读预览基线（T-054 / D-022）
+= 多格式只读预览基线（T-054 / T-055 / D-022 / D-024）
 :日期: 2026-11-15
 
 == 结论
 
-按用户决定「更多支持电子书格式并不再追求修改」「图片也预览」，本片**只扩展只读预览**：新增 FictionBook 2 与漫画 ZIP，并把单张图片升级为共享图片阅读器。编辑能力**冻结在 Excel**，不再扩展，D-013 的「DOCX 真编辑 phase-2」撤销。
+按用户决定「更多支持电子书格式并不再追求修改」「图片也预览」，本线**只扩展只读预览**：先做零依赖的 FictionBook 2 与漫画 ZIP，并把单张图片升级为共享图片阅读器；用户随后以「做 q005」放行新增依赖，再补 Kindle 家族（MOBI / KF8）。编辑能力**冻结在 Excel**，不再扩展，D-013 的「DOCX 真编辑 phase-2」撤销。
 
-**零新增运行期依赖**：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`。B 档格式（MOBI/AZW3/DJVU/CBR/HEIC…）完成「先搜寻后自研」评估但**未引入任何新包**，见 `MANIFEST.md` 与待裁决 Q-005。
+分两片：
+
+. **T-054（零新增依赖）**：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`；B 档格式完成「先搜寻后自研」评估但未引入任何新包。
+. **T-055（Q-005 放行，仅 1 个依赖）**：引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 `.mobi/.azw/.prc` 与 `.azw3/.kf8` 只读预览，逐项登记见 `MANIFEST.md`、决策见 D-024。
 
 * `npx vitest run tests/ebook-formats.test.ts` → 7/7
-* `node scripts/verify-format-libs.ts` → 8 项全 PASS（原 4 项 + CBZ/FBZ 4 项）
+* `npx vitest run tests/mobi.test.ts tests/mobi-preview.test.tsx` → 6 + 5
+* `node scripts/verify-format-libs.ts` → 全 PASS（原 4 项 + CBZ/FBZ 4 项 + mobi-parser 导出回归）
 * `npm run verify` → 退出码 0
-* 真机 CDP E2E → **10/10**（新增 `ebook-formats`），`--self-check` 仍 OK
+* 真机 CDP E2E → **12/12**（`ebook-formats`、`kindle-formats`），`--self-check` 仍 OK
 * 前置：合并 PR #27（EPUB 可取消加载 / `openFailed` 反馈 + 11 项组件回归）
 
 == 能力矩阵
@@ -38,6 +42,16 @@
 |同上，先由 jszip 取出内部 `.fb2`
 |只读
 |`jszip`
+
+|`.mobi/.azw/.prc`
+|`MobiPreview` → `initMobiFile` → 章节按需加载 → HTML 降为文本/图片块
+|只读
+|`@lingo-reader/mobi-parser`
+
+|`.azw3/.kf8`
+|同上，走 `initKf8File`（复合后缀由完整路径判定）
+|只读
+|`@lingo-reader/mobi-parser`
 
 |`.epub`
 |epub.js 分页阅读器（PR #27 修复生命周期）
@@ -75,17 +89,24 @@
 * **不可信内容**：FB2 解析为 `Fb2Block[]`，React 渲染文本节点，绝不 `innerHTML`；SVG 保持 `<img>` 上下文，不内联 DOM。FB2 内嵌 `<binary>` 解析为 `data:` URL。
 * **排序**：CBZ 内图片按数值自然排序（`page2` 在 `page10` 之前），非图片条目忽略；所有 object URL 在切换/关闭时 `revokeObjectURL`。
 
-== 检索评估（B 档，本片不引入）
+== 检索评估（B 档）与 Q-005 放行结果
 
-按规范检索顺序 0→3 执行：0/1（标准库 + 已有依赖）已满足本轮目标；2/3 对 MOBI/AZW3/DJVU/CBR/HEIC 等做了两轮检索（npm 包注册表 + GitHub + 包信息站点）。候选与排除理由逐项登记在 `MANIFEST.md`「格式扩展检索评估」。要点：
+按规范检索顺序 0→3 执行：0/1（标准库 + 已有依赖）已满足 T-054 目标；2/3 对 MOBI/AZW3/DJVU/CBR/HEIC 等做了两轮检索（npm 包注册表 + GitHub + 包信息站点）。候选与排除理由逐项登记在 `MANIFEST.md`「格式扩展检索评估与放行记录」。要点：
 
 . `foliate-js`（MIT）覆盖最广但作者明示 API 不稳定、维护放缓，替换现有 epub.js 链路风险过高。
 . `@mdgate/mobi`（MIT）只输出 Markdown，丢图片/结构，作为「只读预览」会静默丢内容。
-. `epubier` / `@lingo-reader/*` 需多个 peer 依赖与 worker 打包。
+. `epubier` 需多个 peer 依赖与 worker 打包；`@lingo-reader/*` 其余子包与既有 epub.js / 自有 FB2 解析重复。
 . `libarchive.js`（CBR）需 wasm worker；`libheif-js`（HEIC）为 **LGPL-3.0** 且 9 MB，需专门评估弱著佐权义务。
 . DJVU / TIFF / JXL / PSD / RAW 未见许可清晰的成熟浏览器包。
 
-结论：登记为「评估过、未引入」，等用户单独放行后独立成片（Q-005）。
+**Q-005 结案（D-024）**：用户以「做 q005」放行新增运行期依赖后，**只引入 1 个**——`@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、`dist/index.browser.mjs` 独立入口、直接接受 `Uint8Array`）。选择理由：只要**解析器**不要阅读器 UI，与既有 `readBinary → 懒加载 → 渲染` 同形，无需 worker；自带 `destroy()` 释放其创建的 blob URL。其余候选**仍不引入**，再次放行需另开一片。
+
+== Kindle 家族的格式路由细节（T-055）
+
+* **扩展名路由**：`mobi.ts` 的 `kindleFormatOf()` 按完整路径判复合后缀——`.azw3` / `.kf8` 走 `initKf8File`，`.mobi` / `.azw` / `.prc` 走 `initMobiFile`；大小写不敏感。
+* **不可信章节 HTML**：`sanitizeMobiHtml()` 用 `DOMParser` 解析后整棵剥离 `script` / `style` / 注释子树，只保留标题（`h1..h6`）、段落、图片，输出 `MobiBlock[]` 交 React 渲染文本节点；`<img>` 的 `src` 由解析器替换为自身 blob URL，渲染侧仍走 `<img>`，不内联 DOM。
+* **按需加载**：打开时只取目录与章节清单，滚动到哪章解到哪章；不在首屏把整本转成 React 树，避免大部头卡死。
+* **DRM / 损坏文件**：解析异常一律落到 `openFailed` 提示（不静默空白），不做任何解密尝试。
 
 == 缺口（诚实记录）
 
@@ -93,16 +114,19 @@
 . **大 CBZ 全量入内存**：`readBinary` 一次读完整个压缩包；>100 MB 漫画需改为按需/流式解压。
 . **FB2 覆盖有限**：只渲染 `title` / `subtitle` / `p` / `image` 与 section/epigraph/cite/poem 容器，表格、脚注、样式不还原；这是预览而非排版器。
 . **无阅读偏好**：字号/主题/进度记忆按格式配置未做。
-. **B 档全部未做**：见上节与 Q-005。
-. **真机验证范围**：E2E 用 1×1 PNG 与合成 FB2/CBZ 夹具，未覆盖真实大部头书籍或加密/DRM 文件。
+. **B 档尚未全做**：Kindle 家族已由 T-055 落地；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL/PSD/RAW 仍未引入（wasm / LGPL / 无成熟包），需再次单独放行。
+. **Kindle 无真实书籍真机验证**：仓库不打包第三方电子书二进制，E2E 用**合成无效文件**验证路由与错误反馈；真实解析链路由 Node 侧导入回归 + 组件级 mock 覆盖。DRM 文件必然失败并提示，不做解密。
+. **真机验证范围**：E2E 用 1×1 PNG 与合成 FB2/CBZ/MOBI 夹具，未覆盖真实大部头书籍或加密/DRM 文件。
 
 == 文件
 
 * `src/core/ebookFormats.ts`（纯函数：复合后缀、图片筛选、数值排序、FB2 解析）
+* `src/core/mobi.ts`（T-055 纯函数：Kindle 扩展名路由、章节 HTML 降级）
 * `src/features/attachment/useFormatResource.ts`（可取消加载 hook）
-* `src/features/attachment/ImageReader.tsx` / `Fb2Preview.tsx` / `CbzPreview.tsx`
+* `src/features/attachment/ImageReader.tsx` / `Fb2Preview.tsx` / `CbzPreview.tsx` / `MobiPreview.tsx`
 * `src/features/attachment/formatPreview.ts` / `AttachmentView.tsx`（注册与单图接入）
-* `src/core/i18n/dict.views.ts`（en/zh 各 8 键）、`src/styles/app.scss`
-* `scripts/verify-format-libs.ts`（+4 项）、`tests/ebook-formats.test.ts`（7 用例）
-* `tests/e2e/run.mjs`（夹具 + 第 10 条用例）、`docs/e2e-cdp-baseline.adoc`
-* `MANIFEST.md`（检索评估留痕）、`DECISIONS.md` D-022、`TASKS.md` T-054 / Q-005、`CHANGELOG.adoc`
+* `src/core/i18n/dict.views.ts`（en/zh 各 8 + 4 键）、`src/styles/app.scss`
+* `scripts/verify-format-libs.ts`（+4 项 + mobi-parser 导出回归）、`tests/ebook-formats.test.ts`（7 用例）、`tests/mobi.test.ts`（6）/ `tests/mobi-preview.test.tsx`（5）
+* `package.json` / `package-lock.json`（`@lingo-reader/mobi-parser@0.4.6` 钉选）
+* `tests/e2e/run.mjs`（夹具 + 第 10、12 条用例）、`docs/e2e-cdp-baseline.adoc`
+* `MANIFEST.md`（检索评估 + 依赖放行登记）、`DECISIONS.md` D-022 / D-024、`TASKS.md` T-054 / T-055 / Q-005、`CHANGELOG.adoc`

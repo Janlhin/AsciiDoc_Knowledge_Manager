@@ -43,7 +43,7 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
   - 按需动态加载（独立 chunk，约 1.3 MB，不拖慢首屏）；`xref:` 链接转成应用内可点链接
   - 实测 `AI_Engineering_Gate.adoc`：67 KB 源码 → 94 个章节、212 条内部链接、38 ms
   - 边界：`include::` 在预览里不展开，`data-line` 源码定位暂缺，编辑器仍是纯文本高亮（见 `docs/plans/L3-asciidoc-preview.md`）
-- **多格式只读预览**：EPUB、FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）、漫画 ZIP（`.cbz`）、PDF、Word、PowerPoint 均可只读打开；单张图片与漫画页共用图片阅读器（翻页 + 缩放）。**Excel 仍是唯一可编辑格式，编辑能力已冻结**，见 `docs/format-preview-baseline.adoc`
+- **多格式只读预览**：EPUB、FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）、Kindle（`.mobi` / `.azw` / `.prc` / `.azw3` / `.kf8`）、漫画 ZIP（`.cbz`）、PDF、Word、PowerPoint 均可只读打开；单张图片与漫画页共用图片阅读器（翻页 + 缩放）。**Excel 仍是唯一可编辑格式，编辑能力已冻结**；唯一新增运行期依赖为 MOBI 解析器（MIT），见 `docs/format-preview-baseline.adoc`
 
 ### 还不能用的
 
@@ -189,7 +189,7 @@ docs/               项目文档与规范原文
 | [`docs/doc-audit-baseline.adoc`](docs/doc-audit-baseline.adoc) | 文档规范体检基线：六项规则、命令与结果面板（T-046，T-047 前置） |
 | [`docs/ai-proofread-baseline.adoc`](docs/ai-proofread-baseline.adoc) | AI 按规范校对基线：提示词协议、解析降级矩阵与本地 mock E2E（T-047） |
 | [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 语义、环检测、Antora 组件/版本资源 ID 与切换（T-045 三片） |
-| [`docs/format-preview-baseline.adoc`](docs/format-preview-baseline.adoc) | 多格式只读预览基线：FB2 / CBZ / 共享图片阅读器、检索评估与编辑冻结（T-054 / D-022） |
+| [`docs/format-preview-baseline.adoc`](docs/format-preview-baseline.adoc) | 多格式只读预览基线：FB2 / CBZ / Kindle（MOBI/KF8）/ 共享图片阅读器、依赖放行与编辑冻结（T-054 / T-055 / D-022 / D-024） |
 
 ## 来源与许可
 
