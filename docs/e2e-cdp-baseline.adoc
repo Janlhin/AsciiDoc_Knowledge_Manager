@@ -3,10 +3,10 @@
 
 == 结论
 
-用 **WebView2 DevTools Protocol** 建立六条高频路径的端到端回归，**零新增依赖**（只用 Node 内置模块 + 工具链已有的 `ws`）。
+用 **WebView2 DevTools Protocol** 建立七条高频路径的端到端回归，**零新增依赖**（只用 Node 内置模块 + 工具链已有的 `ws`）。
 没有引入 Playwright / tauri-driver / msedgedriver：它们需要新依赖与 driver 版本配对，而 CDP 通道在本项目已被性能取数验证过。
 
-* `npm run test:e2e` → 6/6 passed，退出码 0
+* `npm run test:e2e` → 7/7 passed，退出码 0
 * `node tests/e2e/run.mjs --port=9222 --self-check` → 反转大纲用例的期望后该用例转红，自检退出码 0
 * 未并入 `npm run verify`：E2E 需要运行中的 GUI，不能拖慢构建门禁（T-040 判据 ③）
 
@@ -29,7 +29,7 @@ npm run test:e2e
 runner **不负责启动应用**：沙箱不允许脚本 spawn GUI 进程，而且测试框架也不该拥有应用生命周期。
 环境变量覆盖：`E2E_PORT`、`GEODE_E2E_VAULT`、`GEODE_EXE`。
 
-== 六条用例
+== 七条用例
 
 [cols="1,2,1",options="header"]
 |===
@@ -58,6 +58,10 @@ runner **不负责启动应用**：沙箱不允许脚本 spawn GUI 进程，而�
 |`search-modes`
 |切到全文模式查询，结果区明确标注「索引命中 / 索引中没有匹配」，索引查询计时出现，未静默回退
 |*T-041*（两套语义并存）
+
+|`ai-proofread`
+|本地 mock LLM：命令面板执行校对 → 面板出现 **2 条可定位问题** + 1 条越界丢弃提示；mock 收到的请求体含 `terminology`、`broken-link` 与笔记名；点击第一条问题触发 reveal 闪烁
+|*T-047*（提示词协议、解析降级、跳转）
 |===
 
 `--self-check` 把 `outline-keeps-mode` 的期望从「仍为 preview」反转为「变成 live」，要求**恰好这一条转红**；否则说明断言没有在守东西，自检失败。
@@ -68,9 +72,12 @@ runner **不负责启动应用**：沙箱不允许脚本 spawn GUI 进程，而�
 . **一次性 vault 中 `.adoc` 阅读视图为空**（`preview` 的 `innerHTML` 为 0、无 `adoc-preview-view` class、大纲 0 项），但文件能被索引、搜索 snippet 有内容。尚不能判定是产品缺陷还是夹具/加载时序问题，已记入 T-049 待复核，本轮不擅自改产品代码。
 . `spike/` 下 17 个 `.mjs` 探针只有 `cdp-check.mjs` 是 CDP 检查，其余硬编码本机 node 版本目录与 `file://` 路径、不可移植，**未收录**；本基线按可移植标准重写。
 . 点击类交互分两种：绑在内部 `<button>` 的处理器（大纲行）必须用 `realClick()` 发真实鼠标事件；容器事件委托（预览内链接）用 DOM `click()` 冒泡即可。用错会静默「点不动」。
+. `ai-proofread` 需要在会话中途改 `localStorage` 里的 provider 列表，而 LLM 的 Store 在模块初始化时读取它，因此该用例会 `Page.reload` 并重新连接 CDP；**用例结束会把 provider 快照还原并再次重载**，不让用户的真实配置指向已关闭的 mock 端口。它同时也是唯一一个自起本地 HTTP 服务的用例（`tests/e2e/mock-llm.mjs`，无需 Key、不出网）。
+. `ai-proofread` 的第一条问题刻意落在**标题行**：阅读视图只对标题锚点加 `.preview-reveal-flash`，非标题目标走比例滚动、无闪烁类名；断言两种视图都能观察到的信号，才不会把「落在哪一行」误当成缺陷。
 
 == 文件
 
 * `tests/e2e/cdp.mjs` — 连接 / evaluate / 真实按键 / 真实鼠标 / 等待
-* `tests/e2e/run.mjs` — 夹具、六条用例、报告、`--prepare`、`--self-check`
+* `tests/e2e/mock-llm.mjs` — 本地 OpenAI 兼容 SSE 端点（T-047 用，记录请求体）
+* `tests/e2e/run.mjs` — 夹具、七条用例、报告、`--prepare`、`--self-check`
 * `npm run test:e2e` — 入口
