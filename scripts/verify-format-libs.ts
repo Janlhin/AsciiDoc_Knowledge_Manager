@@ -324,12 +324,20 @@ async function testEbookArchives(): Promise<void> {
   }
 }
 
+/** Q-005: the approved Kindle dependency must be importable in the Node side too. */
+async function testMobiParser(): Promise<void> {
+  const mod = await import("@lingo-reader/mobi-parser");
+  ok(typeof mod.initMobiFile === "function", "mobi-parser exports initMobiFile");
+  ok(typeof mod.initKf8File === "function", "mobi-parser exports initKf8File");
+}
+
 (async () => {
   try {
     await testDocx();
     testXlsx();
     await testPptx();
     await testEbookArchives();
+    await testMobiParser();
   } catch (e) {
     console.error("EXCEPTION:", e);
     failures++;
