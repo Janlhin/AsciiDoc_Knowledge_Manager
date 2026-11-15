@@ -8,6 +8,8 @@
 .docaudit-badge.sev-error { background: var(--text-error, #e05555); }
 .docaudit-badge.sev-warning { background: var(--text-warning, #d9a441); }
 .docaudit-badge.sev-info { background: var(--text-muted); }
+.docaudit-version { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.docaudit-version select { max-width: 220px; padding: 4px 8px; font-size: 12px; color: var(--text-normal); background: var(--bg-hover, transparent); border: 1px solid var(--border); border-radius: 6px; }
 .docaudit-run { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 12px; color: var(--text-normal); background: var(--interactive-accent, var(--bg-hover)); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; white-space: nowrap; }
 .docaudit-run:hover { filter: brightness(1.1); }
 

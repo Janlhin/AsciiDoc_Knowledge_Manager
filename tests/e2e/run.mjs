@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: ten high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: eleven high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -681,6 +681,68 @@ async function main() {
       `document.querySelector('[data-testid="image-zoom"]')?.textContent`);
     assert(zoom && zoom.includes("125"), `zoom did not change: ${zoom}`);
     return "FB2 + FB2.ZIP + CBZ (3 numeric pages) + single image with zoom";
+  });
+
+  // ---- 11. T-045 slice 3: pin one Antora component version ----------------
+  await runCase("antora-version-switch", async () => {
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "检查文档规范");
+    await sleep(350);
+    if ((await c.evaluate(`document.querySelectorAll('[data-testid="palette-item"]').length`)) === 0) {
+      await c.setInput('[data-testid="palette-input"]', "conventions");
+      await sleep(350);
+    }
+    assert(await c.click('[data-testid="palette-item"]'), "audit command not found in the palette");
+    await c.waitFor(`!!document.querySelector('[data-testid="doc-audit-view"]')`, 8000, "doc audit view");
+    await c.waitFor(`!!document.querySelector('[data-testid="doc-audit-version"]')`, 10000, "version picker");
+    const options = await c.evaluate(
+      `document.querySelector('[data-testid="doc-audit-version"]').options.length`);
+    assert(options === 3, `expected auto + 2 component versions, got ${options}`);
+    await c.waitFor(
+      `[...document.querySelectorAll('[data-testid="doc-audit-issue"]')].some(e => (e.textContent || "").includes("2 个组件版本"))`,
+      25000,
+      "initial version ambiguity",
+    );
+
+    // A native select needs its own value setter (cdp.setInput targets inputs).
+    const setVersion = (value) => c.evaluate(`(() => {
+      const el = document.querySelector('[data-testid="doc-audit-version"]');
+      if (!el) return false;
+      el.value = ${JSON.stringify(value)};
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    // U+0000 separates component / version in the option value; build it at
+    // runtime so no backslash escape is folded by the template literal.
+    const sep = String.fromCharCode(0);
+    assert(await setVersion("catalog" + sep + "2.0"), "could not set version");
+
+    await c.waitFor(
+      `[...document.querySelectorAll('[data-testid="doc-audit-issue"]')].every(e => !(e.textContent || "").includes("2 个组件版本"))`,
+      25000,
+      "pin removes the ambiguity",
+    );
+    const state = await c.evaluate(`(() => {
+      const text = [...document.querySelectorAll('[data-testid="doc-audit-issue"]')]
+        .map((e) => e.textContent || "");
+      return {
+        versions: text.filter((x) => x.includes("2 个组件版本")).length,
+        broken: text.filter((x) => x.includes("9.9@catalog")).length,
+        selected: document.querySelector('[data-testid="doc-audit-version"]').value,
+      };
+    })()`);
+    assert(state.versions === 0, `ambiguity remained after pin: ${state.versions}`);
+    assert(state.broken === 1, "an explicit version@ id must still be validated");
+    assert(state.selected.includes("2.0"), `picker did not reflect the pin: ${state.selected}`);
+
+    assert(await setVersion(""), "could not reset version");
+    await c.waitFor(
+      `[...document.querySelectorAll('[data-testid="doc-audit-issue"]')].some(e => (e.textContent || "").includes("2 个组件版本"))`,
+      25000,
+      "auto mode restored",
+    );
+    return "2 versions offered; pin removes ambiguity, explicit version@ still checked, auto restored";
   });
 
   c.close();

@@ -22,7 +22,7 @@
  * regions blanked) so matches keep stable offsets and never fire inside code.
  */
 import { buildDocIndex, findIncludeCycles, includeEdges, resolveInclude, resolveXref, type DocIndex } from "./docsAsCode";
-import type { AntoraIndex } from "./antora";
+import type { AntoraIndex, AntoraVersionInfo } from "./antora";
 import { maskCodeRegions, parseFrontmatter } from "./metadata";
 import type { NoteMetadata } from "./types";
 
@@ -128,6 +128,9 @@ export interface AuditReport {
   generatedAt: number;
   byCategory: Record<AuditCategory, number>;
   bySeverity: Record<AuditSeverity, number>;
+  /** Detected Antora component versions; filled by the runner (pure engine
+   *  never reads descriptors). Drives the audit panel's version picker. */
+  antoraVersions?: ReadonlyArray<AntoraVersionInfo>;
 }
 
 /**

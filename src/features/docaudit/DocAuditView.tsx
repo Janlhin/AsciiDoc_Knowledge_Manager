@@ -8,7 +8,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
-import { runDocAudit } from "@core/docAuditRunner";
+import { runDocAudit, docAuditActiveVersion } from "@core/docAuditRunner";
 import { useI18n } from "@core/i18n";
 import { useStore } from "@core/store";
 import {
@@ -26,6 +26,8 @@ export function DocAuditView() {
   const app = useApp();
   const t = useI18n();
   const report = useStore(app.workspace.docAuditReport);
+  const pinned = useStore(docAuditActiveVersion);
+  const versions = report?.antoraVersions ?? [];
   const [filter, setFilter] = useState<AuditCategory | "all">("all");
 
   const issues = useMemo(() => {
@@ -58,6 +60,32 @@ export function DocAuditView() {
             {countBadge("info", report.bySeverity.info)}
           </>}
         </div>
+        {versions.length > 0 && (
+          <div className="docaudit-version" data-testid="doc-audit-version-wrap">
+            <label htmlFor="docaudit-version-select">{t("docaudit.antoraVersion")}</label>
+            <select
+              id="docaudit-version-select"
+              data-testid="doc-audit-version"
+              value={pinned ? `${pinned.component}\u0000${pinned.version}` : ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") { void runDocAudit(app, null); return; }
+                const [component, version] = value.split("\u0000");
+                void runDocAudit(app, { component, version });
+              }}
+            >
+              <option value="">{t("docaudit.antoraAuto")}</option>
+              {versions.map((v) => {
+                const value = `${v.component}\u0000${v.version}`;
+                return (
+                  <option key={value} value={value} data-testid="doc-audit-version-option">
+                    {v.component} {v.version || t("docaudit.antoraUnversioned")} ({v.files})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
         <button className="docaudit-run" data-testid="doc-audit-run" onClick={() => void runDocAudit(app)}>
           <Icon name="list" size={14} />
           <span>{t(report ? "docaudit.rerun" : "docaudit.run")}</span>
