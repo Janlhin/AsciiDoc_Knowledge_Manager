@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
-import { useI18n } from "@core/i18n";
+import { locale as localeStore, useI18n } from "@core/i18n";
 import { streamChat } from "@core/llm/client";
 import { capContext, splitCodeFences } from "@core/llm/sse";
+import { parseProofreadReply, type ProofreadIssue, type ProofreadParseResult } from "@core/llm/proofread";
+import { startProofread, type ProofreadStart } from "@core/llm/proofreadRunner";
+import { consumeLlmTurn, pendingLlmTurn } from "@core/llm/request";
 import {
   activeLlmProviderId,
   isProviderUsable,
@@ -48,6 +51,76 @@ function AssistantBody({ text, streaming }: { text: string; streaming: boolean }
   );
 }
 
+/**
+ * T-047: findings from an AI proofreading turn, as a jumpable list.
+ *
+ * Rendered under the assistant bubble, not instead of it: the prose verdict
+ * stays readable, and a reply we could not parse degrades to a notice rather
+ * than to an empty panel that pretends the check ran.
+ */
+function ProofreadBody({ result }: { result: ProofreadParseResult }) {
+  const app = useApp();
+  const t = useI18n();
+
+  const jump = (it: ProofreadIssue) => {
+    app.workspace.openFile(it.path);
+    app.workspace.revealTarget.set({ path: it.path, from: it.from, to: it.from + 1 });
+  };
+
+  if (!result.parsed) {
+    return (
+      <div className="ai-proofread-hint" data-testid="ai-proofread-unstructured">
+        {t("ai.proofreadUnstructured")}
+      </div>
+    );
+  }
+  if (result.issues.length === 0) {
+    return (
+      <div className="ai-proofread-hint ai-proofread-ok" data-testid="ai-proofread-clean">
+        {t("ai.proofreadClean")}
+      </div>
+    );
+  }
+  const dropped = result.rejected + result.outOfRange;
+  return (
+    <div className="ai-proofread" data-testid="ai-proofread-result">
+      <div className="ai-proofread-head">{t("ai.proofreadIssues", { n: result.issues.length })}</div>
+      {dropped > 0 && (
+        <div className="ai-proofread-hint" data-testid="ai-proofread-dropped">
+          {t("ai.proofreadDropped", { n: dropped })}
+        </div>
+      )}
+      <ul className="ai-proofread-list">
+        {result.issues.map((it, index) => (
+          <li key={`${it.from}:${index}`} className={`ai-proofread-item sev-${it.severity}`}>
+            <button
+              className="ai-proofread-jump"
+              data-testid="ai-proofread-issue"
+              title={t("ai.proofreadJump", { n: it.line })}
+              onClick={() => jump(it)}
+            >
+              <span className="ai-proofread-top">
+                <span className={`ai-proofread-dot sev-${it.severity}`} />
+                <span className="ai-proofread-line">:{it.line}</span>
+                <span className="ai-proofread-cat">
+                  {it.category === "other"
+                    ? t("ai.proofreadCatOther")
+                    : t(`docaudit.cat.${it.category}` as Parameters<typeof t>[0])}
+                </span>
+              </span>
+              <span className="ai-proofread-msg">{it.message}</span>
+              {it.suggestion !== undefined && (
+                <span className="ai-proofread-sug">{it.suggestion}</span>
+              )}
+              {it.excerpt !== "" && <span className="ai-proofread-excerpt">{it.excerpt}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function AiPanel() {
   const app = useApp();
   const t = useI18n();
@@ -68,6 +141,9 @@ export function AiPanel() {
   const [contextTruncated, setContextTruncated] = useState(false);
   const [contextSkipped, setContextSkipped] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  /** Parsed proofreading findings, keyed by assistant message index (T-047). */
+  const [proofreads, setProofreads] = useState<Record<number, ProofreadParseResult>>({});
+  const [proofreadHint, setProofreadHint] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,6 +171,8 @@ export function AiPanel() {
     setCopiedIndex(null);
     setContextTruncated(false);
     setContextSkipped(false);
+    setProofreads({});
+    setProofreadHint(null);
   };
 
   const copy = (index: number, text: string) => {
@@ -107,46 +185,34 @@ export function AiPanel() {
       .catch(() => {});
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (text === "" || streaming) return;
+  /**
+   * The single streaming path. Typed messages and productized turns (T-047
+   * proofreading) both end up here, so there is exactly one place that talks to
+   * the provider and exactly one place that appends an assistant bubble.
+   */
+  const runTurn = async (turn: {
+    display: string;
+    messages: ChatMessage[];
+    proofread?: { path: string; content: string; truncated: boolean };
+    context?: { truncated: boolean; skipped: boolean };
+  }) => {
     if (provider === null || !isProviderUsable(provider)) {
       openSettings();
       return;
     }
 
-    setInput("");
     setError(null);
-    setContextTruncated(false);
-    setContextSkipped(false);
+    setContextTruncated(turn.context?.truncated ?? false);
+    setContextSkipped(turn.context?.skipped ?? false);
+    setProofreadHint(
+      turn.proofread !== undefined && turn.proofread.truncated ? t("ai.proofreadTruncated") : null,
+    );
     setStreaming(true);
 
-    // Context: cached content first (the open editor usually has it), then a
-    // guarded read. Oversized notes are skipped rather than parsed wholesale.
-    let noteContext = "";
-    if (includeNote && activePath !== null) {
-      const length = app.metadata.getMetadata(activePath)?.contentLength ?? 0;
-      if (length > MAX_CONTEXT_SOURCE) {
-        setContextSkipped(true);
-      } else {
-        const cached = app.vault.readCached(activePath);
-        const raw = cached ?? (await app.vault.read(activePath).catch(() => ""));
-        const capped = capContext(raw, MAX_CONTEXT_CHARS);
-        noteContext = capped.text;
-        setContextTruncated(capped.truncated);
-      }
-    }
-
-    const userMessage: ChatMessage = { role: "user", content: text };
-    const history = [...messages, userMessage];
-    const request: ChatMessage[] = [
-      { role: "system", content: t("ai.systemPrompt") },
-      ...(noteContext !== ""
-        ? [{ role: "system" as const, content: `${t("ai.contextHeader")}\n\n${noteContext}` }]
-        : []),
-      ...history,
-    ];
-
+    const history = [...messages, { role: "user" as const, content: turn.display }];
+    // The bubble we are about to append; keeps parsed findings attached to it
+    // even while later turns grow the list.
+    const assistantIndex = history.length;
     const controller = new AbortController();
     abortRef.current = controller;
     setMessages([...history, { role: "assistant", content: "" }]);
@@ -155,7 +221,7 @@ export function AiPanel() {
     try {
       await streamChat({
         provider,
-        messages: request,
+        messages: turn.messages,
         signal: controller.signal,
         onDelta: (delta) => {
           accumulated += delta;
@@ -166,6 +232,10 @@ export function AiPanel() {
           });
         },
       });
+      if (turn.proofread !== undefined) {
+        const parsed = parseProofreadReply(accumulated, turn.proofread);
+        setProofreads((prev) => ({ ...prev, [assistantIndex]: parsed }));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       // Remove an empty placeholder so a failed request leaves no blank bubble.
@@ -180,6 +250,78 @@ export function AiPanel() {
       abortRef.current = null;
     }
   };
+
+  const send = async () => {
+    const text = input.trim();
+    if (text === "" || streaming) return;
+    if (provider === null || !isProviderUsable(provider)) {
+      openSettings();
+      return;
+    }
+
+    setInput("");
+
+    // Context: cached content first (the open editor usually has it), then a
+    // guarded read. Oversized notes are skipped rather than parsed wholesale.
+    let noteContext = "";
+    let truncated = false;
+    let skipped = false;
+    if (includeNote && activePath !== null) {
+      const length = app.metadata.getMetadata(activePath)?.contentLength ?? 0;
+      if (length > MAX_CONTEXT_SOURCE) {
+        skipped = true;
+      } else {
+        const cached = app.vault.readCached(activePath);
+        const raw = cached ?? (await app.vault.read(activePath).catch(() => ""));
+        const capped = capContext(raw, MAX_CONTEXT_CHARS);
+        noteContext = capped.text;
+        truncated = capped.truncated;
+      }
+    }
+
+    const request: ChatMessage[] = [
+      { role: "system", content: t("ai.systemPrompt") },
+      ...(noteContext !== ""
+        ? [{ role: "system" as const, content: `${t("ai.contextHeader")}\n\n${noteContext}` }]
+        : []),
+      ...messages,
+      { role: "user", content: text },
+    ];
+    void runTurn({ display: text, messages: request, context: { truncated, skipped } });
+  };
+
+  /** T-047: compose a convention check for the active note (the runner publishes
+   *  the turn; the effect below consumes it through runTurn). */
+  const proofread = async () => {
+    if (streaming) return;
+    const result: ProofreadStart = await startProofread({
+      vault: app.vault,
+      metadata: app.metadata,
+      workspace: app.workspace,
+      locale: localeStore.get(),
+    });
+    if (result.status === "started") return;
+    setProofreadHint(
+      result.status === "no-note" ? t("ai.proofreadNoNote")
+      : result.status === "empty-note" ? t("ai.proofreadEmpty")
+      : result.status === "too-large" ? t("ai.proofreadTooLarge")
+      : t("ai.proofreadNoProvider"),
+    );
+  };
+
+  // Consume a published turn exactly once. Works on mount too: a command may
+  // open this panel and queue the turn before React ever rendered it.
+  const pendingTurn = useStore(pendingLlmTurn);
+  useEffect(() => {
+    if (pendingTurn === null) return;
+    const turn = consumeLlmTurn();
+    if (turn === null) return;
+    void runTurn({
+      display: turn.display,
+      messages: turn.messages,
+      ...(turn.proofread === undefined ? {} : { proofread: turn.proofread }),
+    });
+  }, [pendingTurn]);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -213,6 +355,16 @@ export function AiPanel() {
               ))}
             </select>
           )}
+          <button
+            className="ai-icon-btn"
+            data-testid="ai-proofread"
+            title={t("ai.proofread")}
+            aria-label={t("ai.proofread")}
+            disabled={streaming}
+            onClick={() => void proofread()}
+          >
+            <Icon name="check" size={14} />
+          </button>
           <button
             className="ai-icon-btn"
             data-testid="ai-open-settings"
@@ -251,6 +403,11 @@ export function AiPanel() {
           {contextSkipped ? t("ai.contextSkipped") : t("ai.contextTruncated")}
         </div>
       )}
+      {proofreadHint !== null && (
+        <div className="ai-context-note" data-testid="ai-proofread-hint">
+          {proofreadHint}
+        </div>
+      )}
 
       <div className="ai-messages" ref={scrollRef} data-testid="ai-messages">
         {messages.length === 0 ? (
@@ -285,10 +442,13 @@ export function AiPanel() {
               {message.role === "user" ? (
                 <div className="ai-text">{message.content}</div>
               ) : (
-                <AssistantBody
-                  text={message.content}
-                  streaming={streaming && index === messages.length - 1}
-                />
+                <>
+                  <AssistantBody
+                    text={message.content}
+                    streaming={streaming && index === messages.length - 1}
+                  />
+                  {proofreads[index] !== undefined && <ProofreadBody result={proofreads[index]} />}
+                </>
               )}
             </div>
           ))

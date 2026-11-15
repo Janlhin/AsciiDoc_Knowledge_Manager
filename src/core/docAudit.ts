@@ -108,18 +108,47 @@ export interface AuditReport {
   bySeverity: Record<AuditSeverity, number>;
 }
 
-/** Rule descriptions for T-047 (AI proofreading prompt context) and the UI legend. */
+/**
+ * Rule descriptions for T-047 (AI proofreading prompt context) and the UI legend.
+ * `criteriaEn` exists so the proofreading prompt can follow the UI language
+ * without a second copy of the rule set.
+ */
 export const AUDIT_RULE_DOCS: ReadonlyArray<{
   category: AuditCategory;
   title: string;
   criteria: string;
+  criteriaEn: string;
 }> = [
-  { category: "terminology", title: "术语一致性", criteria: "英文技术术语只使用词表中的规范写法；发现变体（空格/连字符漂移）时提示替换为规范词。" },
-  { category: "broken-link", title: "失效链接", criteria: "wikilink / AsciiDoc xref 必须指向库中真实存在的笔记；外部链接、纯锚点、include 片段不检查。" },
-  { category: "heading-skip", title: "标题层级跳级", criteria: "相邻标题的层级增量不得超过 1（例如 H2 直接跳到 H4 应修复）。" },
-  { category: "frontmatter-missing", title: "必填元数据缺失", criteria: "笔记 frontmatter 必须包含配置中列出的必填字段（默认 title）。" },
-  { category: "structure", title: "章节结构偏差", criteria: "文档应恰有一个一级标题，且它应是首个标题。" },
-  { category: "punctuation", title: "中文标点混用", criteria: "中文语境使用全角标点；中文后紧跟半角逗号/分号、中文之间的半角句点视为混用。" },
+  {
+    category: "terminology", title: "术语一致性",
+    criteria: "英文技术术语只使用词表中的规范写法；发现变体（空格/连字符漂移）时提示替换为规范词。",
+    criteriaEn: "Use only the canonical spelling from the glossary for English technical terms; report spacing/hyphen variants of a canonical term.",
+  },
+  {
+    category: "broken-link", title: "失效链接",
+    criteria: "wikilink / AsciiDoc xref 必须指向库中真实存在的笔记；外部链接、纯锚点、include 片段不检查。",
+    criteriaEn: "A wikilink or AsciiDoc xref must point at a note that exists in this vault; external links, bare anchors and include fragments are out of scope.",
+  },
+  {
+    category: "heading-skip", title: "标题层级跳级",
+    criteria: "相邻标题的层级增量不得超过 1（例如 H2 直接跳到 H4 应修复）。",
+    criteriaEn: "Adjacent headings may not increase by more than one level (H2 straight to H4 must be fixed).",
+  },
+  {
+    category: "frontmatter-missing", title: "必填元数据缺失",
+    criteria: "笔记 frontmatter 必须包含配置中列出的必填字段（默认 title）。",
+    criteriaEn: "The note frontmatter must carry every required field from the configuration (default: title).",
+  },
+  {
+    category: "structure", title: "章节结构偏差",
+    criteria: "文档应恰有一个一级标题，且它应是首个标题。",
+    criteriaEn: "The document should have exactly one level-1 heading, and it should be the first heading.",
+  },
+  {
+    category: "punctuation", title: "中文标点混用",
+    criteria: "中文语境使用全角标点；中文后紧跟半角逗号/分号、中文之间的半角句点视为混用。",
+    criteriaEn: "Chinese prose uses fullwidth punctuation; a halfwidth comma/semicolon after a CJK character, or a halfwidth full stop between CJK characters, counts as mixed punctuation.",
+  },
 ];
 
 function escapeRegex(s: string): string {
