@@ -61,8 +61,8 @@
 
 == T-047 复用点
 
-`AUDIT_RULE_DOCS` 导出每条规则的 `{ category, title, criteria }`，正是 AI 按规范校对所需的规则上下文。
-T-047 可直接把它拼进提示词，让 AI「按本库规范检查当前章」，产出的问题复用 `AuditIssue` 结构（含 `line` / `from` / `path`），即可跳转列表。
+`AUDIT_RULE_DOCS` 导出每条规则的 `{ category, title, criteria, criteriaEn }`，正是 AI 按规范校对所需的规则上下文。
+T-047 已把它拼进提示词（`src/core/llm/proofread.ts`），让 AI「按本库规范检查当前章」，产出的问题复用 `AuditIssue` 的字段语义（`line` / `from` / `path`），成为可跳转列表；规则文案保持单源，没有第二份副本。详见 `docs/ai-proofread-baseline.adoc`。
 
 == 刻意不做 / 观察到的现象
 

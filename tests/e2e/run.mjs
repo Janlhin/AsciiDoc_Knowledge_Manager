@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { connectCdp, waitForCdp, sleep } from "./cdp.mjs";
+import { startMockLlm } from "./mock-llm.mjs";
 
 const argv = process.argv.slice(2);
 const has = (flag) => argv.includes(flag);
@@ -175,8 +176,29 @@ async function main() {
     return 0;
   }
   await attach();
-  const c = await connectCdp(port);
+  let c = await connectCdp(port);
   await c.waitFor(`!!document.querySelector('[data-testid="explorer"]') || !!document.querySelector('[data-testid="editor-pane"]')`, 20000, "app shell");
+
+  /**
+   * Reload the SPA and re-attach. Needed by the AI proofreading case: the LLM
+   * provider store reads localStorage at module init, so a provider configured
+   * mid-session is invisible to the panel until the page reloads.
+   */
+  async function reloadApp() {
+    await c.call("Page.reload", { ignoreCache: false });
+    try {
+      c.close();
+    } catch {
+      /* the socket may already be gone */
+    }
+    await sleep(1200);
+    c = await connectCdp(port);
+    await c.waitFor(
+      `!!document.querySelector('[data-testid="explorer"]') || !!document.querySelector('[data-testid="editor-pane"]')`,
+      25000,
+      "app shell after reload",
+    );
+  }
 
   // ---- 1. open a note -----------------------------------------------------
   await runCase("open-note", async () => {
@@ -310,6 +332,100 @@ async function main() {
       "result set is not labelled as index semantics (silent fallback?)");
     return `${r.hits} hits, labelled as index results, ${r.ms} ms`;
   });
+
+  // ---- 7. T-047 AI proofreading against a local mock provider ------------
+  // Verifies the whole chain without a key or a network call: prompt carries
+  // the T-046 rules → SSE streams into the panel → reply parses into jumpable
+  // findings → out-of-range ones are dropped and reported → jump reveals.
+  const llm = await startMockLlm();
+  try {
+    await runCase("ai-proofread", async () => {
+      const snapshot = await c.evaluate(`JSON.stringify({
+        providers: localStorage.getItem("adkm.llm.providers"),
+        active: localStorage.getItem("adkm.llm.active"),
+      })`);
+      try {
+        await c.evaluate(`(() => {
+          const provider = {
+            id: "e2e-mock",
+            label: "E2E mock",
+            baseUrl: ${JSON.stringify(llm.baseUrl)},
+            model: "mock",
+            secretName: "",
+            temperature: 0,
+          };
+          localStorage.setItem("adkm.llm.providers", JSON.stringify([provider]));
+          localStorage.setItem("adkm.llm.active", "e2e-mock");
+          return true;
+        })()`);
+        await reloadApp();
+
+        await c.key("o", "KeyO", 79, 2); // Ctrl+O quick switcher
+        await c.waitFor(`!!document.querySelector('[data-testid="switcher-input"]')`, 6000, "quick switcher");
+        await c.setInput('[data-testid="switcher-input"]', "E2E-Note");
+        await sleep(300);
+        assert(await c.click('[data-testid="switcher-item"]'), "could not open the fixture note");
+        await c.waitFor(`!document.querySelector('[data-testid="editor-empty"]')`, 10000, "note opened");
+
+        await c.key("p", "KeyP", 80, 2); // Ctrl+P command palette
+        await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+        // Locale-independent lookup: the zh name contains 校对, the en one Proofread.
+        await c.setInput('[data-testid="palette-input"]', "按规范校对");
+        await sleep(350);
+        if ((await c.evaluate(`document.querySelectorAll('[data-testid="palette-item"]').length`)) === 0) {
+          await c.setInput('[data-testid="palette-input"]', "roofread note");
+          await sleep(350);
+        }
+        assert(
+          (await c.evaluate(`document.querySelectorAll('[data-testid="palette-item"]').length`)) > 0,
+          "proofread command is not registered in the palette",
+        );
+        await c.click('[data-testid="palette-item"]');
+
+        await c.waitFor(`!!document.querySelector('[data-testid="ai-proofread-result"]')`, 15000, "AI findings list");
+        const state = await c.evaluate(`(() => {
+          const items = [...document.querySelectorAll('[data-testid="ai-proofread-issue"]')];
+          return {
+            panel: !!document.querySelector('[data-testid="ai-panel"]'),
+            issues: items.length,
+            text: items.map((el) => el.textContent || "").join(" | "),
+            dropped: !!document.querySelector('[data-testid="ai-proofread-dropped"]'),
+          };
+        })()`);
+        assert(state.panel === true, "AI panel did not open");
+        assert(state.issues === 2, `expected 2 locatable findings, got ${state.issues}`);
+        assert(state.dropped === true, "the out-of-range finding was not reported as dropped");
+        assert(/术语|terminology/i.test(state.text), `terminology finding missing: ${state.text}`);
+
+        const sent = llm.requests.at(-1)?.body ?? "";
+        assert(sent !== "", "the mock provider received no request");
+        assert(sent.includes("terminology") && sent.includes("broken-link"),
+          "the prompt did not carry the T-046 rule set");
+        assert(sent.includes("E2E-Note.md"), "the prompt did not name the audited note");
+
+        assert(await c.realClick('[data-testid="ai-proofread-issue"]', 0), "could not click a finding");
+        await c.waitFor(
+          `!!document.querySelector('.cm-reveal-flash') || !!document.querySelector('.preview-reveal-flash')`,
+          6000,
+          "editor reveal flash after the jump",
+        );
+        return `${state.issues} findings (1 dropped), rule set in prompt, jump revealed`;
+      } finally {
+        // Never leave the user's real provider list pointing at a dead port.
+        await c.evaluate(`(() => {
+          const snap = ${snapshot};
+          if (snap.providers === null) localStorage.removeItem("adkm.llm.providers");
+          else localStorage.setItem("adkm.llm.providers", snap.providers);
+          if (snap.active === null) localStorage.removeItem("adkm.llm.active");
+          else localStorage.setItem("adkm.llm.active", snap.active);
+          return true;
+        })()`).catch(() => {});
+        await reloadApp().catch(() => {});
+      }
+    });
+  } finally {
+    await llm.close();
+  }
 
   c.close();
 

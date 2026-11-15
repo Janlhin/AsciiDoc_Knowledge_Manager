@@ -277,6 +277,8 @@ export const en = {
 
   // ---- T-046 document audit (src/features/docaudit) ----
   "cmd.docAudit": "Audit note conventions...",
+  // ---- T-047 AI proofreading (src/core/llm/proofread*) ----
+  "cmd.aiProofread": "Proofread note against conventions...",
   "app.docAuditTab": "Doc audit",
   "docaudit.title": "Document convention audit",
   "docaudit.subtitle": "{n} notes scanned",
@@ -567,6 +569,8 @@ export const zh: Record<keyof typeof en, string> = {
   "recovery.preview": "预览",
   // ---- T-046 document audit ----
   "cmd.docAudit": "检查文档规范...",
+  // ---- T-047 AI 校对 ----
+  "cmd.aiProofread": "按规范校对当前笔记...",
   "app.docAuditTab": "文档体检",
   "docaudit.title": "文档规范体检",
   "docaudit.subtitle": "已扫描 {n} 篇笔记",

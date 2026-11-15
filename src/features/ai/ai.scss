@@ -251,3 +251,118 @@
   line-height: 1.5;
   color: var(--text-faint);
 }
+
+/* ---- T-047 proofreading findings ---- */
+
+.ai-proofread {
+  margin-top: 8px;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ai-proofread-head {
+  padding: 5px 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-proofread-hint {
+  margin-top: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  background: var(--bg-panel-alt);
+  border-radius: 5px;
+}
+
+.ai-proofread-ok {
+  color: var(--text-muted);
+}
+
+.ai-proofread-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ai-proofread-item + .ai-proofread-item {
+  border-top: 1px solid var(--border);
+}
+
+.ai-proofread-jump {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.ai-proofread-jump:hover {
+  background: var(--bg-hover);
+}
+
+.ai-proofread-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-proofread-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ai-proofread-dot.sev-error { background: var(--text-error, #e05555); }
+.ai-proofread-dot.sev-warning { background: var(--text-warning, #d9a441); }
+.ai-proofread-dot.sev-info { background: var(--text-muted); }
+
+.ai-proofread-line {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-proofread-cat {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.ai-proofread-msg {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-normal);
+}
+
+.ai-proofread-sug {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--accent);
+}
+
+.ai-proofread-excerpt {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-monospace, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

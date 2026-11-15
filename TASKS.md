@@ -307,6 +307,10 @@
 - **内容**：把 T-046 的规则作为提示词上下文，「按本库规范检查当前章」并给出可跳转的问题列表。
 - **判断**：把已有 AI 能力从「玩具」变成「工作流的一环」，投入小、感知强。
 - **体量**：中（依赖 T-046 的规则集，不依赖其 UI）。
+- **方法**：提示词要求**单个 `json` 围栏**（`summary` + `issues[{line, category, severity, message, suggestion}]`），解析器容忍围栏/裸 JSON/前后散文，并对越界行、缺字段、未知类别逐项降级且**计数可见**；笔记正文与确定性体检结果一并注入，避免模型重跑规则。流式复用 AI 面板唯一路径，动作只发布一次性 turn。
+- **解决**：**完成（2026-11-15）**。纯函数 `src/core/llm/proofread.ts`（`buildProofreadPrompt` / `parseProofreadReply`）+ 一次性请求 Store `request.ts` + 读库桥 `proofreadRunner.ts`；命令 `ai:proofread-note` 与 AI 面板按钮共用同一入口；结果以可跳转列表渲染在助手气泡下方，跳转复用 `revealTarget`。规则文案单源（`AUDIT_RULE_DOCS` 增补 `criteriaEn`，提示词随 UI 语言）。16 单测全绿、两处负向自检转红、真机 E2E 新增 `ai-proofread` 用例（7/7，含提示词携带规则集断言与跳转断言）、mock 只回散文时该用例转红。详见 `docs/ai-proofread-baseline.adoc`。
+- **完成判据**：① `npx vitest run tests/ai-proofread.test.ts` 退出码 0（已达成：16/16）；② 负向自检证明用例在守（已达成：类别回退与行号越界两处破坏均转红）；③ 真机 `npm run test:e2e` 7/7，且 `ai-proofread` 断言「2 条可定位问题 + 1 条越界丢弃 + 提示词含规则集 + 点击跳转触发 reveal」（已达成）；④ `npm run verify` 退出码 0、零新增依赖（已达成：177 命令 id / 201 i18n 键 / 63 单测通过）。
+- **仍缺（不阻断本片）**：未接真实模型验证协议遵从度（本机无可用 Key，全部经 mock 与纯函数验证）；规则配置 UI 仍缺（与 T-046 同一缺口，提示词用 `DEFAULT_AUDIT_CONFIG`，不与体检面板分叉）；AI 结果不写回 `workspace.docAuditReport`（单次对话产物，不与确定性真源混存）。
 
 ### T-048 结构性不做的边界（记录，防止反复讨论）
 

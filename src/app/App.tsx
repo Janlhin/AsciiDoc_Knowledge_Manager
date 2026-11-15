@@ -30,6 +30,7 @@ import { AllPropertiesPanel } from "@features/allproperties/AllPropertiesPanel";
 import { BacklinksPanel } from "@features/backlinks/BacklinksPanel";
 import { DocAuditView } from "@features/docaudit/DocAuditView";
 import { runDocAudit } from "@core/docAuditRunner";
+import { startProofread } from "@core/llm/proofreadRunner";
 import { BookmarksPanel } from "@features/bookmarks/BookmarksPanel";
 import { OutlinePanel } from "@features/outline/OutlinePanel";
 import { AiPanel } from "@features/ai/AiPanel";
@@ -438,6 +439,28 @@ export function App() {
         callback: () => {
           workspace.openDocAudit();
           void runDocAudit(app);
+        },
+      }),
+      commands.register({
+        // T-047: send the active note + the T-046 rule set to the configured
+        // model and render jumpable findings in the AI panel. The panel owns
+        // the streaming; this only composes the turn.
+        id: "ai:proofread-note",
+        name: () => t("cmd.aiProofread"),
+        callback: () => {
+          void startProofread({
+            vault: app.vault,
+            metadata: app.metadata,
+            workspace,
+            locale: locale.get(),
+          }).then((result) => {
+            const notice =
+              result.status === "no-note" ? t("ai.proofreadNoNote")
+              : result.status === "empty-note" ? t("ai.proofreadEmpty")
+              : result.status === "too-large" ? t("ai.proofreadTooLarge")
+              : null;
+            if (notice !== null) showCommandNotice(notice);
+          });
         },
       }),
       commands.register({
