@@ -187,6 +187,7 @@ docs/               项目文档与规范原文
 | [`docs/e2e-cdp-baseline.adoc`](docs/e2e-cdp-baseline.adoc) | E2E 基线：WebView2 CDP 六条用例与负向自检（T-004/T-040） |
 | [`docs/doc-audit-baseline.adoc`](docs/doc-audit-baseline.adoc) | 文档规范体检基线：六项规则、命令与结果面板（T-046，T-047 前置） |
 | [`docs/ai-proofread-baseline.adoc`](docs/ai-proofread-baseline.adoc) | AI 按规范校对基线：提示词协议、解析降级矩阵与本地 mock E2E（T-047） |
+| [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 解析语义、环检测与两类新规则（T-045 首片） |
 
 ## 来源与许可
 

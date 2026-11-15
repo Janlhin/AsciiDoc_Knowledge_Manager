@@ -317,3 +317,24 @@
   - *让模型直接给字符偏移*：模型不可信，偏移一律由「行号 + 笔记原文」重算，否决。
 - **影响范围**：`src/core/llm/proofread.ts`、`request.ts`、`proofreadRunner.ts`、`src/features/ai/AiPanel.tsx`、`src/core/docAudit.ts`（`criteriaEn`）、命令 `ai:proofread-note`。
 - **复审条件**：真实模型对 `line` 的准确率不足（误报跳转）时，改为要求模型引用原文片段、由前端反查行号；或接入原生 tool-use 后，用工具调用替代围栏协议。
+
+---
+
+## D-020 xref / include 的解析语义＝文件相对优先、库根相对兜底、歧义不臆断
+
+- **日期**：2026-11-15
+- **状态**：**已实施**（2026-11-15）。实现见 T-045 首片。
+- **决策**：AsciiDoc 的两类引用按各自的真实语义校验，不套用 wikilink 规则：
+  - `xref`：纯锚点与外部 URL 直接放行；普通路径按「**文件相对**精确匹配 → 补 `.adoc`/`.md` → **库根相对**」解析；显式 `./`、`../` 只按文件相对，不回退；Antora 资源 ID / family 前缀按**唯一同名文件**解析。
+  - `include`：只按文件相对（前导 `/` 为库根）解析，**不做同名回退**；全库层面检测环，闭环只在一条边上报一次。
+  - 结果三态：`resolved` / `broken` / `unresolved`（歧义），后者在面板与 AI 结果里是 warning，文案写明「匹配到 N 个文件，无法确定」。
+- **背景**：`xref:b.adoc` 在 Asciidoctor 里指**当前文件所在目录**的 `b.adoc`；按 wikilink 的库根/同名规则判会验错对象。但本应用预览把 `href` 交给 Markdown 解析器（库根相对），若 lint 只认文件相对，就会出现「lint 说断了、点得开」的自相矛盾。
+- **被采纳方案**：先文件相对、再库根相对；`AuditEnv.files` 提供路径表，缺省时两类检查诚实跳过（单篇审计无法判定）；两类别 `broken-xref` / `broken-include` 进入既有规则集，面板与 AI 提示词自动跟随。
+- **被否决的替代方案**：
+  - *沿用 `resolveLink`（wikilink 语义）*：否决理由——Antora 目标必然误报，普通相对路径又会验错文件。
+  - *只按文件相对*：否决理由——与产品点击行为不一致，产生「站着不动也能点开」的假告警。
+  - *include 也做同名回退*：否决理由——Asciidoctor 不回退，回退会掩盖真实的构建断裂。
+  - *歧义报 broken*：否决理由——多组件库里同名文件常见，会把大量合法引用标红，噪声淹没真问题。
+  - *本片解析 `antora.yml`*：否决理由——组件/版本是独立一片的工作量，先交付能在单组件库里立刻可用的校验。
+- **影响范围**：`src/core/docsAsCode.ts`、`src/core/docAudit.ts`（两类规则、`AuditEnv.files`、环检测）、`src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 与 files 注入）、`src/core/i18n/dict.app.ts`。
+- **复审条件**：接入 `antora.yml` 后资源 ID 改为按组件/模块解析，本决策的「唯一同名」回退退化为兜底；若产品预览改用文件相对解析，则库根兜底应删除。
