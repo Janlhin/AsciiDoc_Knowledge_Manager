@@ -22,6 +22,7 @@
  * regions blanked) so matches keep stable offsets and never fire inside code.
  */
 import { buildDocIndex, findIncludeCycles, includeEdges, resolveInclude, resolveXref, type DocIndex } from "./docsAsCode";
+import type { AntoraIndex } from "./antora";
 import { maskCodeRegions, parseFrontmatter } from "./metadata";
 import type { NoteMetadata } from "./types";
 
@@ -112,6 +113,13 @@ export interface AuditEnv {
    * on one note) still works but cannot judge those two categories.
    */
   files?: ReadonlyArray<string>;
+  /**
+   * Antora component/version index (T-045 slice 2). When present, explicit
+   * resource ids are resolved against `antora.yml` descriptors instead of the
+   * unique-basename heuristic. Absent = plain AsciiDoc vault, behaviour of
+   * slice 1 is unchanged.
+   */
+  antora?: AntoraIndex;
 }
 
 export interface AuditReport {
@@ -269,14 +277,15 @@ export function auditNote(note: AuditNoteInput, env: AuditEnv): AuditIssue[] {
       if (raw === "") continue;
       const isInclude = syntax === "include";
       const resolution = isInclude
-        ? resolveInclude(raw, path, index)
-        : resolveXref(raw, path, index);
+        ? resolveInclude(raw, path, index, env.antora)
+        : resolveXref(raw, path, index, env.antora);
       if (resolution.status === "resolved") continue;
       const category: AuditCategory = isInclude ? "broken-include" : "broken-xref";
       const label = isInclude ? "include" : "xref";
       if (resolution.status === "unresolved") {
+        const unit = resolution.reason === "versions" ? "个组件版本" : "个文件";
         out.push(issue(path, content, link.from, category, "warning",
-          `${label} 目标「${raw}」匹配到 ${resolution.candidates ?? 0} 个文件，无法确定`));
+          `${label} 目标「${raw}」匹配到 ${resolution.candidates ?? 0} ${unit}，无法确定`));
       } else {
         out.push(issue(path, content, link.from, category, "error",
           `${label} 目标「${raw}」在库中不存在`));
@@ -349,7 +358,7 @@ export function auditVault(notes: readonly AuditNoteInput[], env: AuditEnv): Aud
   // Include cycles span notes: detect once over the whole graph and report the
   // issue on the edge that closes the loop (the author's editable line).
   const index = buildDocIndex(files);
-  const edges = includeEdges(notes.map((n) => ({ path: n.path, links: n.meta.links })), index);
+  const edges = includeEdges(notes.map((n) => ({ path: n.path, links: n.meta.links })), index, env.antora);
   if (edges.length > 0) {
     const byPath = new Map(notes.map((n) => [n.path, n]));
     for (const cycle of findIncludeCycles(edges)) {

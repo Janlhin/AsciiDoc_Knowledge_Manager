@@ -82,3 +82,5 @@ T-047 已把它拼进提示词（`src/core/llm/proofread.ts`），让 AI「按�
 T-045 首片在本引擎上追加 `broken-xref` / `broken-include` 两类（AsciiDoc 引用语义与 include 环），
 `AUDIT_CATEGORIES` 与 `AUDIT_RULE_DOCS` 随之变为八项，面板筛选与 AI 提示词自动跟随。为什么 xref 不是按 wikilink 解析、
 以及「无法判定」这一第三态，见 `docs/docs-as-code-baseline.adoc`。
+
+T-045 第二片由 `docAuditRunner.ts` 读取库内 `antora.yml` 并注入 `AuditEnv.antora`，使全库体检按组件/版本判定资源 ID；**AI 校对走单篇路径**（`proofreadRunner.ts` 不提供 `files` 与 `antora`），两类引用检查在该路径仍诚实跳过，不产生第二套语义。

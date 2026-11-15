@@ -166,7 +166,30 @@ const DOC_CYCLE_B = `= Cycle B
 include::cycle-a.adoc[]
 `;
 
-/** Write the three fixture notes into a throwaway vault directory. */
+/** T-045 slice 2: two versions of one Antora component, plus a valid/broken id. */
+const ANTORA_DESCRIPTOR_20 = `name: catalog\nversion: '2.0'\n`;
+const ANTORA_DESCRIPTOR_21 = `name: catalog\nversion: '2.1'\n`;
+const ANTORA_INDEX = `= Catalog Index
+
+Catalog entry page.
+`;
+const ANTORA_PARTIAL = `= Catalog Intro
+
+Shared partial.
+`;
+const ANTORA_GUIDE = `= Catalog Guide
+
+A valid id in the same component: xref:2.0@catalog:ROOT:index.adoc[].
+`;
+/** Outside every component: an omitted version must NOT pick one silently. */
+const ANTORA_CHECK = `= Antora Check
+
+Ambiguous version: xref:catalog:ROOT:index.adoc[].
+
+Unknown version: xref:9.9@catalog:ROOT:index.adoc[].
+`;
+
+/** Write the fixture notes into a throwaway vault directory. */
 function prepareVault(dir) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "E2E-Note.md"), NOTE_A, "utf-8");
@@ -181,6 +204,21 @@ function prepareVault(dir) {
   writeFileSync(path.join(dir, "docs", "partials", "intro.adoc"), DOC_INTRO, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-a.adoc"), DOC_CYCLE_A, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-b.adoc"), DOC_CYCLE_B, "utf-8");
+  // T-045 slice 2: Antora component versions, a valid id, an ambiguous id and
+  // an unknown version. Descriptor files themselves are not indexable notes.
+  for (const version of ["2.0", "2.1"]) {
+    const root = path.join(dir, "catalog", version);
+    mkdirSync(path.join(root, "modules", "ROOT", "pages"), { recursive: true });
+    mkdirSync(path.join(root, "modules", "ROOT", "partials"), { recursive: true });
+    writeFileSync(path.join(root, "antora.yml"),
+      version === "2.0" ? ANTORA_DESCRIPTOR_20 : ANTORA_DESCRIPTOR_21, "utf-8");
+    writeFileSync(path.join(root, "modules", "ROOT", "pages", "index.adoc"), ANTORA_INDEX, "utf-8");
+  }
+  writeFileSync(path.join(dir, "catalog", "2.0", "modules", "ROOT", "partials", "intro.adoc"),
+    ANTORA_PARTIAL, "utf-8");
+  writeFileSync(path.join(dir, "catalog", "2.1", "modules", "ROOT", "pages", "guide.adoc"),
+    ANTORA_GUIDE, "utf-8");
+  writeFileSync(path.join(dir, "antora-check.adoc"), ANTORA_CHECK, "utf-8");
 }
 
 /**
@@ -517,6 +555,41 @@ async function main() {
       "note opened from the audit",
     );
     return `${state.total} findings: 1 xref, 1 include, 1 cycle; jump left the audit view`;
+  });
+
+  // ---- 9. T-045 slice 2: Antora component/version lookup -----------------
+  await runCase("antora-components", async () => {
+    await c.key("p", "KeyP", 80, 2); // Ctrl+P command palette
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "检查文档规范");
+    await sleep(350);
+    if ((await c.evaluate(`document.querySelectorAll('[data-testid="palette-item"]').length`)) === 0) {
+      await c.setInput('[data-testid="palette-input"]', "conventions");
+      await sleep(350);
+    }
+    assert(await c.click('[data-testid="palette-item"]'), "audit command not found in the palette");
+    await c.waitFor(`!!document.querySelector('[data-testid="doc-audit-view"]')`, 8000, "doc audit view");
+    await c.waitFor(
+      `document.querySelectorAll('[data-testid="doc-audit-issue"]').length > 0`,
+      25000,
+      "audit findings",
+    );
+    const state = await c.evaluate(`(() => {
+      const text = [...document.querySelectorAll('[data-testid="doc-audit-issue"]')]
+        .map((el) => el.textContent || "");
+      return {
+        versions: text.filter((t) => t.includes("2 个组件版本")).length,
+        broken: text.filter((t) => t.includes("9.9@catalog")).length,
+        valid: text.filter((t) => t.includes("2.0@catalog")).length,
+      };
+    })()`);
+    assert(state.versions === 1,
+      `expected one honest version ambiguity, got ${state.versions}`);
+    assert(state.broken === 1,
+      `expected one broken unknown-version id, got ${state.broken}`);
+    assert(state.valid === 0,
+      `a version-qualified valid id was reported as broken: ${state.valid}`);
+    return `1 version ambiguity, 1 unknown version, 0 false positives`;
   });
 
   c.close();

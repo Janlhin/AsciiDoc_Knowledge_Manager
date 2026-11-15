@@ -7,6 +7,7 @@
  * Both the command and the "re-run" button call this one implementation.
  */
 import { auditVault, type AuditNoteInput, type AuditReport } from "@core/docAudit";
+import { buildAntoraIndex, parseAntoraYml, type AntoraComponent } from "@core/antora";
 import { parseDocument, type MetadataIndex } from "@core/metadata";
 import { Store } from "@core/store";
 import type { Vault } from "@core/vault";
@@ -43,8 +44,22 @@ export async function runDocAudit(deps: DocAuditDeps): Promise<AuditReport> {
         };
       }),
     );
+    const allPaths = vault.getFiles().map((f) => f.path);
+    const descriptors: AntoraComponent[] = [];
+    for (const descriptorPath of allPaths.filter((p) => /(^|\/)antora\.ya?ml$/i.test(p))) {
+      try {
+        const parsed = parseAntoraYml(await vault.read(descriptorPath), descriptorPath);
+        if (parsed !== null) descriptors.push(parsed);
+      } catch {
+        // An unreadable descriptor is skipped, never guessed. The audit then
+        // falls back to the slice-1 plain-AsciiDoc rules for this vault.
+      }
+    }
+    const antora = buildAntoraIndex(descriptors, allPaths);
+
     const report = auditVault(notes, {
       resolveLink: (target, fromPath) => metadata.resolveLink(target, fromPath),
+      antora,
     });
     workspace.docAuditReport.set(report);
     return report;

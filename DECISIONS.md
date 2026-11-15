@@ -338,3 +338,27 @@
   - *本片解析 `antora.yml`*：否决理由——组件/版本是独立一片的工作量，先交付能在单组件库里立刻可用的校验。
 - **影响范围**：`src/core/docsAsCode.ts`、`src/core/docAudit.ts`（两类规则、`AuditEnv.files`、环检测）、`src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 与 files 注入）、`src/core/i18n/dict.app.ts`。
 - **复审条件**：接入 `antora.yml` 后资源 ID 改为按组件/模块解析，本决策的「唯一同名」回退退化为兜底；若产品预览改用文件相对解析，则库根兜底应删除。
+
+---
+
+## D-021 Antora 资源 ID＝描述符为权威、省略版本不猜
+
+- **日期**：2026-11-15
+- **状态**：**已实施**（2026-11-15）。实现见 T-045 第二片；D-020 的复审条件由此条兑现，「唯一同名」回退退化为**无描述符库的兜底**。
+- **决策**：库内每个 `antora.yml` 定义一个组件版本（根＝该文件所在目录，`version` 缺省视为无版本）；`modules/<module>/<family>/...` 下的文件按 `name@version:module:family:path` 建索引。显式资源 ID（`[version@]component[:module][:family$]path`）解析规则：
+  - `version@` 精确匹配；未指定版本时**只采用当前文件所属的版本**，否则仅当该组件只有一个版本时才使用；多版本且无当前版本 → `unresolved`，文案写明「匹配到 N 个组件版本」；
+  - `module` 缺省取当前文件所属模块，否则 `ROOT`；`family` 缺省 `page`；缺扩展名时补 `.adoc` / `.md`；
+  - 两段式 `ROOT:page.adoc` 在第一段不是组件名、但确为当前组件的模块时，按 module 解释；
+  - 有描述符的库中，显式资源 ID **不再回退唯一同名**，查不到即 broken；无描述符的库完全保持首片行为；
+  - 纯路径目标（无资源 ID 段）仍走 D-020 的「文件相对 → 库根相对」，不改变产品点击语义。
+  - 索引键统一小写比较（与既有 `DocIndex` 一致），不是大小写敏感的 Antora 全语义。
+- **背景**：首片按唯一 basename 近似解析资源 ID，多版本组件里同一页面名必然重复，合法引用被标成「无法确定」，而不存在的版本又可能被同名文件误判为有效。组件/版本是 Antora 的基本盘，必须读描述符才能判定。
+- **被采纳方案**：`src/core/antora.ts` 保持纯函数（解析、建索引、查资源 ID 全部无 I/O），`docAuditRunner.ts` 负责唯一的不纯步骤——枚举并读取 `antora.yml`——再把索引经 `AuditEnv.antora` 注入体检引擎。复用依赖树中已有的 `js-yaml@4`（兼容层已授权使用），**零新增依赖**。模块名集合在建索引时预聚合，避免每个 xref 遍历全库。
+- **被否决的替代方案**：
+  - *省略版本时取最高/最新版本*：否决理由——这是猜测，且 Antora 的 `latest` 是部署期概念，桌面本地库没有权威答案。
+  - *多版本歧义报 broken*：否决理由——把「不确定」伪装成「确定错了」，与首片三态约定冲突。
+  - *把纯路径也改成 Antora 语义*：否决理由——会改变无组件段 xref 与产品点击路径的既有契约，超出本片范围。
+  - *引入 YAML 解析新依赖 / 手写 YAML 子集*：前者违反零新增依赖，后者会读错合法描述符，均否决。
+  - *本片做组件/版本切换 UI*：否决理由——解析与校验是切换的前提，先交付可机器判定的语义层。
+- **影响范围**：`src/core/antora.ts`（新）、`src/core/docsAsCode.ts`（`version` 段、`antora` 可选参数、`reason`）、`src/core/docAudit.ts` / `docAuditRunner.ts`、`tests/antora.test.ts`（新）、`tests/e2e/run.mjs`（夹具与第 9 条用例）。
+- **复审条件**：接入真实 Antora 语料后若出现 `start_page` / `nav` / `asciidoc.attributes` 影响的解析，或需要大小写敏感、`_include` 目录、`latest` 版本别名时，重开此决策；「发布前检查 / 按组件导出」独立成片。
