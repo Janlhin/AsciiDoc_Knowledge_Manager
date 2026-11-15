@@ -26,9 +26,12 @@
 
 - **提出**：2026-11-13
 - **问题**：零测试。`src/core/` 的解析与索引逻辑无行为验证，改造中回归不可见。
-- **方法**：安装 `vitest`、`@vitest/coverage-v8`；首批覆盖 `src/core/metadata.ts`、`src/core/vault.ts`、`src/core/parsers/asciidoc.ts`；阈值先设低值并逐步抬高。
-- **解决**：—
-- **完成判据**：`npx vitest run --coverage` 退出码 0，且覆盖率不低于 `vitest.config.ts` 中声明阈值。
+- **方法**：
+  1. ✅ 复用已在依赖树中的 `vitest` 5.1.0（原为 `vite-plus` 传递依赖），改为 `devDependencies` 显式声明并与 `package-lock.json` 对齐；
+  2. ✅ 把 `npm test` 纳入 `npm run verify` 门禁，测试不通过则构建失败；
+  3. ⬜ 覆盖率阈值：`@vitest/coverage-v8` 尚未引入（新增依赖需单独放行），阈值配置留待该步。
+- **解决**：**部分完成（2026-11-15）**。步骤 1/2 已落地；`npm test` 实测 30 passed + 1 预期失败 + 1 跳过，退出码 0；`npm install --package-lock-only --dry-run` 报 `up to date`，lock 与 package.json 一致。步骤 3 未做。
+- **完成判据（更新）**：① `npm test` 作为 `npm run verify` 的一环且退出码 0（已达成）；② `npx vitest run --coverage` 退出码 0，且覆盖率不低于 `vitest.config.ts` 声明阈值（未达成，依赖 `@vitest/coverage-v8`）。
 
 ### T-004 接入 Playwright
 
@@ -113,14 +116,6 @@
   2. ADKM 仓库存在 `docs/technical-decisions/ADR-0005-*.adoc`，其中「优先学习」9 项逐项有结论或明确的「不适用 + 理由」，每项挂 Evidence ID；
   3. geode/TASKS.md 新增 T-026 及之后的实现待办，每条注明其来源 ADR-0005 的条目号。
 
-### T-027 Rust 侧用 rayon 并行读文件，把启动期的 IO 等待分摊到多核
-
-- **提出**：2026-11-13
-- **问题**：启动期最大的单项不是 CPU，是 IO。实测：真实 app 的索引耗时明显高于同一份数据走内存 vault 的耗时，差额即**等磁盘的时间**（测试库：磁盘读 69MB / 416 个文件 vs 内存 vault，两者相差数倍）；同时 profiling 显示启动期 CPU **绝大部分为 idle**——多核在闲着，瓶颈是 IO 等待而非算力。这也是用户反馈的「进入软件会卡一下，之后就流畅」的来源之一。
-- **方法**：只做 IO、不搬业务逻辑——这是 rayon 在本项目唯一划算的用法：在 Rust 侧把 vault 文件的读取并行化（`paths.par_iter().map(read_to_string)`）。**前端一行不动，不需要 Worker。**
-- **解决**：—
-- **完成判据**：启动期索引耗时的「等磁盘」部分显著下降（用同一测试库对比改动前后的 `metadataIndexMs`，且总耗时应降至磁盘读取理论下限的数倍以内）；`npm run verify` 与关窗测试仍全绿。
-
 ### T-028 BacklinksPanel 的未链接提及扫描改为懒加载，消除启动期 87ms 长任务
 
 - **提出**：2026-11-13
@@ -181,15 +176,6 @@
 - **解决**：—
 - **完成判据**：三项各有一张可复现的测量记录（命令 + 数值 + 结论），写入 ADR-0005 增补节；结论区分观察与推断。
 
-### T-038 重渲染器改为动态 import，压低首屏体积
-
-- **提出**：2026-11-15
-- **问题**：ADR-0005 项 ④ 观察到 Obsidian 把 pdfjs / mathjax / prism / codemirror 各自作为**独立按需分包**交付，主包不背它们；ADKM 目前把这些重渲染器静态引入，首屏必须为「可能用不到的能力」付下载与解析代价。
-- **方法**：把 `@asciidoctor/core`、`epubjs`、`xlsx`、`mammoth` 改为在首次需要时 `await import(...)`；保留失败降级（加载失败 → 提示 + 纯文本回退）。
-- **解决**：—
-- **完成判据**：`npm run build` 后首屏 chunk 体积显著下降（给出改动前后数值）；打开 md 笔记不触发任何重渲染器 chunk；打开 .adoc / .epub / .xlsx 各自只按需加载对应 chunk；`npm run verify` 通过。
-
-
 ### T-039 持久化检索索引（SQLite FTS5）并让派生数据按解析规则版本失效
 
 - **提出**：2026-11-15
@@ -202,7 +188,7 @@
   2. 索引库落**应用数据目录、按 vault 分目录**，不写进 vault（保持「纯文件库」性质）；
   3. `user_version` 存解析规则版本常量，与 TS 侧共享同一常量来源；
   4. TS 侧 `MetadataIndex` 改为「内存为热缓存 + 持久层为真源」，启动时先读库再后台校验。
-- **解决**：—
+- **解决**：**2026-11-15 五条判据全部达成**（一期持久化、二期暖启动水合、三期启动时序修复；实测数值见下）。
 - **完成判据**：
   ① `cargo test` 覆盖 schema 初始化、规则版本变更触发整体重解析、重命名后 `outlinks` 同步（对照 otterly 的 `tests/search_db_behavior.rs` 写法）；
   ② 同一 416 文件测试库冷启动 `metadataIndexMs` 相比改动前显著下降（给出前后数值）；
@@ -215,7 +201,16 @@
   - Rust `src-tauri/src/features/index/{mod,schema}.rs`：10 个命令、WAL、`PRAGMA user_version` 存**解析规则版本**；`cargo test` 13 条全过（含规则版本变更丢弃派生数据）。
   - TS `core/searchIndex.ts`（软失败封装）+ `core/indexer.ts`（首帧后回填、每 8 文件让出、mtime/size 跳过、事件维护）；App 挂载启动。
   - **二期已实现（暖启动水合）**：`notes.meta_json` 存整份 `NoteMetadata`（`PARSE_RULES_VERSION` 升至 2，旧库整体丢弃）；`MetadataIndex.setHydrator()` 让 `rebuildAll` 对 mtime/size 命中的文件直接反序列化，跳过读盘与解析；任何缺失/不匹配/损坏行都回退到原路径。新增 perf mark `metadataHydrated`。
-  - **仍未闭合**：① 改动前后的 `metadataIndexMs` 实测对比尚未跑（需真机启动一次读 perf mark）；② 搜索接入按 T-041 方案 2 待做。
+  - **三期已实现（启动时序修复，2026-11-15）**：实机 CDP 取数发现**水合从未生效**——`main.tsx` 的 `await vault.load()` 早于 `ReactDOM.createRoot().render()`，而 `MetadataIndex` 在构造期就订阅 `vault:changed(load)` 并立即 `rebuildAll()`；hydrator 却装在 App 的 `useEffect` 里，永远赶不上。修法：`primeIndexHydration(app)` 在 `adapter.setVaultPath()` 后、`vault.load()` 前预热并按 vaultPath 缓存水合行；hydrator 命中缓存即纯内存返回；`vault:changed(load)` 在同库时不再 `indexClose()`，避免与 hydrator 的 `indexKnown()` 竞争。
+  - **实测（2026-11-15，release 版 / 真实库 408 文件，经 WebView2 CDP 读 `window.__geodePerf`）**：
+    | 场景 | `metadataIndexMs` | `metadataHydrated` |
+    | --- | --- | --- |
+    | 冷启动（规则版本 1→2 清库重建） | 2346.5 ms | 0 |
+    | 修复前暖启动（第二次启动，库已有 404 行 meta_json） | 1859.7 ms | 0 |
+    | **修复后暖启动（同一库）** | **6.8 ms** | **404** |
+
+    暖启动较修复前快约 **273 倍**；408 个文件中 404 个直接反序列化，仅 4 个回退读盘。判据 ② 闭合，判据 ①③④⑤ 均已达成（④ 已核对 vault 内无 `.db`/`-wal`/`-shm`）。
+  - **搜索接入**：按 T-041 方案 2 已实现（两套语义并存）。
 - **实测基线（2026-11-15，真实库 415 文件 / 28.9 MB，脚本 `tests/parse-bench.test.ts`）**：
   - 读盘 **198 ms**、解析 **90 ms**、串行合计 **287 ms**（0.69 ms/文件）。
   - **结论：瓶颈在读盘（69%），不在解析。** 二期收益必须靠「少读文件」兑现——把 `NoteMetadata` 整体序列化进索引，启动时按 mtime/size 命中即反序列化，而不是只存 title/body/tags/links。
@@ -251,7 +246,7 @@
   - 全文模式走 `searchIndexed()`（bm25 排序 + `snippet()` 高亮），独立渲染分支，结果明确标注为索引命中，不与子串结果混排；索引不可用时给出可读提示，**不静默回退**以偷换语义。
   - `snippet` 的 `<mark>` 由 `parseSnippetParts()` 拆成纯文本片段、用 React 文本节点渲染；笔记正文里的 HTML 字串保持字面量，不构成注入。
   - 语义边界双向钉死：Rust `index_tokenization_is_prefix_only` 证明 `nership` 命中不了 `ownership`；`tests/search-semantics.test.ts` 证明子串路径能命中。防止将来有人把两条路径合并而静默丢结果。
-  - **仍缺**：判据 ④ 的 `searchIndexMs` 实测数值（perf mark 已埋，需真机跑一次）。
+  - **判据 ④ 实测（2026-11-15，release 版经 CDP 驱动 UI）**：查询「规范」首次 `searchIndexMs=151.5 ms`、重复 `87 ms`，返回 **59 条**「索引命中」；查询「研磨」`4.2 ms` 但 **0 条**——FTS5 `unicode61` 把连续中文整串当一个 token，这正是「两套语义并存」不能合并的又一实证（子串模式能命中「标准研磨日志」）。判据 ④ 闭合。
 
 ## 待命（候选功能，未排期）
 
@@ -359,3 +354,6 @@
 | T-033 | 2026-11-15 | 同文档锚点点击不滚动：`localizeLinks` 不再把 `href="#..."` 改写为 `internal-link`（Asciidoctor id `_xxx` 无法被 `resolveSubpath` 解析）；预览点击对 `#fragment` 按 id 定位并 `scrollIntoView`，同时覆盖 Markdown `[x](#id)`。`npm run verify` 通过 |
 | T-034 | 2026-11-15 | 阅读视图右键菜单：新增通用 `ContextMenu` 组件（`.ctx-menu`，视口钳制、外点/Esc/滚动关闭）；预览右键提供复制 / 全选 / 打开链接 / 复制链接地址 / 在源码中编辑；新增全局 `contextmenu` 兜底，屏蔽 WebView2 默认菜单（输入框保留原生粘贴菜单）。`npm run verify` 通过 |
 | T-035 | 2026-11-15 | 工作区布局按库隔离：验收前 `localStorage["geode.workspace.v1"]` 是全局单键，打开第二个库会修剪并写回第一个库的标签，导致布局丢失。新增 `src/core/workspaceKeys.ts`（`normalizeVaultPath` / `workspaceStateKey` 纯函数，收敛 `C:\Vault`、`c:/vault/`、`C://Vault//`）；`vault:changed` 补 `path` 载荷；`Workspace.adoptVaultStorage()` 按库切换快照并把旧全局快照一次性迁移给首个库。`node scripts/verify-workspace-keys.ts` 16/16（脚本首次运行即抓出 `C://Vault//` 未收敛）、`npm run verify` 通过 |
+| T-027 | 2026-11-15 | **关闭，不再实施**：原方案用 rayon 并行读盘来降低启动期 IO 等待，但 T-039 二期落地后暖启动对 mtime/size 命中的文件直接反序列化，**读盘这一步本身被跳过**，并行读已无可优化对象。冷启动首次回填仍读盘，但只发生一次。保留原判据中的测量方法供后续性能复核 |
+| T-038 | 2026-11-15 | **代码层面已满足**（复核结论，无需再实施）：台账原写「重渲染器静态引入」，实测四个均已 `await import(...)` — `core/asciidoctorPreview.ts:23`、`features/attachment/{EpubPreview.tsx:28,XlsxPreview.tsx:99/164,DocxPreview.tsx:28}`；`core/math.ts`、`core/mermaid.ts` 同样懒加载。`npm run build` 产物中 `xlsx` 413 KB、`cytoscape` 424 KB 等均为独立 chunk，主包不背重渲染器。**未做的验证**：真机确认「打开 md 不触发重渲染器 chunk」，属 E2E 范畴，见 T-004 |
+| T-039 | 2026-11-15 | 持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` **1859.7 → 6.8 ms**（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms |

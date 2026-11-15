@@ -24,6 +24,7 @@ import {
 import { watchSystemLocale, t } from "@core/i18n";
 import { DocumentManager } from "@core/documents";
 import { EventBus } from "@core/events";
+import { primeIndexHydration } from "@core/indexer";
 import { renameWithLinkUpdate, type LinkRewriteResult } from "@core/linkRewrite";
 import { resolveAttachmentDeletion } from "@core/attachmentDeletion";
 import type { AttachmentDeleteMode } from "@core/appearance";
@@ -1500,6 +1501,16 @@ async function bootstrap() {
     const last = initial ?? localStorage.getItem(LAST_VAULT_KEY);
     if (last) {
       adapter.setVaultPath(last);
+      // T-039: MetadataIndex subscribes to `vault:changed(load)` in its
+      // constructor and rebuilds immediately on that event — earlier than the
+      // React mount where startSearchIndex() lives. Prime the hydration cache
+      // now, while the vault path is known but before load() fires, otherwise
+      // the hydrator is still null and every boot re-reads the whole vault.
+      try {
+        await primeIndexHydration(app);
+      } catch {
+        /* derived store unavailable — boot still reads + parses normally */
+      }
       try {
         await vault.load();
         pushRecentVault(last); // R203: seed the recents list with the booted vault
