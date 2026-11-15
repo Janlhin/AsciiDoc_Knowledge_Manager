@@ -1,9 +1,9 @@
-= Docs-as-Code 引用校验基线（T-045 两片）
+= Docs-as-Code 引用校验基线（T-045 三片）
 :日期: 2026-11-15
 
 == 结论
 
-T-045 分两片：**首片**做引用完整性（`xref` 与 `include` 的解析、缺失告警与环检测）；**第二片**读 `antora.yml` 建立组件/版本索引，让显式 Antora 资源 ID 按组件与版本精确解析。组件/版本切换 UI、发布前检查、按组件导出仍未做。
+T-045 分三片：**首片**做引用完整性（`xref` 与 `include` 的解析、缺失告警与环检测）；**第二片**读 `antora.yml` 建立组件/版本索引，让显式 Antora 资源 ID 按组件与版本精确解析；**第三片**在体检面板提供组件/版本选择器，把省略版本的引用固定到所选版本。发布前检查、按组件导出、按组件筛选扫描范围仍未做。
 
 做法是把两类引用接进已有的体检引擎（T-046），而不是另起一套校验器：面板筛选、跳转、AI 校对提示词全部自动获得这两类规则。
 
@@ -11,8 +11,9 @@ T-045 分两片：**首片**做引用完整性（`xref` 与 `include` 的解析�
 * `npx vitest run tests/doc-audit.test.ts` → **23/23**（含 6 条新类别用例）
 * 负向自检 2 处：把 xref 改成仅库根解析 → 3 条用例转红；关闭环检测 → 3 条（含体检面板用例）转红；恢复后全绿
 * `npm run verify` → 通过（177 命令 id、90 单测通过 + 1 预期失败 + 1 跳过、构建成功）
-* 真机 E2E → 首片 **8/8**：新增 `docs-as-code-refs`，在一次性夹具库里断言「恰好 1 条失效 xref、1 条失效 include、1 条环告警」并点击跳转；第二片 **9/9**：新增 `antora-components`
+* 真机 E2E → 首片 **8/8**：新增 `docs-as-code-refs`，在一次性夹具库里断言「恰好 1 条失效 xref、1 条失效 include、1 条环告警」并点击跳转；第二片 **9/9**：新增 `antora-components`；第三片 **11/11**：新增 `antora-version-switch`
 * 第二片：`npx vitest run tests/antora.test.ts` → **19/19**；负向自检 2 处（允许猜版本 / 破坏 `partials` 家族映射）均使对应用例转红；`npm run verify` → 通过（109 单测通过 + 1 预期失败 + 1 跳过）
+* 第三片：`npx vitest run tests/antora-version.test.ts` → **10/10**；负向自检 2 处（删除 active 优先分支 / 破坏组件文件计数）均转红；`npm run verify` → 通过
 
 == 两类规则
 
@@ -115,21 +116,53 @@ AsciiDoc 的 `xref` 是**文件相对**的（`docs/a.adoc` 里的 `xref:b.adoc` 
 
 真机证据：一次性夹具库含 `catalog/2.0` 与 `catalog/2.1` 两个版本以及库根 `antora-check.adoc`。体检面板恰好 **1 条「2 个组件版本」warning、1 条未知版本 error**，版本限定的有效 xref **0 误报**；`--self-check` 反转大纲期望后仍只有该用例转红。
 
-== 缺口（两片之后仍未做）
+== 第三片：组件 / 版本切换（2026-11-15）
 
-. **组件/版本切换 UI 未做**：本片只建立语义层与校验结果，没有产品级的切换视图或发布流程。
+问题：库根或库外笔记里的 `xref:catalog:ROOT:index.adoc[]` 在多版本组件下只能诚实报「2 个组件版本，无法确定」；发布评审需要「以 2.0 为准看一遍」的确定性视图。
+
+做法（D-023）：`AntoraIndex` 增加可选 `activeComponent`；`withActiveVersion(index, component, version)` 与 `listComponentVersions(index)` 均为纯函数。体检报告由 runner 附上 `antoraVersions` 清单，`docAuditActiveVersion` Store 作为会话级单一真源，下拉、命令面板与「重新体检」共用。
+
+[cols="1,2,1",options="header"]
+|===
+|目标 |选中版本后的行为 |未选（自动）
+
+|`xref:catalog:ROOT:index.adoc`（省略版本）
+|按**所选版本**解析，库外笔记不再报歧义
+|按当前文件所属版本；无法确定 → unresolved
+
+|`xref:2.1@catalog:ROOT:index.adoc`（显式版本）
+|**显式版本优先**，不受 pin 影响
+|精确匹配该版本
+
+|`xref:partial$intro.adoc`（仅 family，无组件段）
+|按所选组件版本的 `partials/` 解析
+|无法确定组件 → unresolved
+
+|`xref:index.adoc`（纯路径）
+|仍按首片「文件相对 → 库根相对」，完全不变
+|同左
+|===
+
+切换会重跑全库体检（重新读描述符与笔记）。未知 component/version 对返回原索引，绝不臆造组件。真机证据：E2E `antora-version-switch` 断言下拉提供 2 个版本、pin 到 `catalog 2.0` 后「2 个组件版本」warning 归零而 `9.9@catalog` 的显式版本 error 仍在、切回自动后歧义恢复。
+
+**边界**：pin 只改变**引用解析上下文**，体检仍扫描全库笔记，未做「只扫描所选组件版本」的结果集过滤。
+
+== 缺口（三片之后仍未做）
+
+. **按组件筛选扫描范围与「发布前检查 / 按组件导出」未做**：当前选择器只改解析，不筛选被体检的笔记，也不产出可发布产物。
 . **不校验锚点存在**：`xref:page.adoc#section` 只验证文件，不验证 `#section`（`[[id]]` 尚未进索引）。
 . **include 只查环，不设深度阈值**：10 层嵌套不会告警。
 . **不展开条件包含**：`ifdef::[]` 内的 include 按普通文本处理（与索引解析器的既有边界一致）。
-. **发布前检查 / 按组件导出 / xref 自动修复** 未做。
+. **xref 自动修复** 未做。
 . **Antora 全语义未覆盖**：`latest` 版本别名、大小写敏感路径、`start_page` / `nav` / `asciidoc.attributes` 均未解析。
 
 == 文件
 
 * `src/core/docsAsCode.ts`（首片纯函数；第二片 `version` 段、`antora` 可选参数、`reason` 字段）
-* `src/core/antora.ts`（第二片：描述符解析、组件索引、资源 ID 查找）
-* `src/core/docAudit.ts`（两个类别、`AuditEnv.files` / `antora`、环检测）
-* `src/core/docAuditRunner.ts` / `src/core/llm/proofreadRunner.ts`（`parseDocument` 修正、files / antora 注入）
-* `src/core/i18n/dict.app.ts`（`docaudit.cat.broken-xref|broken-include`）
-* `tests/docs-as-code.test.ts`（21 用例）、`tests/doc-audit.test.ts`（+6）、`tests/antora.test.ts`（19 用例）
-* `tests/e2e/run.mjs`（`docs-as-code-refs` 与 `antora-components` 用例、`docs/` 与 `catalog/` 夹具）
+* `src/core/antora.ts`（第二片：描述符解析、组件索引、资源 ID 查找；第三片：`listComponentVersions` / `withActiveVersion` / pin 优先级）
+* `src/core/docAudit.ts`（两个类别、`AuditEnv.files` / `antora`、环检测、`AuditReport.antoraVersions`）
+* `src/core/docAuditRunner.ts`（files / antora 注入、`docAuditActiveVersion` Store、`runDocAudit(active?)`）/ `src/core/llm/proofreadRunner.ts`（`parseDocument` 修正）
+* `src/features/docaudit/DocAuditView.tsx` / `docaudit.scss`（组件版本选择器）
+* `src/core/i18n/dict.app.ts`（`docaudit.cat.broken-xref|broken-include`、`docaudit.antora*`）
+* `tests/docs-as-code.test.ts`（21 用例）、`tests/doc-audit.test.ts`（+6）、`tests/antora.test.ts`（19 用例）、`tests/antora-version.test.ts`（10 用例）
+* `tests/e2e/run.mjs`（`docs-as-code-refs` / `antora-components` / `antora-version-switch` 用例、`docs/` 与 `catalog/` 夹具）

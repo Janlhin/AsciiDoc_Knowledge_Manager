@@ -385,3 +385,23 @@
   - *重写 `EpubPreview` 以共用 hook*：否决理由——PR #27 刚用 11 项组件回归固定了竞态与 `openFailed` 行为，重构收益低于回归风险；新组件复用同一契约即可。
 - **影响范围**：`src/core/ebookFormats.ts`（新）、`src/features/attachment/{useFormatResource,ImageReader,Fb2Preview,CbzPreview}.tsx`（新）、`formatPreview.ts` / `AttachmentView.tsx` / `src/core/i18n/dict.views.ts` / `src/styles/app.scss`、`scripts/verify-format-libs.ts`、`tests/ebook-formats.test.ts`、`tests/e2e/run.mjs`、`MANIFEST.md`、台账与基线文档。
 - **复审条件**：用户放行 B 档格式或新解码依赖时重开；CBZ 大体量（>100 MB）需改为流式/按需解压（当前 `readBinary` 全量入内存）；若将来要求统一只读（连 Excel 保存也移除），单独成片。
+
+---
+
+## D-023 组件/版本切换＝索引级 pin，不改体检引擎接口
+
+- **日期**：2026-11-15
+- **状态**：**已实施**（2026-11-15）。实现见 T-045 第三片；用户「继续执行」后按非阻塞调度推进（Q-005 仍需单独放行，故先做不依赖它的工作）。
+- **决策**：文档体检面板新增「组件版本」选择器。选中某一版本时，所有**省略版本的 Antora 资源 ID** 按该版本解析，而不是按「当前文件所属版本」；带 `version@…` 的显式 ID **不受 pin 影响**；纯路径目标仍按 D-020 的文件相对语义。未选（自动）时行为与 D-021 完全一致。
+- **背景**：库根/库外笔记里的 `xref:catalog:ROOT:index.adoc[]` 在多版本组件下只能诚实报「2 个组件版本，无法确定」；发布评审需要「以 2.0 为准看一遍」的确定性视图，不能靠改文档或猜最新版本。
+- **被采纳方案**：
+  - `AntoraIndex.activeComponent` 为可选字段；`withActiveVersion()` 与 `listComponentVersions()` 均为纯函数。`resolveAntoraResource` 在 pin 存在时忽略 `owner(fromPath)`，组件取 pin、`module` 缺省 `ROOT`。
+  - `AuditReport.antoraVersions` 由 runner 附加（纯引擎不读描述符）；`docAuditActiveVersion` Store 是会话级单一真源，命令面板、「重新体检」按钮与下拉共用，`runDocAudit(deps, active?)` 省略参数即沿用上次 pin、传 `null` 回到自动。
+  - 切换会重跑全库体检（重新读 descriptor 与笔记），报告与新 pin 一致；未知 component/version 对返回原索引，绝不臆造组件。
+- **被否决的替代方案**：
+  - *给 `AuditEnv` 新增 active 参数*：否决理由——会出现「索引 pin」与「环境 pin」两份语义；索引自带 pin 才能让 AI 校对、纯函数测试共用同一路径。
+  - *自动选最新版本*：否决理由——D-021 已定性为猜测，`latest` 属部署期概念。
+  - *UI 自己读 `antora.yml`*：否决理由——破坏 app/features → core 单向分层，且会产生第二份描述符解析。
+  - *把 pin 写进 vault 文件*：否决理由——跨库污染本地知识库，且是用户未授权的外部写。
+- **影响范围**：`src/core/antora.ts`（`listComponentVersions` / `withActiveVersion` / 解析优先级）、`src/core/docAudit.ts`（报告字段）、`src/core/docAuditRunner.ts`（Store + 签名）、`src/features/docaudit/{DocAuditView.tsx,docaudit.scss}`、`src/core/i18n/dict.app.ts`、`tests/antora-version.test.ts`、`tests/e2e/run.mjs`。
+- **诚实缺口**：pin 只改变**引用解析**，体检仍扫描全库笔记，未做「只扫描所选组件版本的笔记」；发布前检查、按组件导出、xref 自动修复仍属下一片。**复审条件**：若需要按组件筛选结果集或导出，重开此决策并明确「扫描范围」与「解析范围」的分离。

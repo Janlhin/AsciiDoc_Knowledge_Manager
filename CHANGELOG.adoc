@@ -15,6 +15,7 @@
 * **Docs-as-Code 引用校验（T-045 首片）**：文档体检新增 `broken-xref` / `broken-include` 两类——AsciiDoc `xref` 按「文件相对 → 库根相对」解析（显式 `./` 不回退），`include::` 按文件相对解析并检测全库环（A→B→A 只报一次）；Antora 资源 ID 无唯一同名文件时按「无法判定」warning 处理，不臆断。顺带修正 `.adoc` 元数据兜底误用 Markdown 解析器的缺陷。零新增依赖。详见 `docs/docs-as-code-baseline.adoc`。
 * **Antora 组件/版本资源 ID（T-045 第二片）**：体检运行器读取库内全部 `antora.yml`（复用既有 `js-yaml`，零新增依赖），按 `modules/<module>/<family>/` 建立组件版本索引；`[version@]component[:module][:family$]path` 形式的 xref / include 改为按组件与版本精确解析。省略版本时只采用**当前文件所属的版本**，多版本且无法判定时报「匹配到 N 个组件版本，无法确定」warning，不猜版本；无描述符的库保持首片行为。19 条新单测 + 2 处负向自检，真机 E2E 9/9（新增 `antora-components`）。详见 `docs/docs-as-code-baseline.adoc`。
 * **只读电子书格式扩展与图片阅读器（T-054 / D-022）**：新增 FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）与漫画 ZIP（`.cbz`）只读预览；单张图片与漫画页共用 `ImageReader`（数值排序翻页 + 缩放），FB2 以 React 文本节点渲染避免注入。所有新组件经 `useFormatResource` 统一「可取消加载 + 资源释放」，并已合并 PR #27 的 EPUB 生命周期修复。**零新增运行期依赖**。按用户决定**冻结编辑能力**：仅保留 Excel 的显式保存，撤销 D-013 的 DOCX 真编辑 phase-2。MOBI/AZW3/DJVU/CBR/HEIC 等候选已完成「先搜寻后自研」评估但未引入，见 `MANIFEST.md` 与 Q-005。真机 E2E 10/10。详见 `docs/format-preview-baseline.adoc`。
+* **Antora 组件/版本切换（T-045 第三片 / D-023）**：文档体检面板新增「组件版本」选择器。选中某一版本后，**省略版本的资源 ID 按所选版本解析**（不再按当前文件所属版本），显式 `version@…` 仍优先，纯路径目标语义不变；报告附带库内检测到的组件/版本清单。会话级 Store 使命令面板与「重新体检」沿用同一 pin，零新增依赖。10 条新单测 + 2 处负向自检，真机 E2E **11/11**（新增 `antora-version-switch`）。**边界**：pin 只改引用解析，体检仍扫描全库，未做按组件筛选/发布前检查/按组件导出。详见 `docs/docs-as-code-baseline.adoc`。
 
 == 2.0.0 — 2026-11-12
 
