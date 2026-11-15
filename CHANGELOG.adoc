@@ -10,6 +10,7 @@
 
 === 新增
 
+* **Kindle 家族只读预览（T-055 / D-024，Q-005 结案）**：新增 `.mobi` / `.azw` / `.prc` 与 `.azw3` / `.kf8` 只读预览，章节按需加载，不可信章节 HTML 一律降为 React 文本块（标题/段落/图片），`<script>`/`<style>`/注释子树整棵剥离，绝不 `innerHTML`；切文件或卸载时调用解析器 `destroy()` 释放 blob URL。这是本项目**首次引入新的运行期依赖**：仅 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口、`--save-exact` 钉选），逐项登记见 `MANIFEST.md`。Q-005 第二问按 D-022 维持编辑能力冻结（保留 Excel 显式保存）。CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL 仍不引入。11 条新单测 + 2 处负向自检，真机 E2E 12/12（新增 `kindle-formats`）。详见 `docs/format-preview-baseline.adoc`。
 * **文档规范体检（T-046）**：命令「检查文档规范」+ 主区单例结果面板「文档体检」。六项规则（术语一致性、失效链接、标题跳级、必填元数据缺失、章节结构、中文标点），按严重度/类别聚合，点问题行跳转。纯函数规则引擎，零新增依赖；规则上下文 `AUDIT_RULE_DOCS` 供 T-047 的 AI 校对复用。详见 `docs/doc-audit-baseline.adoc`。
 * **AI 按规范校对（T-047）**：命令「按规范校对当前笔记」+ AI 面板勾选按钮。把当前笔记、六条规则、术语词表与确定性体检结果组成提示词，要求模型返回单个 `json` 围栏；回复解析成**可跳转的问题列表**，行号越界/缺字段的条目丢弃并计数，无法解析时保留原文并明确提示。复用 AI 面板唯一一条流式路径，零新增依赖；E2E 用本地 mock LLM 覆盖全链路。详见 `docs/ai-proofread-baseline.adoc`。
 * **Docs-as-Code 引用校验（T-045 首片）**：文档体检新增 `broken-xref` / `broken-include` 两类——AsciiDoc `xref` 按「文件相对 → 库根相对」解析（显式 `./` 不回退），`include::` 按文件相对解析并检测全库环（A→B→A 只报一次）；Antora 资源 ID 无唯一同名文件时按「无法判定」warning 处理，不臆断。顺带修正 `.adoc` 元数据兜底误用 Markdown 解析器的缺陷。零新增依赖。详见 `docs/docs-as-code-baseline.adoc`。

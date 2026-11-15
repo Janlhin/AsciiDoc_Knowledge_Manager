@@ -6,6 +6,15 @@
 
 ## 待办
 
+### T-055 Q-005 结案：Kindle 只读预览（D-024）
+
+- **提出**：2026-11-15
+- **问题**：Q-005 两问——B 档格式是否放行新增运行期依赖；是否要求「连 Excel 保存也移除」的彻底只读。
+- **方法**：按「先搜寻，后自研」评估后**只放行 1 个 MIT 依赖** `@lingo-reader/mobi-parser@0.4.6`（逐项登记见 `MANIFEST.md`），实现 `.mobi/.azw/.prc/.azw3/.kf8` 只读预览：章节按需加载、不可信章节 HTML 降为 React 文本块、`destroy()` 释放解析器 blob URL。第二问沿用 D-022 已达成的**编辑能力冻结**：保留 Excel 显式保存，不做破坏性删除。
+- **完成判据**：① `npx vitest run tests/mobi.test.ts tests/mobi-preview.test.tsx` 退出码 0（6 + 5 用例）；② `node scripts/verify-format-libs.ts` 退出码 0 且含 mobi-parser 导出 2 项；③ 负向自检 2 处（去掉 script 子树剥离 / 破坏 KF8 扩展名路由）对应用例转红；④ `npm run verify` 退出码 0；⑤ 真机 `npm run test:e2e` 12/12（新增 `kindle-formats`），`--self-check` 退出码 0。
+- **解决**：**完成（2026-11-15）**。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.md` D-024。
+- **仍缺**：CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL/PSD/RAW 仍未引入；真实 MOBI/AZW3 书籍样本的真机解析未覆盖（仓库不打包第三方电子书二进制，E2E 用合成无效文件验证路由与错误反馈）。
+
 ### T-054 只读电子书格式扩展 + 共享图片阅读器（D-022）
 
 - **提出**：2026-11-15
@@ -13,7 +22,7 @@
 - **方法**：零新增运行期依赖——`DOMParser` 解 FB2 XML、`jszip` 解 `.fb2.zip`/`.fbz`/`.cbz`；复合后缀由完整路径判定；新增 `useFormatResource` 统一可取消加载与资源释放；`ImageReader` 同时服务单图与漫画页；FB2 渲染为 React 文本节点。编辑能力冻结在 Excel，撤销 D-013 的 DOCX 真编辑 phase-2。B 档候选格式按「先搜寻后自研」检索评估后记入 `MANIFEST.md`，本片不引入。
 - **完成判据**：① `npx vitest run tests/ebook-formats.test.ts` 退出码 0；② `node scripts/verify-format-libs.ts` 退出码 0 且含 CBZ/FBZ 四项；③ 负向自检（破坏 FB2 作者拼接或数值排序）对应用例转红；④ `npm run verify` 退出码 0；⑤ 真机 `npm run test:e2e` 全绿，新增 `ebook-formats` 用例断言 FB2 / FB2.ZIP / CBZ 3 页数值排序 / 单图解码与缩放，`--self-check` 仍通过。
 - **解决**：**完成（2026-11-15）**。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.md` D-022。
-- **仍缺**：B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF 等）与「按格式配置阅读偏好」未做，见待裁决 Q-005。
+- **仍缺**：B 档中 Kindle 家族已由 T-055（Q-005 放行）落地；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL 与「按格式配置阅读偏好」仍未做，见待裁决 Q-005（已决，其余格式需再次放行）。
 
 ### T-053 Portable command-path regression fixture
 
@@ -373,7 +382,7 @@
 | Q-002 | 2026-11-13 | 覆盖率阈值初始定多少（建议先 20%，逐层抬高） | 待 T-003 落地时定 |
 | Q-003 | 2026-11-13 | `oxfmt` 尚未到 1.0，是否等 1.0 再引入格式化 | 待定；当前 T-001 用 Prettier |
 | Q-004 | 2026-11-15 | 应用标识改名（`productName` / `identifier`）与数据目录迁移：新 identifier 用什么前缀、`package.json` 的 name 是否同步改 | **待定**。方案已定，参数未定；仓库名已改为 `AsciiDoc_Knowledge_Manager` |
-| Q-005 | 2026-11-15 | B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF…）是否放行新增运行期依赖，以及是否要求「连 Excel 保存也移除」的彻底只读 | **待定**。候选库已按「先搜寻后自研」检索评估并记入 `MANIFEST.md`；本片按 D-022 只做零新增依赖的 A 档与图片阅读器，未引入任何新包、未删已有写回能力 |
+| Q-005 | 2026-11-15 | B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF…）是否放行新增运行期依赖，以及是否要求「连 Excel 保存也移除」的彻底只读 | **已决（2026-11-15）**：①放行并引入 1 个 MIT 依赖、落地 Kindle 家族只读预览（T-055 / D-024）；②按 D-022 维持「编辑能力冻结」，**保留** Excel 显式保存、不移除。其余 B 档格式仍需再次单独放行 |
 
 **Q-004 待定方案（2026-11-15 已确认要做，缺两个参数）**
 
@@ -415,3 +424,4 @@
 | T-038 | 2026-11-15 | **代码层面已满足**（复核结论，无需再实施）：台账原写「重渲染器静态引入」，实测四个均已 `await import(...)` — `core/asciidoctorPreview.ts:23`、`features/attachment/{EpubPreview.tsx:28,XlsxPreview.tsx:99/164,DocxPreview.tsx:28}`；`core/math.ts`、`core/mermaid.ts` 同样懒加载。`npm run build` 产物中 `xlsx` 413 KB、`cytoscape` 424 KB 等均为独立 chunk，主包不背重渲染器。**未做的验证**：真机确认「打开 md 不触发重渲染器 chunk」，属 E2E 范畴，见 T-004 |
 | T-039 | 2026-11-15 | 持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` **1859.7 → 6.8 ms**（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms |
 | T-042 | 2026-11-15 | 命令补齐复核：**原判断不成立并已纠正**。实测 ADKM 175 条（非 101，旧正则漏了批量注册）、Obsidian 制品静态可提取 169 条（热键页 280 含动态/插件命令）、ID 字面差集 114 条（非 179）——其中约 70 条是**命名不同但功能已有**、约 40 条是**能力缺失**（Canvas/Bases/同步/发布/多窗口，由 T-043/T-044/T-048 覆盖或排除）。本轮落地：`docs/command-gap-matrix.adoc`（可复现取证 + 功能域矩阵）、补 4 条真命令（`app:set-reading-view/set-live-preview/set-source-mode/toggle-default-new-pane-mode`，均有 `available` + 真实 callback + en/zh 文案）、`scripts/verify-command-registry.ts` 并入 `npm run verify`（查重复 ID / i18n 缺失 / 无 callback，防审计 §11 的「假完成」）。**未凑数注册空命令，未改已有 ID 以免破坏用户热键绑定** |
+| Q-005 | 2026-11-15 | **已决（D-024）**：① 放行新增运行期依赖，但按「先搜寻，后自研」评估后只引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 Kindle 家族只读预览（T-055）；CBR/HEIC/DJVU/TIFF 等仍不引入，需再次单独放行。② 维持 D-022 的**编辑能力冻结**：保留 Excel 显式保存，不执行「连保存也移除」的彻底只读。决策依据与依赖登记见 `DECISIONS.md` D-024、`MANIFEST.md` |

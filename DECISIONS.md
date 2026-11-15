@@ -405,3 +405,23 @@
   - *把 pin 写进 vault 文件*：否决理由——跨库污染本地知识库，且是用户未授权的外部写。
 - **影响范围**：`src/core/antora.ts`（`listComponentVersions` / `withActiveVersion` / 解析优先级）、`src/core/docAudit.ts`（报告字段）、`src/core/docAuditRunner.ts`（Store + 签名）、`src/features/docaudit/{DocAuditView.tsx,docaudit.scss}`、`src/core/i18n/dict.app.ts`、`tests/antora-version.test.ts`、`tests/e2e/run.mjs`。
 - **诚实缺口**：pin 只改变**引用解析**，体检仍扫描全库笔记，未做「只扫描所选组件版本的笔记」；发布前检查、按组件导出、xref 自动修复仍属下一片。**复审条件**：若需要按组件筛选结果集或导出，重开此决策并明确「扫描范围」与「解析范围」的分离。
+
+## D-024 Q-005 结案＝只放行 Kindle 家族一个 MIT 依赖，其余 B 档仍不引入
+
+- **日期**：2026-11-15
+- **状态**：**已实施**（2026-11-15）。实现见 T-055；用户以「做 q005」放行新增运行期依赖后推进；依赖逐项登记见 `MANIFEST.md`。
+- **决策**：Q-005 两问分别结案。①**放行新增运行期依赖，但只引入 1 个**——`@lingo-reader/mobi-parser@0.4.6`（MIT），落地 `.mobi/.azw/.prc` 与 `.azw3/.kf8` 只读预览；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL/PSD/RAW **仍不引入**，需用户再次单独放行。②「连 Excel 保存也移除」的彻底只读**不做**，沿用 D-022 的编辑能力冻结（保留显式保存）。全部实现零写回：不调 `vault.modifyBinary`，不提供任何保存入口。
+- **背景**：Q-005 原记「候选库已检索评估、未引入」，卡在「是否允许新包」。D-022 定下的 A 档（FB2/CBZ/图片）已交付，Kindle 家族是用户实际藏书里占比最高的待支持格式；继续不做的边际成本高于引入一个 MIT 小包。
+- **被采纳方案**：
+  - 只选**解析器**包，不选阅读器 UI 包：`@lingo-reader/mobi-parser` 自带浏览器独立入口（`dist/index.browser.mjs`），直接接受 `Uint8Array`，与既有 `readBinary → 懒加载 → 渲染` 链路同形，无需 worker 与打包配置。
+  - 章节**按需加载**：只解析当前章节的 HTML，不在打开时把整本转成 React 树。
+  - 不可信章节 HTML 一律降为**文本块**（标题/段落/图片），走 `DOMParser` + React 文本节点，绝不 `innerHTML`；`<script>`/`<style>`/注释子树整棵剥离。
+  - 解析器自带 `destroy()` 负责释放其创建的 blob URL；组件卸载与切文件时调用，避免泄漏（与 `useFormatResource` 的可取消加载契约一致）。
+- **被否决的替代方案**：
+  - *`foliate-js`*：否决理由——作者明示 API 不稳定；引入等于把已稳定的 epub.js 链路整体替换，风险与收益不匹配。
+  - *`@mdgate/mobi`*：否决理由——只输出 Markdown，不提取图片/字体，部分 AZW3 丢结构，作为「只读预览」会**静默丢内容**，比不支持更糟。
+  - *`epubier`（drop-in 阅读器）*：否决理由——需 `pdfjs-dist` / `libarchive.js` 等 peer 与 worker，与项目组件化只读预览路径重复，且会一次性拉入多个新依赖。
+  - *解压/解码类（`libarchive.js` 解 CBR、`libheif-js` 解 HEIC）*：否决理由——前者需 wasm worker 打包配置，后者是 **LGPL-3.0** 且 9 MB，均需单独做许可与构建评估；不在「只放行一个」的授权范围内。
+  - *自行解析 MOBI（PalmDOC / HUFF-CDIC 压缩）*：否决理由——属「级别 6 自研」，HUFF-CDIC 与 KF8 边界情况多，成本远高于引入成熟包。
+- **影响范围**：`package.json` + `package-lock.json`（`--save-exact` 钉选）、`src/core/mobi.ts`（纯函数：扩展名路由、章节 HTML 降级）、`src/features/attachment/MobiPreview.tsx`、`src/features/attachment/formatPreview.ts`、`src/core/i18n/dict.views.ts`、`src/styles/app.scss`、`scripts/verify-format-libs.ts`、`tests/mobi.test.ts`、`tests/mobi-preview.test.tsx`、`tests/e2e/run.mjs`。
+- **诚实缺口**：真实 MOBI/AZW3 大部头未做真机解析验证（仓库不打包第三方电子书二进制，E2E 用**合成无效文件**验证路由与错误反馈，真实解析链路由 Node 侧导入回归 + 组件级 mock 覆盖）；DRM 保护文件必然失败并给出明确提示，不做任何解密；阅读偏好（字号/主题/进度）未做；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL 仍不支持。**复审条件**：若需支持 CBR/HEIC 或阅读偏好，另开一片并重新评估 wasm 与许可；若 `@lingo-reader` 出现破坏性升级，可评估切换到 `rebook`（届时需重新走「先搜寻后自研」评估）。

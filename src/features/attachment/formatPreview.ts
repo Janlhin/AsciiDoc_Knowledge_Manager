@@ -10,6 +10,7 @@
  *   - EPUB  → epub.js       (paginated reader)
  *   - FB2   → DOMParser + jszip (plain XML or zipped FictionBook → text blocks)
  *   - CBZ   → jszip + shared ImageReader (paged comic pages with zoom)
+ *   - Kindle→ @lingo-reader/mobi-parser (MOBI/KF8 → safe text chapters)
  *
  * All formats added after 2026-11-15 are READ-ONLY by product decision: the
  * only editable format remains Excel (see DECISIONS.md D-013 / D-022). New
@@ -33,6 +34,7 @@ import { PptxPreview } from "./PptxPreview";
 import { EpubPreview } from "./EpubPreview";
 import { Fb2Preview } from "./Fb2Preview";
 import { CbzPreview } from "./CbzPreview";
+import { MobiPreview } from "./MobiPreview";
 
 export interface FormatPreviewerEntry {
   /** human-readable label (e.g. for the toolbar / status) */
@@ -60,6 +62,12 @@ export const FORMAT_PREVIEWERS: Record<string, FormatPreviewerEntry> = {
   fbz: { label: "FictionBook", Component: Fb2Preview },
   // Comic book ZIP — shared ImageReader (paging + zoom).
   cbz: { label: "Comic", Component: CbzPreview },
+  // Kindle — MOBI/KF8 via @lingo-reader/mobi-parser (Q-005 approved dep).
+  mobi: { label: "Kindle", Component: MobiPreview },
+  azw: { label: "Kindle", Component: MobiPreview },
+  azw3: { label: "Kindle", Component: MobiPreview },
+  kf8: { label: "Kindle", Component: MobiPreview },
+  prc: { label: "Kindle", Component: MobiPreview },
 };
 
 /** Look up a previewer entry by a vault path's extension (lowercased). */

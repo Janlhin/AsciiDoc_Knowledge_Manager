@@ -838,7 +838,8 @@ textarea:focus {
 .format-pptx,
 .format-epub,
 .format-fb2,
-.format-cbz {
+.format-cbz,
+.format-mobi {
   position: absolute;
   inset: 0;
 }
@@ -950,6 +951,46 @@ textarea:focus {
   color: var(--text-muted);
 }
 .format-fb2 .fb2-image {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Kindle (MOBI / KF8) — read-only semantic chapters, never raw HTML. */
+.format-mobi {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.format-mobi-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border, #e0e0e0);
+  flex: 0 0 auto;
+}
+.format-mobi-title {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+.format-mobi-authors {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.format-mobi-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 32px 24px;
+}
+.format-mobi-body > * {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.format-mobi-body .mobi-image {
   max-width: 100%;
   height: auto;
 }

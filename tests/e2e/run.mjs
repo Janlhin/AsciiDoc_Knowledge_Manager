@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: eleven high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twelve high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -251,6 +251,10 @@ async function prepareVault(dir) {
   }
   cbz.file("readme.txt", "not an image");
   writeFileSync(path.join(dir, "sample.cbz"), await cbz.generateAsync({ type: "nodebuffer" }));
+  // Q-005: invalid Kindle samples prove format routing + honest failure.
+  // No third-party ebook binary is bundled into the repo (see MANIFEST.md).
+  writeFileSync(path.join(dir, "sample.mobi"), "not a real MOBI container");
+  writeFileSync(path.join(dir, "sample.azw3"), "not a real KF8 container");
 }
 
 /**
@@ -743,6 +747,38 @@ async function main() {
       "auto mode restored",
     );
     return "2 versions offered; pin removes ambiguity, explicit version@ still checked, auto restored";
+  });
+
+  // ---- 12. Q-005: Kindle formats are routed, read-only, fail visibly -----
+  await runCase("kindle-formats", async () => {
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "显示文件列表");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "show file explorer command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer"]')`, 8000, "explorer mounted");
+
+    const open = async (file) => {
+      assert(await c.click(`[data-testid="explorer-item"][data-path="${file}"]`),
+        `could not open ${file}`);
+      await c.waitFor(
+        `document.querySelector('[data-testid="attachment-view"]')?.getAttribute("data-attachment-path") === ${JSON.stringify(file)} && !!document.querySelector('[data-testid="format-error"]')`,
+        20000,
+        `${file} routed to the Kindle viewer with an error`,
+      );
+      const state = await c.evaluate(`(() => {
+        const view = document.querySelector('[data-testid="attachment-view"]');
+        return {
+          format: view?.getAttribute("data-format"),
+          save: !!document.querySelector('[data-testid="xlsx-save"]'),
+        };
+      })()`);
+      assert(state.format === "Kindle", `expected Kindle viewer, got ${state.format}`);
+      assert(state.save === false, "a read-only preview must not expose a save button");
+    };
+    await open("sample.mobi");
+    await open("sample.azw3");
+    return "MOBI + AZW3 routed to a read-only Kindle viewer; invalid files report a visible error";
   });
 
   c.close();
