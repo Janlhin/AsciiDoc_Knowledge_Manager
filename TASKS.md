@@ -6,6 +6,15 @@
 
 ## 待办
 
+### T-058 启动行为设置：恢复上次会话 / 全新窗口（D-027）
+
+- **提出**：2026-11-16
+- **问题**：`Workspace` 一直无条件重放上次的面板树与标签，用户无法选择「每次全新打开」；浏览器对同一问题都给的是显式设置。
+- **方法**：新增设置分区「启动」，两态单选，默认 `restore`（既有行为）。语义非对称——`fresh` 既不重放**也不覆盖**快照，切回 `restore` 仍能拿回上次会话；三处闸门集中在 `core/startup.ts`，`Workspace` 的 `restore` / `persist` / `adoptVaultStorage` 各问一次。切换即时生效、下次启动起作用。
+- **完成判据**：① `npx vitest run tests/startup.test.ts` 退出码 0（4 用例：容错解析、默认值、持久化、两道闸门）；② `npm run typecheck` 0；③ `npm run verify` 0；④ 真机 `npm run test:e2e` **15/15**（新增 `startup-mode`：改设置 → `Page.reload` → 0 标签；切回 restore → 重载后标签回来），`--self-check` 通过；⑤ `DECISIONS.md` D-027 / CHANGELOG 同步。
+- **解决**：**完成（2026-11-16）**。详见 `DECISIONS.md` D-027。
+- **仍缺**：「打开指定工作区 / 固定标签组」选项；「最近关闭的标签」跨启动保留；fresh 模式下不记忆标签（有意）。
+
 ### T-057 可选分盘/异地备份（D-026，Q-006 结案）
 
 - **提出**：2026-11-16
