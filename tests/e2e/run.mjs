@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: seventeen high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twenty high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -298,6 +298,24 @@ async function prepareVault(dir) {
     );
   }
   writeFileSync(path.join(dir, "sample.epub"), await book.generateAsync({ type: "nodebuffer" }));
+
+  // T-061: an EPUB with no nav document at all — the reader must say so instead of
+  // rendering an empty panel or failing to open.
+  const noNav = new JSZip();
+  noNav.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  noNav.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+  );
+  noNav.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">urn:uuid:e2e-epub-nonav</dc:identifier><dc:title>No Nav</dc:title><dc:language>en</dc:language></metadata><manifest><item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="ch1"/></spine></package>`,
+  );
+  noNav.file(
+    "OEBPS/ch1.xhtml",
+    `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Only</title></head><body><h1>Only chapter</h1><p>No navigation document here.</p></body></html>`,
+  );
+  writeFileSync(path.join(dir, "sample-nonav.epub"), await noNav.generateAsync({ type: "nodebuffer" }));
 }
 
 /** Structurally valid single-page PDF (correct xref offsets) for the gate case. */
@@ -1060,6 +1078,101 @@ async function main() {
     await c.waitFor(`document.querySelector('[data-testid="epub-percent"]') && document.querySelector('[data-testid="epub-percent"]').textContent.trim() === "100%"`,
       25000, "the reading position was restored after a restart");
     return `3 TOC rows, jump → 100%, position restored after restart (${stored.percent}%)`;
+  });
+
+  // ---- 18. T-061: regress the startup stall, not just the gate UI ----------
+  // A restored large PDF used to block the renderer for 72+151 ms. The gate made
+  // that zero; this case keeps it zero by summing animation-frame gaps during boot.
+  await runCase("pdf-restore-no-stall", async () => {
+    if (!(await c.evaluate(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`))) {
+      await c.click('[data-testid="explorer-item"][data-path="docs"]');
+      await sleep(500);
+    }
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not open scan-big.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 20000,
+      "the 40 MB PDF is gated");
+
+    // the Page domain must be enabled before new-document scripts are honoured
+    await c.call("Page.enable");
+    const injected = await c.call("Page.addScriptToEvaluateOnNewDocument", {
+      source: `window.__e2eGap = [];
+(function raf() { var prev = performance.now(); function tick() { var now = performance.now();
+  if (now - prev > 50) window.__e2eGap.push(Math.round(now - prev)); prev = now; requestAnimationFrame(tick); }
+  requestAnimationFrame(tick); })();`,
+    });
+    try {
+      await c.call("Page.reload", { ignoreCache: false });
+      await sleep(4500);
+      // vacuity guard: if the injected recorder never ran, an empty list would
+      // make "0 ms blocked" meaningless
+      const raw = await c.evaluate(`Array.isArray(window.__e2eGap) ? JSON.stringify(window.__e2eGap) : "MISSING"`);
+      assert(raw !== "MISSING", "the frame-gap recorder did not run — the check would be vacuous");
+      const gaps = JSON.parse(raw);
+      const blocked = gaps.reduce((sum, ms) => sum + ms, 0);
+      assert(blocked <= 100, `startup blocked ${blocked} ms across ${gaps.length} frames (${JSON.stringify(gaps)})`);
+      await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 25000,
+        "the gated PDF is still gated after restart");
+      return `boot blocked ${blocked} ms (${gaps.length} frames >50 ms); 40 MB PDF still behind the gate`;
+    } finally {
+      await c.call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+    }
+  });
+
+  // ---- 19. T-061: TOC jumps really move the reader, and highlight follows --
+  await runCase("epub-reading-controls", async () => {
+    assert(await c.click('[data-testid="explorer-item"][data-path="sample.epub"]'), "could not open sample.epub");
+    await c.waitFor(`!!document.querySelector('[data-testid="epub-preview"]')`, 20000, "epub viewer mounted");
+    if (!(await c.evaluate(`!!document.querySelector('[data-testid="epub-toc"]')`))) {
+      await c.click('[data-testid="epub-toc-toggle"]');
+    }
+    await c.waitFor(`document.querySelectorAll('[data-testid="epub-toc-item"]').length >= 3`, 20000, "toc rows");
+
+    const jump = async (label, expected) => {
+      await c.evaluate(`(() => { const b = [...document.querySelectorAll('[data-testid="epub-toc-item"]')].find(function (x) { return x.textContent.trim() === ${JSON.stringify(label)}; }); if (b) b.click(); return !!b; })()`);
+      await c.waitFor(`document.querySelector('[data-testid="epub-percent"]').textContent.trim() === "${expected}"`,
+        20000, `percentage after jumping to ${label}`);
+      const current = await c.evaluate(`(() => { const el = document.querySelector('[data-testid="epub-toc-item"].is-current'); return el ? el.textContent.trim() : null; })()`);
+      assert(current === label, `current chapter highlight is ${current}, expected ${label}`);
+    };
+
+    await jump("Chapter One", "33%");
+    await jump("Chapter Two", "67%");
+    await jump("Chapter Three", "100%");
+
+    // page turning: next() must move the percentage off 100 only by wrapping is not
+    // asserted; instead go back to Chapter One and page forward until it advances.
+    await jump("Chapter One", "33%");
+    let advanced = false;
+    for (let i = 0; i < 8 && !advanced; i += 1) {
+      assert(await c.click('[data-testid="epub-next"]'), "no next button");
+      await sleep(350);
+      const pct = await c.evaluate(`document.querySelector('[data-testid="epub-percent"]').textContent.trim()`);
+      if (pct !== "33%") advanced = true;
+    }
+    assert(advanced, "clicking next never advanced past 33%");
+    assert(await c.click('[data-testid="epub-prev"]'), "no prev button");
+    await sleep(350);
+    return "TOC jumps 33/67/100 with matching highlight; next advances, prev responds";
+  });
+
+  // ---- 20. T-061: a book without a nav document degrades honestly ----------
+  await runCase("epub-no-nav", async () => {
+    assert(await c.click('[data-testid="explorer-item"][data-path="sample-nonav.epub"]'),
+      "could not open sample-nonav.epub");
+    await c.waitFor(`!!document.querySelector('[data-testid="epub-preview"]')`, 20000, "viewer mounts without a nav doc");
+    if (!(await c.evaluate(`!!document.querySelector('[data-testid="epub-toc"]')`))) {
+      await c.click('[data-testid="epub-toc-toggle"]');
+    }
+    await c.waitFor(`!!document.querySelector('.epub-toc-empty')`, 15000,
+      "an empty-TOC message is shown instead of a blank panel");
+    // the reader must also report a real position: a single-spine book resolves to
+    // 100%, and 0% would mean `relocated` never fired
+    await c.waitFor(`document.querySelector('[data-testid="epub-percent"]').textContent.trim() !== "0%"`,
+      15000, "the reader reported a position for a book without a nav document");
+    const pct = await c.evaluate(`document.querySelector('[data-testid="epub-percent"]').textContent.trim()`);
+    assert(pct === "100%", `a one-chapter book should report 100%, got ${pct}`);
+    return `no nav → "no contents" notice, reader still reports ${pct}`;
   });
 
   c.close();
