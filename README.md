@@ -181,7 +181,6 @@ docs/               项目文档与规范原文
 | [`docs/project-charter-v2.adoc`](docs/project-charter-v2.adoc) | 产品章程：定位、P0 目标、能力分层 L1–L4 |
 | [`docs/route-evaluation.adoc`](docs/route-evaluation.adoc) | 底座选型的评估方法与候选对照 |
 | [`docs/obsidian-clone-report.adoc`](docs/obsidian-clone-report.adoc) | Obsidian 克隆候选的横向核查 |
-| [`docs/obsidian-reverse-engineering.adoc`](docs/obsidian-reverse-engineering.adoc) | Obsidian 本体逆向结论与落点映射 |
 | [`docs/geode-baseline.adoc`](docs/geode-baseline.adoc) | 底座现状基线：与目标的差距对照 |
 | [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
 | [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |

@@ -8,6 +8,10 @@
 
 == 未发布（Unreleased）
 
+=== 移除
+
+* **公开前移除 Obsidian 逆向分析文档（3 份）**：`docs/obsidian-reverse-engineering.adoc`、`docs/technical-decisions/ADR-0005-obsidian-rea-findings.adoc`、`docs/command-gap-matrix.adoc` 已删除，并重写 git 历史以从提交记录中清除。三者记录了对商业发行包的解包过程与内部结构，仓库转公开后不再保留。兼容层矩阵 `docs/OBSIDIAN-COMPAT.md` 与功能差距审计 `docs/OBSIDIAN_REPLICA_GAP_AUDIT.md` 保留，结论不受影响。
+
 === 新增
 
 * **EPUB 阅读器补全：目录、翻页、阅读位置（T-061 / D-030）**：原来的 EPUB 预览只有 83 行、只调 `display()`——**没有目录、没有进度**，每本书永远从第一页打开，跳转一关就丢（EPUB 此前在 E2E 里零覆盖，所以没人发现）。现在有工具栏（目录 / 上一页 / 百分比 / 下一页）、按层级缩进的目录侧栏、当前章高亮、方向键翻页；阅读位置按 `{cfi, index, percent}` 去抖保存，重启后回到原处，CFI 失效时回退第一页。百分比用 spine 索引计算（O(1)），刻意不用 `locations.generate()`——那会为了进度条把 50MB 的书在主线程数秒。
