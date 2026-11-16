@@ -438,7 +438,7 @@
 ### D-32　桌面 ADKM 文档要不要入库（新增事实后重问）
 
 > **新查清的事实**：
-> - `C://Users//Janlhin//Desktop//ADKM` **根本不属于任何 git 仓** —— 它落在 `C://Users//Janlhin//.git`（你家目录那个**只跟踪 README.md、无 remote** 的空仓）里，ADKM 目录本身零跟踪。所以这批文档**从来没进过版本库，也没 push 过**。
+> - `<ADKM 工作目录>` **根本不属于任何 git 仓** —— 它落在 `<家目录>/.git`（你家目录那个**只跟踪 README.md、无 remote** 的空仓）里，ADKM 目录本身零跟踪。所以这批文档**从来没进过版本库，也没 push 过**。
 > - 内容共 11 个文件：`CHANGELOG.adoc`（6.8KB）、`docs/project-charter-v2.adoc`（27.8KB，**章程本体**）、`docs/route-evaluation.adoc`（22.7KB）、`docs/obsidian-clone-report.adoc`（15.4KB）、`docs/obsidian-reverse-engineering.adoc`（6.7KB）、`docs/geode-baseline.adoc`（10KB，今天改过）、`docs/technical-decisions/ADR-0001..0004`（4 份，合计约 38KB）。
 > - 与 `Janlhin/adkm` 仓内的 `docs/` **零重叠** —— 仓里没有 charter / baseline / route-evaluation，也没有 `technical-decisions/` 目录。
 > - `nul`（38KB）**是 `CHANGELOG.adoc` 的渲染产物**：实测 `asciidoctor -o nul CHANGELOG.adoc` 重跑一遍得到一模一样的 38455 字节。成因是 Windows 上 `nul` 是空设备名，`asciidoctor -o nul` 没把它当特殊设备，于是写出真文件。这就是 T-010「清除根目录 nul」那条待办的本体。

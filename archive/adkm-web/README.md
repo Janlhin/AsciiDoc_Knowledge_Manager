@@ -42,8 +42,8 @@
 
 | 文件 | 问题 |
 | --- | --- |
-| `server/index.ts:10` | 默认 vault 为 `C:/Users/Janlhin/Desktop/Blueprint` |
-| `server/parsers/asciidoc.ts:7` | Asciidoctor 以 `file:///C:/Users/Janlhin/.workbuddy/binaries/node/versions/26.13.0-1/...` 引入 |
+| `server/index.ts:10` | 默认 vault 为 `<vault>` |
+| `server/parsers/asciidoc.ts:7` | Asciidoctor 以 `file:///<node 安装目录>/...` 引入 |
 | `server/render.ts:7` | 同上 |
 | `start.ps1` | `-Vault` 默认值同为上述路径 |
 

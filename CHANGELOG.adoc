@@ -70,7 +70,7 @@
 * ADR-0004：策略由最小增量改为深度改造，含七层结构与样式三规则。
 * `docs/route-evaluation.adoc`：九款开源笔记软件的实测核查与五条路线对照。
 * `docs/obsidian-clone-report.adoc`：六个 Obsidian 模仿品的代码级核查与三维度排名。
-* `docs/obsidian-reverse-engineering.adoc`：以 REA 逆向 Obsidian 本体的学习路线规划，含分析目标核实（`resources/主程序资源包`，非 73 KB 启动壳）、九条优先学习项（软件逻辑五条 + 代码逻辑四条）、三阶段方法与「不可映射不进 ADR」的输出纪律。
+* 学习路线规划：九条优先学习项（软件逻辑五条 + 代码逻辑四条）、三阶段方法与「不可映射不进 ADR」的输出纪律（该文档已于 2026-11-16 公开前移出，不再随仓库分发）。
 * `docs/geode-baseline.adoc`：ADKM 相对底座 geode 的差异基线。确立「评估差距时参照物必须是底座 geode，而非参照产品 Obsidian」，含核实自 package.json / Cargo.toml 的完整技术栈版本表（底座当时 vs 现在两栏）、版本号来源辨析（`tauri.conf.json`、`package.json`、`Cargo.toml` 现均为 0.269.0），`git diff 6e80e93 HEAD` 实测的量化差异（110 文件 / +13476 −4408；`src/` TS 净增 1231 行即 +2.4%，扣除 CSS→SCSS 机械改写与文档后），并明确「架构成熟度」是唯一大缺口且底座同样缺失。
 * §4「格式支持与解析分层」，含 L1–L4 能力分级与 AsciiDoc 的 D1–D4 解析边界。
 * §4.4 解析上下文（衔接 ADR-0002）。

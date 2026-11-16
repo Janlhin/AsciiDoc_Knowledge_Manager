@@ -1,18 +1,18 @@
 {
-  "name": "geode",
+  "name": "adkm",
   "private": true,
   "version": "0.269.0",
-  "description": "Geode — a local-first markdown knowledge base (Obsidian-style), built with Tauri 2 + React + CodeMirror 6",
+  "description": "ADKM — a local-first AsciiDoc/Markdown knowledge base (Obsidian-style), built on Geode with Tauri 2 + React + CodeMirror 6",
   "license": "Apache-2.0",
-  "author": "AlexHercules",
+  "author": "Janlhin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlexHercules/geode.git"
+    "url": "git+https://github.com/Janlhin/AsciiDoc_Knowledge_Manager.git"
   },
   "bugs": {
-    "url": "https://github.com/AlexHercules/geode/issues"
+    "url": "https://github.com/Janlhin/AsciiDoc_Knowledge_Manager/issues"
   },
-  "homepage": "https://github.com/AlexHercules/geode#readme",
+  "homepage": "https://github.com/Janlhin/AsciiDoc_Knowledge_Manager#readme",
   "keywords": [
     "markdown",
     "markdown-editor",

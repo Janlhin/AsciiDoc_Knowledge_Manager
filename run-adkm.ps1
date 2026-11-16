@@ -5,7 +5,7 @@
 #   或： .\run-adkm.ps1 "D:\另一个文件夹"
 # ============================================================
 param(
-    [string]$Vault = "C:\Users\Janlhin\Desktop\Blueprint"
+    [string]$Vault = "$env:USERPROFILE\Desktop\Blueprint"
 )
 
 $ErrorActionPreference = "Stop"

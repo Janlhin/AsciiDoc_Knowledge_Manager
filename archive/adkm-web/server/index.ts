@@ -7,7 +7,7 @@ import { readSource, renderDocument } from "./render.ts";
 import { Workspace } from "./workspace.ts";
 import type { EdgeRef, RenderResult } from "../shared/types.ts";
 
-const ROOT = resolve(process.argv[2] ?? "C:/Users/Janlhin/Desktop/Blueprint");
+const ROOT = resolve(process.argv[2] ?? "C:/Users/me/Desktop/Blueprint");
 const PORT = Number(process.env.PORT ?? 8787);
 const DIST = join(import.meta.dirname, "..", "web", "dist");
 

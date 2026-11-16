@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync, writeFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOT = process.argv[2] ?? "C:/Users/Janlhin/Desktop/Blueprint";
+const ROOT = process.argv[2] ?? (process.env.USERPROFILE ?? "C:/Users/me") + "/Desktop/Blueprint";
 const OUT = "src/core/blueprint-seed.ts";
 const SKIP = new Set([".git", "node_modules", ".obsidian", "dist", "build"]);
 const MAX_BYTES = 400 * 1024;

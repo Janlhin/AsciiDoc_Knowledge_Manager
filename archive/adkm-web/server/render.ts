@@ -4,7 +4,7 @@ import { join } from "node:path";
 import MarkdownIt from "markdown-it";
 import type { Workspace } from "./workspace.ts";
 
-const ASCIIDOCTOR = "file:///C:/Users/Janlhin/.workbuddy/binaries/node/versions/26.13.0-1/node_modules/asciidoctor/index.js";
+const ASCIIDOCTOR = "file:///C:/Users/me/.workbuddy/binaries/node/versions/26.13.0-1/node_modules/asciidoctor/index.js";
 
 interface AsciidoctorDoc {
   convert(options?: Record<string, unknown>): Promise<string> | string;

@@ -37,7 +37,7 @@
 |`6e80e93`，对应上游 `7a8ce22cb6fd289913c1032e7ecdc3667033748e`（2026-07-04）。该提交是重建的根，溯源见仓库内 `PROVENANCE.adoc`。
 
 |代码仓
-|`https://github.com/Janlhin/adkm.git`（fork）
+|`https://github.com/Janlhin/AsciiDoc_Knowledge_Manager.git`
 
 |应用标识
 |`com.geode.knowledgebase`
@@ -234,7 +234,7 @@ ____
 
 而这不是可有可无的工程洁癖：charter 承诺的「引用完整性校验优先」，在大库上若无缓存与增量索引，就是**不可用的功能**。承诺了却兑现不了，等于没承诺。
 
-因此 REA 逆向是兑现产品承诺的技术路径，不是可选的锦上添花。范围与纪律见 `obsidian-reverse-engineering.adoc`。
+因此 REA 逆向是兑现产品承诺的技术路径，不是可选的锦上添花。范围与纪律见 D-014 决策记录（原路线文档已于 2026-11-16 公开前移出）。
 
 == 待验证项
 
@@ -249,7 +249,6 @@ ____
 * `route-evaluation.adoc`：五条路线评估，路线 C（以 Geode 为底座）的依据。
 * `technical-decisions/ADR-0003-geode-as-base.adoc`：选 geode 作底座的决策。
 * `technical-decisions/ADR-0004-deep-modification.adoc`：深度改造七层与样式三规则。
-* `obsidian-reverse-engineering.adoc`：REA 逆向路线与学习范围。
 * `obsidian-clone-report.adoc`：社区模仿品核查（**参照产品**方向，与本文的**底座差异**不是一回事）。
 
 == 修订记录

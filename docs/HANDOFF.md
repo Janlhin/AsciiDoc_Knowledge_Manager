@@ -701,7 +701,7 @@ OBSIDIAN-COMPAT 套件矩阵不回退（macOS 下 = probe 插件方案）。用�
   或重新生成基线）。
   **风险待用户确认（每轮务必提醒直至确认）：`.tauri-keys/` minisign 更新签名私钥
   仍未找回**——丢失 = 永远无法向已装机用户推更新；原 Windows 机
-  （C:\Users\16778\Desktop\开发\rock）或其备份里应该还有。
+  （<另一台机器>\Desktop\开发\rock）或其备份里应该还有。
 - 守住的老规矩：UI 字符串走 t()/useI18n()（命令键在 dict.app.ts 的 cmd.*；settings.*
   选择器/字段在 dict.views.ts，palette.*/switcher.* 在 dict.panels.ts——分居是所有权
   使然，维护时多边都查）；命令/插件 name 是 thunk；live↔source 走 modeCompartment；

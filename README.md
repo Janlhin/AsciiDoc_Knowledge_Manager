@@ -3,7 +3,7 @@
 **Local-first desktop knowledge base for AsciiDoc and Markdown.**
 
 A working rebuild on top of [Geode](https://github.com/AlexHercules/geode) (Apache-2.0). Early stage,
-private repository, not ready for external use.
+source is public, but it is not a usable release yet.
 
 > 工作代号 ADKM，产品名未定。本仓库是 Geode 的深度改造分支，当前处于改造初期。
 
@@ -38,7 +38,7 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
 - **AsciiDoc 进入索引**：`.adoc` 与 `.md` 参与同一套文件树、图谱、反链、大纲、搜索
   - 四种引用写法都识别：`xref:path[]`、`<<path,text>>`、`link:path[]`、`include::path[]`
   - 属性别名在文档头内求值，`xref:{spec}[]` 能解析到真实文件
-  - 实测 Blueprint 语料：130 篇 adoc、220 条引用、0 条未解析、全量索引 67 ms
+  - 实测 Blueprint 语料（2026-11-13 测量，当时 130 篇 adoc、220 条引用、0 条未解析、全量索引 67 ms；2026-11-16 复测该库为 125 篇）
 - **AsciiDoc 阅读视图**：用官方 Asciidoctor.js 浏览器构建渲染，标题、表格、admonition、代码块、目录都正确
   - 按需动态加载（独立 chunk，约 1.3 MB，不拖慢首屏）；`xref:` 链接转成应用内可点链接
   - 实测 `AI_Engineering_Gate.adoc`：67 KB 源码 → 94 个章节、212 条内部链接、38 ms
@@ -87,11 +87,11 @@ Rust 侧很薄（约 800 行），只负责文件系统、监听、对话框与�
 ## 构建
 
 ```sh
-git clone https://github.com/Janlhin/adkm.git
+git clone https://github.com/Janlhin/AsciiDoc_Knowledge_Manager.git
 cd adkm
 
-# 依赖锁文件中记录了镜像地址，需要显式放行
-npm install --allow-remote=all
+# 若你的 npm registry 指向内网镜像，需要加 --allow-remote=all
+npm install
 
 # 前端：类型检查 + 打包
 npm run build
@@ -119,7 +119,7 @@ src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 双击 `run-adkm.ps1`（右键 →「使用 PowerShell 运行」），或直接：
 
 ```sh
-src-tauri/target/release/geode.exe "C:\Users\Janlhin\Desktop\Blueprint"
+src-tauri/target/release/geode.exe "%USERPROFILE%\Desktop\Blueprint"
 ```
 
 第一个参数会被当成 vault 根目录，跳过文件夹选择对话框。省略参数则恢复上次打开的库。
@@ -181,6 +181,7 @@ docs/               项目文档与规范原文
 | [`docs/project-charter-v2.adoc`](docs/project-charter-v2.adoc) | 产品章程：定位、P0 目标、能力分层 L1–L4 |
 | [`docs/route-evaluation.adoc`](docs/route-evaluation.adoc) | 底座选型的评估方法与候选对照 |
 | [`docs/obsidian-clone-report.adoc`](docs/obsidian-clone-report.adoc) | Obsidian 克隆候选的横向核查 |
+| [`docs/obsidian-reverse-engineering.adoc`](docs/obsidian-reverse-engineering.adoc) | Obsidian 本体逆向结论与落点映射 |
 | [`docs/geode-baseline.adoc`](docs/geode-baseline.adoc) | 底座现状基线：与目标的差距对照 |
 | [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
 | [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |
@@ -204,4 +205,4 @@ docs/               项目文档与规范原文
 
 ## 状态说明
 
-本仓库为私有工作副本，功能不完整，接口与数据格式随时可能变化。当前不接收外部贡献，也不提供使用支持。
+本仓库是早期工作副本，功能不完整，接口与数据格式随时可能变化。欢迎开 issue 讨论；改动请先开 issue，再按 `docs/CONTRIBUTING.md` 提 PR。不承诺使用支持。

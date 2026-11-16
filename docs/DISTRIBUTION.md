@@ -1,4 +1,4 @@
-# Geode 分发与自动更新（R9 起）
+# ADKM 分发与自动更新（R9 起；构建产物名仍为 geode）
 
 > 商业分发的两条签名是不同的东西，别混：
 > 1. **更新签名（minisign）**——tauri-plugin-updater 校验更新包用，本地生成密钥，**已落地**。
@@ -10,8 +10,8 @@
 - 密钥对在 `.tauri-keys/geode.key`（私钥）+ `geode.key.pub`（公钥），**gitignore，永不入库**。
 - 公钥已写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
 - **私钥丢失 = 永远无法向已装机用户推送更新**（公钥烧在已分发的安装包里）。
-  请把 `.tauri-keys/` 备份到密码管理器/离线介质。当前密钥密码为 `geode-updater-dev`
-  （开发期口径，随仓库文档可见——正式对外发布前必须重新生成强密码密钥并轮换；
+  请把 `.tauri-keys/` 备份到密码管理器/离线介质。密钥密码只保存在本机密码管理器（该口令曾写在本文件，随仓库公开已作废，须重新生成密钥对并轮换）
+  （正式对外发布前必须重新生成强密码密钥；
   注意 **Windows 无法表达空字符串环境变量**，空密码密钥在 Windows 上构建会死等
   交互式密码提示，所以密钥必须带密码）。
 
@@ -24,7 +24,7 @@
    ```powershell
    # 变量要的是私钥【内容】（或改用 TAURI_SIGNING_PRIVATE_KEY_PATH 传绝对路径）
    $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keys\geode.key -Raw)
-   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "geode-updater-dev"
+   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<密钥密码>"
    npm run tauri build
    ```
 

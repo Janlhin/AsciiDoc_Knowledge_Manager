@@ -735,15 +735,15 @@ ScanMacro(ASource, 'link:', ABaseDir, Result);
 
 [source,bash]
 ----
-node C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/adoc-spike.mjs
-node C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/perf.mjs
+node <工作目录>/2026-11-12-16-29-13/spike/adoc-spike.mjs
+node <工作目录>/2026-11-12-16-29-13/spike/perf.mjs
 ----
 
 === 索引与图谱复现
 
 [source,bash]
 ----
-cd C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/spike/adkm-graph-ts
+cd <工作目录>/2026-11-12-16-29-13/spike/adkm-graph-ts
 npm run all
 ----
 
@@ -751,8 +751,8 @@ npm run all
 
 [source,bash]
 ----
-cd C:/Users/Janlhin/WorkBuddy/2026-11-12-16-29-13/adkm-web
-node server/index.ts "C:/Users/Janlhin/Desktop/Blueprint"
+cd <工作目录>/2026-11-12-16-29-13/adkm-web
+node server/index.ts "<vault>"
 ----
 
 === 实测记录汇总

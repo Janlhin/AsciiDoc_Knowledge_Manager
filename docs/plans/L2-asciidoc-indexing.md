@@ -15,7 +15,7 @@
 
 ```bash
 npm run verify            # 退出码 0
-node scripts/adoc-index-report.ts "C:/Users/Janlhin/Desktop/Blueprint"
+node scripts/adoc-index-report.ts "<vault>"
 # 输出 adoc 文档数 >= 130，links 总数 >= 200，未解析数可枚举
 ```
 
@@ -171,7 +171,7 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 ## 9. 实测结果（2026-11-13）
 
 ```
-node scripts/adoc-index-report.ts "C:/Users/Janlhin/Desktop/Blueprint" --min-adoc 130
+node scripts/adoc-index-report.ts "<vault>" --min-adoc 130
   扫描      269 md · 130 adoc · 跳过 16 个大文件（>200 KB）
   索引      399 文档 · 67 ms
   图谱      399 节点 · 86 边

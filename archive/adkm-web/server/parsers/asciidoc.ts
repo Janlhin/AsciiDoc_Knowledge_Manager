@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { basename, extname } from "node:path";
 import type { Heading, ParsedDoc, RawLink } from "../../shared/types.ts";
 
-const ASCIIDOCTOR = "file:///C:/Users/Janlhin/.workbuddy/binaries/node/versions/26.13.0-1/node_modules/asciidoctor/index.js";
+const ASCIIDOCTOR = "file:///C:/Users/me/.workbuddy/binaries/node/versions/26.13.0-1/node_modules/asciidoctor/index.js";
 
 /** Asciidoctor.js 的最小类型面（我们只用块级遍历与源码定位） */
 interface AsciidoctorBlock {

@@ -5,7 +5,7 @@
 #   2) 或在终端执行：.\start.ps1 "D:\你的文件夹"
 # ============================================================
 param(
-    [string]$Vault = "C:\Users\Janlhin\Desktop\Blueprint"
+    [string]$Vault = "$env:USERPROFILE\Desktop\Blueprint"
 )
 
 $ErrorActionPreference = "Stop"
