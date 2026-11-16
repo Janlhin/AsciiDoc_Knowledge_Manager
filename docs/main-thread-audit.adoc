@@ -149,3 +149,71 @@ W-1 `DocxPreview`（mammoth）、W-2 `XlsxPreview`（SheetJS 解析部分）、W
 == 建议的下一步
 
 先做 **P0-1 + P0-2**：一个改 IPC 形态，一个把 EPUB 解压搬走。这两项合计覆盖你实际遇到的"大 PDF/大 EPUB 卡顿"的绝大部分，且不动任何 UI 语义。P0-3（备份）放在其后，因为它只在手动备份时发生。
+
+== 行业实现对照（读源码，不是看宣传）
+
+=== epub.js：整本入内存，但有"目录模式"这个后门
+
+`src/archive.js`（已核对）：
+
+* `Archive.open(input)` = `JSZip.loadAsync(input)` —— **整本书一次性进 JSZip**，解压后的所有条目留在 JS 堆里。
+* 取单个资源走 `getBlob(url)` → `entry.async("uint8array")` → `new Blob` → `URL.createObjectURL`，结果缓存在 `urlCache`。
+* `Book.open(input, what)` 的 `what` 支持 `binary / base64 / epub / opf / directory`。**只有前三者把 `archived = true`**，此时资源从 JSZip 取；`opf` 与 `directory` **不设 archived**，资源统一走 `this.request`（可被 `settings.requestMethod` 覆盖）逐个请求。
+* 于是有一个明确的注入点：
+
+[source,js]
+----
+ePub(url, {
+  openAs: "directory",           // 走 openContainer → OPF → manifest，不解压
+  requestMethod: myFetcher,      // 我们自己实现：命中 Rust 解压缓存
+  replacements: "blobUrl",       // 非归档模式下默认是 "base64"，会把每章内联成 data URI（更重）
+});
+----
+
+`myFetcher(url)` 只需返回文本或二进制：我们可以让它读 Rust 侧已解压到缓存的同名文件。**这样 epub.js 只在我们翻到某一章时才请求那一章**，既没有 51MB 的 JSZip，也没有整本解压的主线程成本。
+
+=== pdf.js：worker 解析 + 只渲染可见页
+
+`web/app.js` 里 `GlobalWorkerOptions` / `PDFWorker` / `PDFRenderingQueue` 说明它的两条核心策略：
+
+. **解析在 Worker**：主线程只做 DOM/画布合成，PDF 的 xref、对象流、字体解码都在 worker 线程。
+. **按需渲染**：`PDFRenderingQueue` + `RenderableTextLayer` 只为视口内的页分配画布；离屏页只保留占位。
+. 网络侧还有 `rangeChunkSize` / `disableAutoFetch` / `disableStream`（走 HTTP Range 拉片段，而不是整份下载）。
+
+对我们来说：**PDF 不需要换成 pdf.js**。WebView2 的 `<embed type="application/pdf">` 本身就是 Chromium 的 pdfium，**已经在独立进程里**，这正是 144 MB 打开后滚动不卡的原因。我们付的代价只在于"把 144 MB 交进去"这一步——那属于 P0-1（原始字节 IPC），不属于渲染。
+
+=== 其他阅读器怎么做的
+
+[cols="2,4,3",options="header"]
+|===
+| 项目 | 做法 | 对本项目的可借鉴性
+
+| Thorium / Readium（桌面阅读器）
+| 导入时**预解压**到本地缓存，运行时通过自定义协议把资源喂给渲染层；不把整本书放进 JS 堆
+| **高**：与 P0-2 完全同构（Rust 解压 + 协议/请求函数）
+
+| Kavita（自建书库）
+| 服务端解压并做页码化图片流，前端只请求当前页
+| 中：它是服务端形态，但"资源和渲染分离"的思路一致
+
+| koodo-reader（Electron）
+| 直接 `epub.js` + `pdf.js`，整本入内存
+| 低：它和我们现在的实现是同一个毛病，只是主线程预算更宽裕（桌面 Chromium）
+
+| calibre 自带查看器
+| 本地解压 + 逐资源加载
+| 中：同上，属"解压前置"路线
+|===
+
+**结论**：行业里没有谁靠"上 GPU"解决大书打开慢；共识是**把解压从渲染线程拿开，并且只按需取资源**。
+
+=== P0-2 的精确改法（据上面源码定稿）
+
+. Rust 新增 `epub_extract(vault, path)`：用 `zip` crate 解到 `<appdata>/epub-cache/<sha1(mtime+size+path)>/`，返回缓存根与 OPF 相对路径；同一指纹命中则直接复用。
+. 前端拿到缓存根后：`ePub(cacheUrl, { openAs: "directory", requestMethod, replacements: "blobUrl" })`。
+. `requestMethod(url)`：把 epub.js 解析出的相对路径映射到缓存文件，经 Tauri 的资源协议（`convertFileSrc`）或自注册协议取回；命中不到就退回 `app.vault.readBinary`（兜底）。
+. 缓存清理：读取时更新 `lastUsed`，启动时按 LRU 删到上限（例如 1 GB），**只动缓存目录，不碰库**。
+. 验收：51 MB 那本书，"打开到首章可读"的主线程阻塞从 ≈730 ms 降到无 >50 ms 帧间隔；翻章时每次只多一次单文件读取。
+
+风险：① 资源协议需要在 Tauri 侧开放缓存目录的 scope（CSP/权限要单独验证）；② 有些 EPUB 用相对路径 + 锚点混合，`requestMethod` 需按 `Url.resolve` 语义处理编码；③ `directory` 模式不做整本完整性校验，损坏包会在翻到某章时才报错（需把错误映射成可读提示）。
+
