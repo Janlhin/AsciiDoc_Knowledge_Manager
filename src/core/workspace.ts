@@ -17,6 +17,7 @@ import { defaultNewTabMode, focusNewTab } from "./appearance";
 import { basename, isTauri, stripExtension } from "./vault";
 import { LEGACY_WORKSPACE_KEY, workspaceStateKey } from "./workspaceKeys";
 import { isAttachmentPath } from "./attachments";
+import { shouldPersistSession, shouldRestoreSession } from "./startup";
 
 const RECENTLY_CLOSED_MAX = 20;
 const NAV_HISTORY_MAX = 50;
@@ -139,6 +140,12 @@ export function flattenLeaves(node: PaneNode): PaneLeaf[] {
 
 export function findLeaf(node: PaneNode, paneId: string): PaneLeaf | null {
   return flattenLeaves(node).find((l) => l.id === paneId) ?? null;
+}
+
+/** T-058: does this layout hold at least one open tab (file or virtual view)?
+ *  Used to tell a "fresh boot that nobody has used yet" apart from a real session. */
+function hasAnyTab(state: WorkspaceState): boolean {
+  return flattenLeaves(state.root).some((leaf) => leaf.tabs.length > 0);
 }
 
 /** The leaf that holds a given tab, or null. */
@@ -382,6 +389,9 @@ export class Workspace {
    *  pre-isolation key so the constructor-time restore still works, then
    *  adopts the per-vault key on the first `vault:changed`/load. */
   private storageKey: string = LEGACY_WORKSPACE_KEY;
+  /** T-058: did THIS session boot into "fresh window" mode? A fresh boot must not
+   *  write its empty shell over the snapshot it declined to restore (D-027). */
+  private readonly bootedFresh = !shouldRestoreSession();
   /** Most-recent-LAST stack of user-closed tabs for Mod+Shift+T. Session-only —
    *  NOT persisted (avoids stale-path risk across restart). Only closeTab feeds
    *  it; reactive cleanups (delete/rename/missing) purge it. */
@@ -1322,6 +1332,19 @@ export class Workspace {
 
   private persist() {
     if (isBenchSession()) return; // bench vaults must not leak tabs into the real workspace
+    // T-058: in "fresh window" mode the snapshot is left untouched — otherwise the
+    // first state change of a fresh session would erase the session the user asked
+    // to keep restoring later (D-027).
+    if (!shouldPersistSession()) return;
+    // ...and a session that BOOTED fresh must not clobber an existing snapshot while
+    // it is still an empty shell. The failure this prevents: the user starts fresh,
+    // opens Settings to switch back to "continue where you left off" — the modal
+    // open alone is a state change, which used to write `tabs: []` over the real
+    // session, so the promise "switching back restores it" broke. Once the session
+    // has a real tab, persisting is legitimate again.
+    if (this.bootedFresh && !hasAnyTab(this.state.get())) {
+      if (this.readPersisted(this.storageKey) !== null) return;
+    }
     try {
       const s = this.state.get();
       localStorage.setItem(
@@ -1335,6 +1358,8 @@ export class Workspace {
 
   private restore() {
     if (isBenchSession()) return;
+    // T-058: "fresh window" ignores the replay (but does not delete it — D-027).
+    if (!shouldRestoreSession()) return;
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (!raw) return;
@@ -1367,9 +1392,11 @@ export class Workspace {
         this.removePersisted(LEGACY_WORKSPACE_KEY);
       }
     }
-    if (raw === null) {
+    if (raw === null || !shouldRestoreSession()) {
       // Nothing stored for this vault yet: start clean rather than inheriting
-      // the previous vault's tabs.
+      // the previous vault's tabs. T-058: "fresh window" mode also starts clean
+      // when switching vaults — the setting promises no replay at all, and the
+      // stored snapshot is left untouched for a later "restore" boot.
       this.state.set(defaultState());
     } else {
       try {

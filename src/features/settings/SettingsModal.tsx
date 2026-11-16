@@ -3,6 +3,7 @@ import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { confirmAction } from "@core/confirm";
 import { clearSettingsSection, peekSettingsSection } from "@core/settingsNav";
+import { setStartupMode, startupMode, type StartupMode } from "@core/startup";
 import {
   READABLE_LINE_WIDTH_MAX,
   READABLE_LINE_WIDTH_MIN,
@@ -186,6 +187,7 @@ type SectionId =
   | "editor"
   | "files-and-links"
   | "appearance"
+  | "startup"
   | "hotkeys"
   | "keychain"
   | "ai"
@@ -227,6 +229,7 @@ const NAV_GROUPS: Array<{
       { id: "editor", labelKey: "settings.editorHeading", icon: "file-text" },
       { id: "files-and-links", labelKey: "settings.filesAndLinks", icon: "file-text" },
       { id: "appearance", labelKey: "settings.section.appearance", icon: "sun" },
+      { id: "startup", labelKey: "settings.section.startup", icon: "clock" },
       { id: "hotkeys", labelKey: "settings.section.hotkeys", icon: "command" },
       { id: "keychain", labelKey: "settings.section.keychain", icon: "key" },
       { id: "ai", labelKey: "settings.section.ai", icon: "sparkles" },
@@ -357,6 +360,7 @@ export function SettingsModal() {
           {section === "editor" && <EditorSection />}
           {section === "files-and-links" && <FilesAndLinksSection />}
           {section === "appearance" && <AppearanceSection />}
+          {section === "startup" && <StartupSection />}
           {section === "hotkeys" && <HotkeysSection />}
           {section === "keychain" && <KeychainSection />}
           {section === "ai" && <AiSection />}
@@ -379,6 +383,55 @@ export function SettingsModal() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------------- Startup (T-058 / D-027) ---------------- */
+
+/** "Continue where you left off" vs "fresh window" — the browser-style startup
+ *  choice. It takes effect on the NEXT launch (the current window keeps its
+ *  tabs), which the trailing hint states so the radio does not look broken. */
+function StartupSection() {
+  const t = useI18n();
+  const mode = useStore(startupMode);
+  const options: Array<{ value: StartupMode; label: string; desc: string }> = [
+    { value: "restore", label: t("settings.startup.restore"), desc: t("settings.startup.restoreDesc") },
+    { value: "fresh", label: t("settings.startup.fresh"), desc: t("settings.startup.freshDesc") },
+  ];
+  return (
+    <>
+      <h3 className="settings-subheader" data-testid="settings-subheader-startup">
+        {t("settings.startupHeading")}
+      </h3>
+      <div
+        className="settings-card"
+        role="radiogroup"
+        aria-label={t("settings.startupHeading")}
+      >
+        {options.map((opt) => (
+          <label
+            key={opt.value}
+            className={`setting-item setting-item-choice${mode === opt.value ? " is-selected" : ""}`}
+            data-testid={`settings-startup-${opt.value}`}
+          >
+            <input
+              type="radio"
+              name="settings-startup-mode"
+              checked={mode === opt.value}
+              onChange={() => setStartupMode(opt.value)}
+              data-testid={`settings-startup-radio-${opt.value}`}
+            />
+            <div className="setting-info">
+              <div className="setting-name">{opt.label}</div>
+              <div className="setting-desc">{opt.desc}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+      <div className="setting-desc" data-testid="settings-startup-hint">
+        {t("settings.startup.hint")}
+      </div>
+    </>
   );
 }
 

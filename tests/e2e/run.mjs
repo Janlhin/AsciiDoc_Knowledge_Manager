@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: fourteen high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: fifteen high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -869,6 +869,56 @@ async function main() {
     assert(left.length === 1 && left[0] === second.name,
       `keep=1 should leave exactly the newest archive, got ${JSON.stringify(left)}`);
     return `${first.name}: ${entries.length} entries; inside-vault refused; keep=1 → 1 archive`;
+  });
+
+  // ---- 15. T-058: startup mode really changes what a reload brings back ----
+  await runCase("startup-mode", async () => {
+    // start from a session with one open tab so "restore" is observable
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "显示文件列表");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "show file explorer command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer"]')`, 8000, "explorer mounted");
+    assert(await c.click('[data-testid="explorer-item"][data-path="E2E-Note.md"]'), "could not open E2E-Note.md");
+    await c.waitFor(`document.querySelectorAll('.tab-bar .tab').length >= 1`, 10000, "a tab is open");
+
+    const setMode = async (mode) => {
+      await c.key(",", "Comma", 188, 2); // Mod+, → settings
+      await c.waitFor(`!!document.querySelector('[data-testid="settings-modal"]')`, 8000, "settings modal");
+      assert(await c.click('[data-testid="settings-nav-startup"]'), "no startup section in settings");
+      await c.waitFor(
+        `!!document.querySelector('[data-testid="settings-startup-radio-${mode}"]')`,
+        8000,
+        "startup radios",
+      );
+      assert(await c.click(`[data-testid="settings-startup-radio-${mode}"]`), `could not pick ${mode}`);
+      const saved = await c.evaluate(`localStorage.getItem("adkm.startupMode")`);
+      assert(saved === mode, `startup mode not persisted (got ${saved})`);
+      assert(await c.click('[data-testid="settings-close"]'), "could not close settings");
+      await c.waitFor(`!document.querySelector('[data-testid="settings-modal"]')`, 6000, "settings closed");
+    };
+
+    const reload = async () => {
+      await c.call("Page.reload", { ignoreCache: false });
+      await sleep(2500);
+      await c.waitFor(`!!document.querySelector('[data-testid="app-root"]')`, 25000, "app booted after reload");
+    };
+
+    await setMode("fresh");
+    await reload();
+    const freshTabs = await c.evaluate(`document.querySelectorAll('.tab-bar .tab').length`);
+    assert(freshTabs === 0, `a fresh window must restore no tabs, got ${freshTabs}`);
+
+    await setMode("restore");
+    await reload();
+    await c.waitFor(
+      `document.querySelectorAll('.tab-bar .tab').length >= 1`,
+      20000,
+      "the previous session came back after switching to restore",
+    );
+    const restored = await c.evaluate(`document.querySelectorAll('.tab-bar .tab').length`);
+    return `${freshTabs} tab(s) in a fresh window; ${restored} restored after switching back`;
   });
 
   c.close();
