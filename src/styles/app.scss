@@ -944,10 +944,84 @@ textarea:focus {
 
 /* EPUB — paginated reader (epub.js). */
 .format-epub {
-  padding: 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* T-061: toolbar + TOC side panel; the viewer keeps the remainder of the pane so
+   epub.js measures a real height instead of the previous 24px inset box. */
+.epub-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  flex: none;
+}
+.epub-toolbar-btn {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.epub-toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+.epub-toolbar-btn.is-on {
+  border-color: var(--border-strong);
+  color: var(--text-normal);
+}
+.epub-percent {
+  margin-left: auto;
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+}
+.epub-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.epub-toc {
+  width: 260px;
+  flex: none;
+  overflow: auto;
+  padding: 8px 6px;
+  border-right: 1px solid var(--border);
+}
+.epub-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text-normal);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.epub-toc-item:hover {
+  background: var(--bg-hover);
+}
+.epub-toc-item.is-current {
+  color: var(--accent);
+  font-weight: 600;
+}
+.epub-toc-empty {
+  padding: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 .epub-viewer {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 100%;
   background: var(--background-primary, #fff);
 }

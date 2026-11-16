@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: sixteen high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: seventeen high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -267,6 +267,37 @@ async function prepareVault(dir) {
   // matters for the assertion.
   writePdf(path.join(dir, "docs", "scan-small.pdf"));
   writeFileSync(path.join(dir, "docs", "scan-big.pdf"), Buffer.alloc(40 * 1024 * 1024));
+  // T-061: a real EPUB (nav document + 3 chapters) so the reader's TOC and
+  // position persistence can be driven end to end. EPUB had no fixture before.
+  const book = new JSZip();
+  book.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  book.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+  );
+  const chapters = [1, 2, 3];
+  book.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">urn:uuid:e2e-epub</dc:identifier><dc:title>E2E Book</dc:title><dc:language>en</dc:language></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${chapters
+      .map((n) => `<item id="ch${n}" href="ch${n}.xhtml" media-type="application/xhtml+xml"/>`)
+      .join("")}</manifest><spine>${chapters.map((n) => `<itemref idref="ch${n}"/>`).join("")}</spine></package>`,
+  );
+  book.file(
+    "OEBPS/nav.xhtml",
+    `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${chapters
+      .map((n) => `<li><a href="ch${n}.xhtml">Chapter ${["One", "Two", "Three"][n - 1]}</a></li>`)
+      .join("")}</ol></nav></body></html>`,
+  );
+  for (const n of chapters) {
+    book.file(
+      `OEBPS/ch${n}.xhtml`,
+      `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter ${n}</title></head><body><h1>Chapter ${["One", "Two", "Three"][n - 1]}</h1>${Array.from(
+        { length: 40 },
+        (_, k) => `<p>Chapter ${n} paragraph ${k + 1}: filler text long enough to paginate the reader.</p>`,
+      ).join("")}</body></html>`,
+    );
+  }
+  writeFileSync(path.join(dir, "sample.epub"), await book.generateAsync({ type: "nodebuffer" }));
 }
 
 /** Structurally valid single-page PDF (correct xref offsets) for the gate case. */
@@ -999,6 +1030,36 @@ async function main() {
     await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
       "clicking load mounts the PDF");
     return "small PDF mounts after paint; a 40 MB PDF waits for an explicit load";
+  });
+
+  // ---- 17. T-061: EPUB TOC + reading position survive a restart -----------
+  await runCase("epub-toc-progress", async () => {
+    assert(await c.click('[data-testid="explorer-item"][data-path="sample.epub"]'), "could not open sample.epub");
+    await c.waitFor(`!!document.querySelector('[data-testid="epub-preview"]')`, 20000, "epub viewer mounted");
+
+    assert(await c.click('[data-testid="epub-toc-toggle"]'), "the reader has no contents button");
+    await c.waitFor(`document.querySelectorAll('[data-testid="epub-toc-item"]').length >= 3`, 20000,
+      "the nav document produced three TOC rows");
+    const labels = await c.evaluate(`JSON.stringify([...document.querySelectorAll('[data-testid="epub-toc-item"]')].map(function (b) { return b.textContent.trim(); }))`);
+    assert(labels.includes("Chapter Three"), `TOC labels look wrong: ${labels}`);
+
+    // jump to the last chapter: the footer percentage must follow
+    await c.evaluate(`(() => { const b = [...document.querySelectorAll('[data-testid="epub-toc-item"]')].find(function (x) { return x.textContent.trim() === "Chapter Three"; }); if (b) b.click(); return !!b; })()`);
+    await c.waitFor(`document.querySelector('[data-testid="epub-percent"]') && document.querySelector('[data-testid="epub-percent"]').textContent.trim() === "100%"`,
+      20000, "percentage tracks the chapter jump");
+    await sleep(700); // the position write is debounced by 400 ms
+
+    const stored = await c.evaluate(`(() => { const k = Object.keys(localStorage).find(function (x) { return x.startsWith("adkm.epub.pos:"); }); if (!k) return null; const p = JSON.parse(localStorage.getItem(k)); return { percent: p.percent, hasCfi: typeof p.cfi === "string" && p.cfi.length > 0 }; })()`);
+    assert(stored && stored.hasCfi, `no reading position was stored: ${JSON.stringify(stored)}`);
+    assert(stored.percent === 100, `stored percentage should be 100, got ${stored.percent}`);
+
+    // restart the app page: the reader must come back to the same place
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
+    await c.waitFor(`!!document.querySelector('[data-testid="app-root"]')`, 25000, "app booted after reload");
+    await c.waitFor(`document.querySelector('[data-testid="epub-percent"]') && document.querySelector('[data-testid="epub-percent"]').textContent.trim() === "100%"`,
+      25000, "the reading position was restored after a restart");
+    return `3 TOC rows, jump → 100%, position restored after restart (${stored.percent}%)`;
   });
 
   c.close();

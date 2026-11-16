@@ -49,6 +49,8 @@ beforeEach(async () => {
     },
   }));
   const app = { vault: {
+    // T-061: the reader now namespaces its saved position by vault path
+    getVaultPath: () => "C:\\Tests\\Vault",
     readBinary: (path: string) => {
       const read = deferred<Uint8Array>();
       reads.set(path, read);
