@@ -70,6 +70,14 @@ import { expandTemplate, templatePickerMode } from "@core/templates";
 import { updateSupported } from "@core/update";
 import { mergeTargetMode } from "@core/noteMerge";
 import { bookmarks } from "@core/bookmarks";
+import {
+  backupSettings,
+  checkBackupDir,
+  pickBackupDir,
+  runBackup,
+  saveBackupSettings,
+  tauriBackupIO,
+} from "@core/backup";
 import { t, useI18n, locale } from "@core/i18n";
 import { PRODUCT } from "@core/product";
 import { loadObsidianPlugins } from "@compat/obsidian/loader";
@@ -1209,6 +1217,50 @@ export function App() {
         name: () => t("cmd.fileRecovery"),
         available: () => workspace.getActiveFile() !== null,
         callback: () => workspace.openModal("recovery"),
+      }),
+      // T-057 / D-026: optional off-disk backup. The target is picked once by the
+      // user (another disk, a network share, or a cloud-sync folder) and every run
+      // writes one timestamped archive there. No silent writes, no sync engine.
+      commands.register({
+        id: "backup:choose-folder",
+        name: () => t("cmd.backupChooseFolder"),
+        callback: () => {
+          void (async () => {
+            const picked = await pickBackupDir(backupSettings.get().dir);
+            if (picked === null) return;
+            const check = checkBackupDir(picked, app.vault.getVaultPath());
+            if (!check.ok) {
+              showCommandNotice(t("backup.badDir"));
+              return;
+            }
+            saveBackupSettings({ ...backupSettings.get(), dir: picked });
+            showCommandNotice(t("backup.dirSet", { dir: picked }));
+          })();
+        },
+      }),
+      commands.register({
+        id: "backup:run",
+        name: () => t("cmd.backupRun"),
+        callback: () => {
+          const settings = backupSettings.get();
+          if (settings.dir === null) {
+            showCommandNotice(t("backup.noDir"));
+            return;
+          }
+          showCommandNotice(t("backup.running"));
+          void runBackup(app.vault, tauriBackupIO(), {
+            dir: settings.dir,
+            keep: settings.keep,
+            now: Date.now(),
+          }).then((result) => {
+            if (!result.ok) {
+              showCommandNotice(t("backup.failed", { reason: result.reason }));
+              if (result.message) console.error("[backup] failed", result.message);
+              return;
+            }
+            showCommandNotice(t("backup.done", { name: result.name, n: result.documents }));
+          });
+        },
       }),
       // R203: vault switcher — NOT isTauri-gated (the recents list + modal are pure frontend;
       // reopening a recent path needs no native dialog). "Open another vault" inside it still

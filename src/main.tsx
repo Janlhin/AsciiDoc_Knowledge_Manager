@@ -68,6 +68,7 @@ import {
   listWorkspaceNames,
 } from "@core/workspaces";
 import { initSnapshots, recordSnapshot, listSnapshots, restoreSnapshot } from "@core/snapshots";
+import { backupSettings, runBackup, tauriBackupIO } from "@core/backup";
 import { applyAppearanceSettings, setReadableLineLength, setSpellcheckEnabled, setAccentColor, sanitizeFontFamily, setInterfaceFont, setTextFont, setMonospaceFont, setDefaultNewTabMode, setTabIndentSize, setIndentUsingTabs, tabIndentSize, indentUsingTabs, setShowInlineTitle, setShowRibbon, showInlineTitle, showRibbon, setShowTabTitleBar, setShowStatusBar, showTabTitleBar, showStatusBar } from "@core/appearance";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { copyLineDown, copyLineUp, indentLess, indentMore, insertBlankLine, moveLineDown, moveLineUp, selectLine, toggleComment } from "@codemirror/commands";
@@ -1436,6 +1437,22 @@ async function bootstrap() {
     record: (path, content, ts) => { void recordSnapshot(vault, path, content, ts, true); },
     list: (path) => listSnapshots(vault, path),
     restore: (path, ts, now) => restoreSnapshot(vault, documents, path, ts, now),
+  };
+
+  // T-057 off-disk backup probe: drives the REAL zip → Rust write → prune path so
+  // E2E can assert the archive exists on disk outside the vault.
+  const backupHost = globalThis as typeof globalThis & {
+    __geodeBackup?: {
+      run: (dir: string, keep?: number, now?: number) => Promise<unknown>;
+      settings: () => ReturnType<typeof backupSettings.get>;
+      vaultPath: () => string | null;
+    };
+  };
+  backupHost.__geodeBackup = {
+    run: (dir, keep = 10, now) =>
+      runBackup(vault, tauriBackupIO(), { dir, keep, now: now ?? Date.now() }),
+    settings: () => backupSettings.get(),
+    vaultPath: () => vault.getVaultPath(),
   };
 
   // R50: apply DOM appearance settings (readable line length) on boot + probe.

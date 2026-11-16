@@ -724,6 +724,77 @@ fn export_write(path: String, content: String) -> CmdResult<()> {
         })
 }
 
+/// T-057: name contract for off-disk backup archives. Pruning/deleting outside
+/// the vault is only ever allowed on files this app itself named, so a bug can
+/// never eat a user's unrelated file in the backup folder.
+const BACKUP_PREFIX: &str = "adkm-backup-";
+const BACKUP_SUFFIX: &str = ".zip";
+
+fn is_backup_name(name: &str) -> bool {
+    name.starts_with(BACKUP_PREFIX) && name.ends_with(BACKUP_SUFFIX)
+}
+
+/// Write base64-encoded bytes to an ABSOLUTE path (T-057 off-disk backup).
+/// Same guarantees as `export_write`: relative paths rejected, sibling temp
+/// file + rename so a half-written archive can never replace a good one.
+#[tauri::command(async)]
+fn export_write_binary(path: String, data: String) -> CmdResult<()> {
+    use base64::Engine as _;
+    let abs = Path::new(&path);
+    if !abs.is_absolute() {
+        return Err(format!("export_write_binary: path must be absolute, got '{path}'"));
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| format!("export_write_binary: bad base64: {e}"))?;
+    let mut tmp_name = abs.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+    tmp_name.push(".geode-export.tmp");
+    let tmp = abs.with_file_name(tmp_name);
+    fs::write(&tmp, &bytes)
+        .and_then(|_| fs::rename(&tmp, abs))
+        .map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            format!("export_write_binary {path}: {e}")
+        })
+}
+
+/// List backup archives in an ABSOLUTE directory, sorted by name (the timestamp
+/// is in the name, so name order is chronological). Only files matching the
+/// backup-name contract are returned; anything else in the folder is ignored.
+#[tauri::command(async)]
+fn export_list_backups(dir: String) -> CmdResult<Vec<String>> {
+    let abs = Path::new(&dir);
+    if !abs.is_absolute() {
+        return Err(format!("export_list_backups: dir must be absolute, got '{dir}'"));
+    }
+    let rd = fs::read_dir(abs).map_err(|e| format!("export_list_backups {dir}: {e}"))?;
+    let mut names: Vec<String> = Vec::new();
+    for entry in rd.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            if is_backup_name(name) {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names.sort();
+    Ok(names)
+}
+
+/// Delete ONE old backup archive. Refuses any path whose file name does not match
+/// the backup-name contract — this command must never become a general `rm`.
+#[tauri::command(async)]
+fn export_delete_backup(path: String) -> CmdResult<()> {
+    let abs = Path::new(&path);
+    if !abs.is_absolute() {
+        return Err(format!("export_delete_backup: path must be absolute, got '{path}'"));
+    }
+    let name = abs.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if !is_backup_name(name) {
+        return Err(format!("export_delete_backup: refusing to delete non-backup '{name}'"));
+    }
+    fs::remove_file(abs).map_err(|e| format!("export_delete_backup {path}: {e}"))
+}
+
 /// Read a config file under `<vault>/.obsidian/`. Ok(None) when missing.
 #[tauri::command(async)]
 fn vault_read_config(vault: String, path: String) -> CmdResult<Option<String>> {
@@ -1037,6 +1108,9 @@ fn main() {
             open_in_default_app,
             http_request,
             export_write,
+            export_write_binary,
+            export_list_backups,
+            export_delete_backup,
             secret_set,
             secret_get,
             secret_delete,

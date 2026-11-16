@@ -274,6 +274,15 @@ export const en = {
   "recovery.empty": "No snapshots for this file yet",
   "recovery.noFile": "Open a text file to see its recovery snapshots",
   "recovery.preview": "Preview",
+  // ---- T-057 off-disk backup (src/core/backup) ----
+  "cmd.backupChooseFolder": "Choose backup folder…",
+  "cmd.backupRun": "Back up vault now",
+  "backup.dirSet": "Backup folder: {dir}",
+  "backup.noDir": "Choose a backup folder first",
+  "backup.badDir": "That folder is inside the vault — choose another one",
+  "backup.running": "Backing up…",
+  "backup.done": "Backed up to {name} ({n} files)",
+  "backup.failed": "Backup failed: {reason}",
 
   // ---- T-046 document audit (src/features/docaudit) ----
   "cmd.docAudit": "Audit note conventions...",
@@ -572,6 +581,15 @@ export const zh: Record<keyof typeof en, string> = {
   "recovery.empty": "此文件暂无快照",
   "recovery.noFile": "打开文本文件以查看其恢复快照",
   "recovery.preview": "预览",
+  // ---- T-057 off-disk backup ----
+  "cmd.backupChooseFolder": "选择备份文件夹…",
+  "cmd.backupRun": "立即备份整个库",
+  "backup.dirSet": "备份文件夹：{dir}",
+  "backup.noDir": "请先选择备份文件夹",
+  "backup.badDir": "该文件夹在库内，请另选一个",
+  "backup.running": "正在备份…",
+  "backup.done": "已备份到 {name}（{n} 个文件）",
+  "backup.failed": "备份失败：{reason}",
   // ---- T-046 document audit ----
   "cmd.docAudit": "检查文档规范...",
   // ---- T-047 AI 校对 ----
