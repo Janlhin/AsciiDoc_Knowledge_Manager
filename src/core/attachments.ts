@@ -306,10 +306,18 @@ export function isImagePath(path: string): boolean {
   return IMAGE_EXTS.has(fileExtension(path));
 }
 
+/** true ⟺ this path is handled as an editable TEXT document (markdown, AsciiDoc,
+ *  plain text, source, config) rather than a binary attachment. Single source of
+ *  truth for "can the editor open this": R105 denylist semantics — extensionless
+ *  counts as text, unknown extensions count as attachments. */
+export function isEditableTextPath(path: string): boolean {
+  const ext = fileExtension(path);
+  return ext === "" || EDITABLE_TEXT_EXTS.has(ext);
+}
+
 /** true ⟺ this path opens in the read-only attachment viewer rather than the editable
  *  markdown editor. R105 denylist: editable = markdown + known text/code + extensionless;
  *  everything else (binaries, media, AND unknown extensions) is a read-only attachment. */
 export function isAttachmentPath(path: string): boolean {
-  const ext = fileExtension(path);
-  return ext !== "" && !EDITABLE_TEXT_EXTS.has(ext);
+  return !isEditableTextPath(path);
 }
