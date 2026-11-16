@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: twelve high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: thirteen high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -779,6 +779,52 @@ async function main() {
     await open("sample.mobi");
     await open("sample.azw3");
     return "MOBI + AZW3 routed to a read-only Kindle viewer; invalid files report a visible error";
+  });
+
+  // ---- 13. T-056: edit recovery covers text formats, not just .md --------
+  // Drives the REAL save hook (file:modified → recordSnapshot); before T-056 an
+  // AsciiDoc edit produced no history at all.
+  await runCase("snapshot-text-formats", async () => {
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "显示文件列表");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "show file explorer command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer"]')`, 8000, "explorer mounted");
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="E2E-Guide.adoc"]'),
+      "could not open E2E-Guide.adoc");
+    await c.waitFor(`!!document.querySelector('[data-testid="editor-pane"]')`, 10000, "editor pane");
+    // default open mode is the reading view — switch to source so we can type
+    assert(await c.click('[data-testid="mode-source"]'), "no source button for the AsciiDoc file");
+    await c.waitFor(`!!document.querySelector('.cm-editor .cm-content')`, 10000, "AsciiDoc opened in the editor");
+
+    const before = await c.evaluate(
+      `globalThis.__geodeSnapshots.list("E2E-Guide.adoc").then((l) => l.length)`,
+    );
+
+    // CM6 only commits text from a FOCUSED contenteditable; CDP `Input.insertText`
+    // is silently a no-op here, so drive it through execCommand and assert it took.
+    const typed = await c.evaluate(`(() => {
+      const el = document.querySelector(".cm-editor .cm-content");
+      if (!el) return false;
+      el.focus();
+      return document.execCommand("insertText", false, "\\nT-056 probe ${Date.now()}\\n");
+    })()`);
+    assert(typed === true, "could not type into the AsciiDoc editor");
+
+    await c.waitFor(
+      `globalThis.__geodeSnapshots.list("E2E-Guide.adoc").then((l) => l.length > ${before})`,
+      15000,
+      "editing + autosave of an .adoc file recorded a recovery snapshot",
+    );
+
+    // A binary in the same vault must never accumulate history.
+    const binarySnaps = await c.evaluate(
+      `globalThis.__geodeSnapshots.list("sample.png").then((l) => l.length)`,
+    );
+    assert(binarySnaps === 0, `an image must not have snapshots, got ${binarySnaps}`);
+    return `.adoc save recorded history (${before} → ${before + 1}); image kept 0`;
   });
 
   c.close();

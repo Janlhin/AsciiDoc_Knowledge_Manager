@@ -272,7 +272,7 @@ export const en = {
   "recovery.title": "File recovery",
   "recovery.restore": "Restore",
   "recovery.empty": "No snapshots for this file yet",
-  "recovery.noFile": "Open a note to see its recovery snapshots",
+  "recovery.noFile": "Open a text file to see its recovery snapshots",
   "recovery.preview": "Preview",
 
   // ---- T-046 document audit (src/features/docaudit) ----
@@ -570,7 +570,7 @@ export const zh: Record<keyof typeof en, string> = {
   "recovery.title": "文件恢复",
   "recovery.restore": "还原",
   "recovery.empty": "此文件暂无快照",
-  "recovery.noFile": "打开笔记以查看其恢复快照",
+  "recovery.noFile": "打开文本文件以查看其恢复快照",
   "recovery.preview": "预览",
   // ---- T-046 document audit ----
   "cmd.docAudit": "检查文档规范...",
