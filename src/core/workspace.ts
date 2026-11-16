@@ -39,6 +39,18 @@ function systemPrefersDark(): boolean {
   }
 }
 
+/** T-059: mirror the theme kind where the pre-paint bootstrap in index.html can read
+ *  it. The authoritative value lives in the workspace snapshot, but that is only
+ *  reachable after the bundle runs — too late to avoid a wrong-coloured first frame. */
+function mirrorThemeForBootstrap(kind: ThemeKind): void {
+  try {
+    localStorage.setItem("adkm.theme", kind);
+  } catch {
+    /* storage unavailable — the in-app theme still applies, only the pre-paint
+       frame may be wrong (the pre-T-059 behaviour) */
+  }
+}
+
 /** Match the NATIVE window chrome (title bar / border) to the in-app theme.
  *  Tauri-only: `data-theme` colours the webview alone, so without this the
  *  native title bar keeps following the OS and a light strip sits above a dark
@@ -1154,6 +1166,7 @@ export class Workspace {
     // always carry the RESOLVED concrete theme so consumers stay dark/light.
     const resolved = resolveTheme(theme, systemPrefersDark());
     document.documentElement.dataset.theme = resolved;
+    mirrorThemeForBootstrap(theme);
     this.events.emit("theme:changed", { theme: resolved });
     syncNativeWindowTheme(theme);
   }
@@ -1213,6 +1226,7 @@ export class Workspace {
   applyDocumentEffects() {
     const s = this.state.get();
     document.documentElement.dataset.theme = resolveTheme(s.theme, systemPrefersDark());
+    mirrorThemeForBootstrap(s.theme);
     syncNativeWindowTheme(s.theme);
     document.documentElement.style.setProperty("--editor-font-size", `${s.fontSize}px`);
   }
