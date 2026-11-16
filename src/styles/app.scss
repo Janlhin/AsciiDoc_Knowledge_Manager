@@ -826,6 +826,21 @@ textarea:focus {
   font-weight: 600;
   word-break: break-all;
 }
+/* T-061: opt-in load button for PDFs held back from startup */
+.attachment-pdf-load {
+  align-self: center;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-normal);
+  font-size: 13px;
+  cursor: pointer;
+}
+.attachment-pdf-load:hover {
+  background: var(--bg-hover);
+}
 
 /* ADKM L4: structured multi-format previews (docx / xlsx / pptx / epub).
    These fill the attachment-view via absolute positioning so they don't fight

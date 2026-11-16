@@ -7,13 +7,24 @@
  * editable CM buffer / autosave path (which is how clicking a .png used to corrupt it on
  * edit). Pure read; the blob holds the whole file in memory (fine for typical attachments).
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
 import { mediaKind, mediaMime, fileExtension } from "@core/attachments";
 import { formatPreviewer } from "./formatPreview";
 import { ImageReader } from "./ImageReader";
 import type { TabState } from "@core/types";
+
+/**
+ * T-061: PDF is the one attachment kind whose mount cost lands on the STARTUP path.
+ * `<embed>` needs the whole file as a blob, so restoring a 60 MB PDF produced a
+ * measured 151 ms + 72 ms main-thread stall right after first paint (rAF-gap probe on
+ * the release build). Two-part fix:
+ *   - every PDF waits two frames (past the boot paint) before it starts reading;
+ *   - PDFs above this size are not read at all until the user asks, so a restored
+ *     scanned book costs nothing at launch. Browsers gate plugin content the same way.
+ */
+const PDF_AUTO_LOAD_BYTES = 32 * 1024 * 1024;
 
 export function AttachmentView({ tab }: { tab: TabState }) {
   const app = useApp();
@@ -23,11 +34,47 @@ export function AttachmentView({ tab }: { tab: TabState }) {
   const previewable = kind !== "other";
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  /** T-061: false while a PDF is held back from the boot window (see above). */
+  const [armed, setArmed] = useState(false);
+
+  /** File size from the tree listing (desktop fills it from FS metadata); null when
+   *  unknown, in which case we only defer rather than gate. */
+  const size = useMemo(() => {
+    if (path === null) return null;
+    const node = app.vault.getFiles().find((f) => f.path === path);
+    return node?.size ?? null;
+  }, [app, path]);
+
+  const gatedPdf = kind === "pdf" && size !== null && size > PDF_AUTO_LOAD_BYTES;
+
+  useEffect(() => {
+    if (path === null || !previewable || gatedPdf) {
+      setArmed(false);
+      return;
+    }
+    if (kind !== "pdf") {
+      setArmed(true);
+      return;
+    }
+    // defer past the boot paint: two frames is the smallest honest unit
+    let cancelled = false;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        if (!cancelled) setArmed(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(first);
+      if (second !== 0) cancelAnimationFrame(second);
+    };
+  }, [path, previewable, kind, gatedPdf]);
 
   useEffect(() => {
     setUrl(null);
     setFailed(false);
-    if (path === null || !previewable) return;
+    if (path === null || !previewable || !armed) return;
     let cancelled = false;
     let objUrl: string | null = null;
     // read-only raw bytes — NOT documents.acquire (no handle, no autosave, no dirty buffer)
@@ -49,7 +96,7 @@ export function AttachmentView({ tab }: { tab: TabState }) {
       cancelled = true;
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
-  }, [app, path, previewable]);
+  }, [app, path, previewable, armed]);
 
   if (path === null) return null;
   const name = path.slice(path.lastIndexOf("/") + 1);
@@ -65,6 +112,23 @@ export function AttachmentView({ tab }: { tab: TabState }) {
     body = (
       <div className="attachment-placeholder" data-testid="attachment-failed">
         <span>{t("attachment.loadFailed")}</span>
+      </div>
+    );
+  } else if (gatedPdf && !armed) {
+    // T-061: a large PDF restored from the last session must not be read at startup
+    body = (
+      <div className="attachment-placeholder" data-testid="attachment-pdf-gated">
+        <span className="attachment-name">{name}</span>
+        <span className="attachment-meta">
+          {t("attachment.pdfLarge", { size: `${Math.round((size ?? 0) / (1024 * 1024))} MB` })}
+        </span>
+        <button
+          className="attachment-pdf-load"
+          data-testid="attachment-pdf-load"
+          onClick={() => setArmed(true)}
+        >
+          {t("attachment.pdfLoad")}
+        </button>
       </div>
     );
   } else if (kind !== "other" && url === null) {
