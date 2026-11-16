@@ -9,7 +9,7 @@
  * (register/dispose), features/editor reads (`getEditorExtensions`) + subscribes
  * to `editorExtensionsRevision` to reconfigure each open view's compat compartment.
  *
- * Core may import `@codemirror/*` (CLAUDE.md layering rule); the registry holds
+ * Core may import `@codemirror/*` (the layering rule); the registry holds
  * the opaque `Extension` values without interpreting them.
  */
 import type { Extension } from "@codemirror/state";

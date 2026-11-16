@@ -131,7 +131,6 @@ assets/             图标等二进制素材
 
 | 文件 | 职责 |
 | --- | --- |
-| [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md) | AI 协作约束入口 |
 | [`DECISIONS.md`](DECISIONS.md) | 追加式决策日志 |
 | [`TASKS.md`](TASKS.md) | 任务队列与待裁决台账 |
 | [`MANIFEST.md`](MANIFEST.md) | 第三方来源登记 |
@@ -139,7 +138,6 @@ assets/             图标等二进制素材
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 开发环境与命令细节 |
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | 协作与提交约定 |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | 安全策略 |
-| [`README.md`](README.md) | 工程校验规范 |
 | [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单与许可义务 |
 | [`docs/project-charter-v2.adoc`](docs/project-charter-v2.adoc) | 产品章程：定位、P0 目标、能力分层 |
 | [`docs/backup-guide.adoc`](docs/backup-guide.adoc) | 备份指南 |

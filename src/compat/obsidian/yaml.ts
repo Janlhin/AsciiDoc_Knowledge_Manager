@@ -9,7 +9,7 @@
  * boundary #5, R260 user decision — only this package, only for parseYaml/stringifyYaml).
  *
  * d.ts: `parseYaml(yaml: string): any` / `stringifyYaml(obj: any): string`. We use the
- * stricter `unknown` internally (CLAUDE.md: no `any`); plugins still compile against the
+ * stricter `unknown` internally (project rule: no `any`); plugins still compile against the
  * d.ts `any` (they consume obsidian.d.ts, not Geode's types).
  */
 import { dump, load } from "js-yaml";

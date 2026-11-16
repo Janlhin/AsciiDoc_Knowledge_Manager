@@ -192,9 +192,9 @@
 
 - **提出**：2026-11-13
 - **问题**：ADR-0001 至 ADR-0004 及立项书存放在仓库外（桌面项目目录），不随仓库分发，`DECISIONS.md` 中的引用无法解析。
-- **方法**：复制到 `docs/decisions/`，在 `README.md` 目录结构与 `AGENTS.md` 文档表登记。
+- **方法**：复制到 `docs/decisions/`，在 `README.md` 目录结构与文档表登记。
 - **解决**：—
-- **完成判据**：`ls docs/decisions/*.adoc` 至少 4 个文件；`AGENTS.md` 中存在指向该目录的链接。
+- **完成判据**：`ls docs/decisions/*.adoc` 至少 4 个文件；`README.md` 中存在指向该目录的链接。
 
 ### T-010 清除根目录 `nul`
 
