@@ -192,6 +192,7 @@ docs/               项目文档与规范原文
 | [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 语义、环检测、Antora 组件/版本资源 ID 与切换（T-045 三片） |
 | [`docs/format-preview-baseline.adoc`](docs/format-preview-baseline.adoc) | 多格式只读预览基线：FB2 / CBZ / Kindle（MOBI/KF8）/ 共享图片阅读器、依赖放行与编辑冻结（T-054 / T-055 / D-022 / D-024） |
 | [`docs/backup-guide.adoc`](docs/backup-guide.adoc) | 备份指南：可选分盘/异地备份怎么用、"该备什么"、与系统备份/网盘的组合与陷阱（T-057 / D-026） |
+| [`docs/main-thread-audit.adoc`](docs/main-thread-audit.adoc) | 主线程成本审计：哪些工作占着 UI 线程、实测数字、可搬性分级与三阶段迁移方案（T-062，提案） |
 
 ## 来源与许可
 
