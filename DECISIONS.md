@@ -514,3 +514,20 @@
 - **影响范围**：`src/features/attachment/AttachmentView.tsx`（`armed` 状态、尺寸读取、双闸门、占位 UI）、`src/core/i18n/dict.views.ts`（`attachment.pdfLoad` / `attachment.pdfLarge`）、`src/styles/app.scss`（`.attachment-pdf-load`）、`tests/e2e/run.mjs`（夹具新增 `docs/scan-small.pdf`（结构合法）与 `docs/scan-big.pdf`（40 MB 零字节，内容从不被读）+ 第 16 条 `pdf-startup-gate`）。
 - **诚实缺口**：32 MB 是**经验阈值**，不是从硬件模型推出来的；超大图片、超大视频仍走原路径（没有同类实测）；`.workbuddy` 之外的其它重格式（docx/xlsx/epub）本轮未加闸；用户在「点击加载」后仍会有一次与文件大小成正比的卡顿（不可避免，除非换成分页式渲染）。
 - **复审条件**：若用户报告「大 PDF 点开也会卡很久」，下一步是引入分片读取或 pdf.js 按页渲染，而不是继续调阈值；若报告「小 PDF 打开也慢」，先量再动，别凭阈值猜。
+
+## D-030 EPUB 阅读器补全：目录 + 阅读位置，不引入全文索引
+
+- **日期**：2026-11-16
+- **状态**：**已实施**（T-061）。
+- **决策**：EPUB 预览补上**目录面板**（epub.js `book.loaded.navigation`，按层级缩进、当前章高亮）、**翻页**（按钮 + 方向键）、**阅读位置持久化**（`relocated` → CFI + spine 百分比，去抖 400ms 写入 localStorage，按库路径命名空间）。**百分比用 spine 索引算**，不用 `book.locations.generate()`。
+- **背景**：用户反馈「EPUB 预览也有问题（目录/进度不对）」。读代码发现比"不对"更彻底——83 行的组件只做了 `rendition.display()`：**没有目录、没有 relocated 监听、没有位置读写**，每本书永远从第一页打开，跳转一关就丢。这条能发布出去的直接原因是 **EPUB 在 E2E 里一条用例都没有**（ebook 那条只覆盖 FB2/CBZ/图片）。
+- **被采纳方案**：
+  - TOC 由纯函数 `flattenToc` 拍平（丢无 href 项、空标签回退文件名、保留 depth），可直接单测；「当前章」用 `sameDocument` 比较（忽略锚点与 URL 编码），解决 epub.js 报 `ch1.xhtml` 而 nav 写 `ch1.xhtml#s1` 的常见不一致。
+  - 位置存 `{cfi, index, percent}`；恢复用 `display(cfi)`，**失败回退 `display()`**（文件被替换时不能白屏）。
+  - 百分比 = `(spineIndex+1)/spineLength`，成本 O(1)。
+- **被否决的替代方案**：
+  - *`book.locations.generate()` 求准确百分比*：否决理由——它遍历每个 spine item 做字符统计，50MB 的中文书在主线程要数秒，等于把 PDF 那类卡顿搬到 EPUB 上；进度条精度不值这个代价。
+  - *把阅读位置写进 `.obsidian`（跟库走）*：否决理由——跨机器互相同步"读到哪"会互相覆盖，且与 D-027 的会话语义冲突；机器本地偏好更适合 localStorage（本片取舍，若用户要多端接续需另开一条并要求冲突策略）。
+  - *引入第三方 EPUB 阅读器组件*：否决理由——新增运行期依赖需 Q-005 放行，且现方案的缺口只是 UI 与持久化，不需要换引擎。
+- **影响范围**：`src/core/epubNav.ts`（新增：拍平/比较/位置存取/百分比）、`src/features/attachment/EpubPreview.tsx`（重写：TOC、翻页、恢复、去抖保存）、`src/core/i18n/dict.views.ts`（4 键 en/zh）、`src/styles/app.scss`（工具栏/侧栏/高亮）、`tests/epubNav.test.ts`（9 用例）、`tests/epub-preview.test.tsx`（mock 补 `getVaultPath`）、`tests/e2e/run.mjs`（新增真实 EPUB 夹具 + 第 17 条 `epub-toc-progress`）。
+- **诚实缺口**：位置按**机器+库**保存，不跨设备；CFI 依赖文件不变，换文件后只能回到第一页；TOC 层级缩进但不折叠（超长目录要滚动）；未做字号/主题/分栏偏好（epub.js 支持，但属另一片）；未做"全书搜索"（需 `locations.generate()` 或自定义索引，成本已知）。**复审条件**：若用户要求跨设备接续或全书搜索，先评估把 EPUB 解压搬进 Rust（D-029 的技术方向）再谈位置与索引，否则又会回到主线程卡顿。
