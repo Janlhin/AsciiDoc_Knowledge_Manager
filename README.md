@@ -54,7 +54,7 @@ ADKM 的目标不是"给 Obsidian 加一个 AsciiDoc 渲染器"，而是**在 Ob
 | 双语对齐 | 未开始 |
 | Canvas（`.canvas`） | 未开始。设置里有开关，门后是空的 |
 | Git 集成 | 未开始。无任何 git 调用 |
-| 跨盘 / 跨设备冗余 | **不做**（章程 §「不做自动版本备份」，属独立项目；T-048 已把同步服务列为结构性不做）。应用内只提供"撤销级"恢复：可恢复删除（`.trash`）+ 编辑快照；真正的多盘冗余请交给 Windows 文件历史记录/存储空间镜像或网盘。见 `DECISIONS.md` D-025 与待决 Q-006 |
+| 跨盘 / 跨设备冗余 | **可选支持**：命令「选择备份文件夹…」+「立即备份整个库」把库打成 ZIP 写到另一块盘 / 网络盘 / 网盘同步目录（T-057 / D-026）。**仍不做**自研同步引擎与多机并发合并（T-048）；默认关闭，不写用户没指定过的位置 |
 
 **换句话说：adoc 现在能进图、能参与反链、阅读视图也正常，剩下的主要缺口是编辑器内的语言支持与校验界面。** 想核对索引结果跑：
 
@@ -191,6 +191,7 @@ docs/               项目文档与规范原文
 | [`docs/ai-proofread-baseline.adoc`](docs/ai-proofread-baseline.adoc) | AI 按规范校对基线：提示词协议、解析降级矩阵与本地 mock E2E（T-047） |
 | [`docs/docs-as-code-baseline.adoc`](docs/docs-as-code-baseline.adoc) | Docs-as-Code 引用校验基线：xref / include 语义、环检测、Antora 组件/版本资源 ID 与切换（T-045 三片） |
 | [`docs/format-preview-baseline.adoc`](docs/format-preview-baseline.adoc) | 多格式只读预览基线：FB2 / CBZ / Kindle（MOBI/KF8）/ 共享图片阅读器、依赖放行与编辑冻结（T-054 / T-055 / D-022 / D-024） |
+| [`docs/backup-guide.adoc`](docs/backup-guide.adoc) | 备份指南：可选分盘/异地备份怎么用、"该备什么"、与系统备份/网盘的组合与陷阱（T-057 / D-026） |
 
 ## 来源与许可
 
