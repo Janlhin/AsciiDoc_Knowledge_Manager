@@ -1,7 +1,7 @@
 /**
  * R41 tags pane + editor `#` tag completion E2E — browser mode vs dev :1420.
  * Run: node .calibration/r41-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 41 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 41 additions".
  *
  *  A. pure `#` completion (window.__geodeTag): trigger gate + candidate ranking.
  *  B. Tags pane: renders all tags + counts (count desc), click → requestSearch.

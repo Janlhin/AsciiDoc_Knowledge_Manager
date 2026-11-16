@@ -2,7 +2,7 @@
  * R183 — G3 (ui-only→done): "Copy path" / "Copy Obsidian URL" as active-file
  * COMMANDS — browser :1420.
  * Run: node .calibration/r183-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 183 additions" (G3 ui-only→done).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 183 additions" (G3 ui-only→done).
  *
  * R179 added these as Explorer right-click items; the G3 matrix marked them
  * ui-only. R183 promotes them to palette/hotkey-bindable commands operating on

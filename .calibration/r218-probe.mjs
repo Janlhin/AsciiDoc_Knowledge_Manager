@@ -15,7 +15,7 @@
  * written fire-and-forget.
  *
  * Run: node .calibration/r218-probe.mjs   (release binary must be built WITH R218)
- * Contract: docs/ARCHITECTURE.md "Round 218 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 218 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

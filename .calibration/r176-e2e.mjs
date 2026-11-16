@@ -2,7 +2,7 @@
  * R176 — Tier 8 D13 surface: Setting.addColorPicker(cb) + ColorComponent
  * (getValue/getValueRgb/getValueHsl + setValue/setValueRgb/setValueHsl + onChange) — browser :1420.
  * Run: node .calibration/r176-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 176 additions" (Tier 8, D13).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 176 additions" (Tier 8, D13).
  *
  * The fixture plugin (?obsfixture=1) runs a synchronous IIFE in onload that builds a
  * Setting().addColorPicker(...), drives the ColorComponent, and JSON-stringifies the

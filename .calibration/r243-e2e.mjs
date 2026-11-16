@@ -1,7 +1,7 @@
 /**
  * R243 index markdown image embeds `![](x)` E2E — browser mode :1420.
  * Run: node .calibration/r243-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 243 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 243 additions".
  *
  * parseNote previously skipped markdown image embeds `![](x)`, so getAttachmentMap (orphan
  * detection) missed them and renames didn't rewrite them. R243 indexes them with the LinkRef

@@ -1,7 +1,7 @@
 /**
  * R42 local `.trash/` recoverable delete E2E — browser mode (Memory vault) vs dev :1420.
  * Run: node .calibration/r42-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 42 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 42 additions".
  *
  * DATA-SAFETY round: delete must be RECOVERABLE (move to .trash), never permanent.
  *  A. trash a file → gone from vault, present in listTrash, .trash hidden from tree.

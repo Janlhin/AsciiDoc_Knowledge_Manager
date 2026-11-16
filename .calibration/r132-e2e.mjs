@@ -1,7 +1,7 @@
 /**
  * R132 compat Plugin.registerMarkdownPostProcessor E2E (phase 1, reading view) — browser mode :1420.
  * Run: node .calibration/r132-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 132 additions" (compat 商业主轴 · Dataview/Tasks 旗舰).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 132 additions" (compat 商业主轴 · Dataview/Tasks 旗舰).
  *
  * Obsidian registerMarkdownPostProcessor((el, ctx) => …) — plugins transform the rendered reading
  * view. Geode bridges via a CORE registry (core/markdownPostProcessors): compat registers, the

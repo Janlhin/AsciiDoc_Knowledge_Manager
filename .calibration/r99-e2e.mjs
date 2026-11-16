@@ -1,7 +1,7 @@
 /**
  * R99 tags-as-graph-nodes E2E — browser mode :1420.
  * Run: node .calibration/r99-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 99 additions" (㊵ 续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 99 additions" (㊵ 续续续).
  *
  * A "Tags" toggle merges tag nodes (id `tag:<name>`, green) + note→tag edges into the
  * graph, client-side (buildTagGraph), no getGraph/index change. Default OFF (zero

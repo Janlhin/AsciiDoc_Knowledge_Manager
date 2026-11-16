@@ -1,7 +1,7 @@
 /**
  * R55 live-preview tables E2E — browser vs :1420.
  * Run: node .calibration/r55-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 55 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 55 additions".
  *
  *  A. pure detection/render (window.__geodeTable): Table ranges + renderMarkdownToHtml.
  *  B. live widget: a table renders as <table> when the cursor is outside, reveals the

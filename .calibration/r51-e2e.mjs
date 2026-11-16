@@ -1,7 +1,7 @@
 /**
  * R51 line-motion commands (move/copy line) E2E — browser vs :1420.
  * Run: node .calibration/r51-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 51 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 51 additions".
  *
  *  A. pure transform (window.__geodeMotion): move/copy line up/down on a throwaway state.
  *  B. live command: editor:move-line-* on a real CM view.

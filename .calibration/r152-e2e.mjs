@@ -1,7 +1,7 @@
 /**
  * R152 reading-view #tag pill click → search E2E — browser mode :1420.
  * Run: node .calibration/r152-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 152 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 152 additions".
  *
  * Obsidian's reading view renders #tags as clickable pills that search the tag. Geode renders them
  * as <span class="tag-pill" data-tag="…"> (markdown.ts) — R152 adds a click delegation in

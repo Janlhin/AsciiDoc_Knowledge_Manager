@@ -2,7 +2,7 @@
  * R208 — G3 §2 missing→done: editor:insert-embed (嵌入内容 `![[]]`). Extends the
  * R33 pure format engine (core/format.ts) with one INSERT-only op, mirroring R189
  * insertWikilink with a leading `!`. Browser :1420.  Run: node .calibration/r208-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 208 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 208 additions".
  *
  * A = byte-level __geodeFormat.apply probe (exact FormatEdit) for each context.
  * D = render PROOF: `![[Note]]` renders as an embed (distinct from a `[[Note]]` link).

@@ -2,7 +2,7 @@
  * R202 — G3 §4: editor:open-link-in-new-split (⌘⌥Enter, "Open link under cursor to the right").
  * Continues R201: same linkAtCursor + open path, but splitActivePane("row") first so the link
  * opens in a NEW split pane. Browser :1420.   Run: node .calibration/r202-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 202 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 202 additions".
  *
  * B = registration + Mod+Alt+Enter hotkey. C = live: split opens a new pane on the right for
  *     a wikilink / markdown link; external → browser (no split); code-context → no-op (no split).

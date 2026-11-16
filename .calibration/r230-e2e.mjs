@@ -1,7 +1,7 @@
 /**
  * R230 "Set as attachment folder" (folder right-click) E2E — browser mode :1420.
  * Run: node .calibration/r230-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 230 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 230 additions".
  *
  * Obsidian's folder context menu has "Set as attachment folder". Geode adds it to the Explorer
  * folder right-click, calling the vetted setAttachmentFolder (writes the geode.attachmentFolder

@@ -7,7 +7,7 @@
  * run synchronously in the probe's first milliseconds.
  *
  * Run: node .calibration/r43-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 43 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 43 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

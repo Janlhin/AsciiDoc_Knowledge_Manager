@@ -10,12 +10,15 @@
 
 === 移除
 
-* **公开前移除 Obsidian 逆向分析文档（3 份）**：`docs/obsidian-reverse-engineering.adoc`、`docs/technical-decisions/ADR-0005-obsidian-rea-findings.adoc`、`docs/command-gap-matrix.adoc` 已删除，并重写 git 历史以从提交记录中清除。三者记录了对商业发行包的解包过程与内部结构，仓库转公开后不再保留。兼容层矩阵 `docs/OBSIDIAN-COMPAT.md` 与功能差距审计 `docs/OBSIDIAN_REPLICA_GAP_AUDIT.md` 保留，结论不受影响。
+* **公开前移除 Obsidian 逆向分析文档（3 份）**：`docs/obsidian-reverse-engineering.adoc`、`docs/technical-decisions/ADR-0005-obsidian-rea-findings.adoc`、`docs/command-gap-matrix.adoc` 已删除，并重写 git 历史以从提交记录中清除。三者记录了对商业发行包的解包过程与内部结构，仓库转公开后不再保留。兼容层矩阵 `docs/internal/OBSIDIAN-COMPAT.md` 与功能差距审计 `docs/OBSIDIAN_REPLICA_GAP_AUDIT.md` 保留，结论不受影响。
 
 === 变更
 
 * **产品身份统一为 ADKM（公开前）**：产品名从底座 Geode 改为 ADKM。构建期标识：`tauri.conf.json` 的 `productName` = `ADKM`、`identifier` = `com.adkm.knowledgebase`、窗口标题 = `ADKM`、`Cargo.toml` 包名 = `adkm`（产物即 `adkm.exe`，无需 `mainBinaryName`）、`package.json` 与 `package-lock.json` 名 = `adkm`。界面文案 22 处、文档自称 698 处同步替换；`window.geode` 插件契约、`.geode` 插件目录、`geode.*` 存储键、CSS 类与内部类型名**一律保留**——换它们等于让用户设置失效、并把有公开文档的插件 API 打断。`Cargo.toml` 补 `license = "Apache-2.0"`，仓库根新增 `NOTICE` 以履行上游署名义务；README、ADR-0003、章程等 10 处对上游 Geode 的署名保留。
 * **产品身份占位符填实**：`src/core/product.ts` 的七个值此前是 `APP_NAME` / `APP_TAGLINE` / `0.0.0` 这类占位符，而欢迎页与关于页**直接渲染**它们——界面当时实际显示 `APP_LOGO APP_NAME` 和版本 `0.0.0`。现已填实，`version` 改由 `package.json` 提供；`index.html` 与原生窗口标题同步为 `ADKM`；示例库欢迎笔记正文改写；词表里三个已无消费方的占位键也填成真实文案。
+* **更新签名密钥轮换（2026-11-16）**：旧 `geode` 密钥对的口令曾以明文写在 `docs/DISTRIBUTION.md`，随仓库转公开一并作废。已生成新密钥对（公钥 ID `8018A0ACD0AB5712`）并写入 `plugins.updater.pubkey`；私钥与口令只存在于被 gitignore 的 `.tauri-keys/`，`tauri signer sign` 实测可正常产出签名。此前没有任何安装实例，轮换对用户无影响。
+* **版本号改为 0.0.1**：`package.json`、`package-lock.json`、`tauri.conf.json`、`Cargo.toml`、`Cargo.lock` 五处同步，不再沿用底座的 `0.269.0`。关于页显示的版本取自 `package.json`，因此随之变为 `0.0.1`。
+* **施工日志归档到 `docs/internal/`**：`ARCHITECTURE.md`（1.4 MB）、`HANDOFF.md`（670 KB）、`OBSIDIAN-COMPAT.md`（585 KB）、`ROADMAP.md`（376 KB）移入子目录，全仓引用路径同步改写，公开文档面只留规范与基线；同时删掉 README 里指向已删除逆向文档的断链。
 * **`identifier` 变更的数据目录处理**：旧 `%APPDATA%\com.geode.knowledgebase`（63.4 MB 索引）已一次性复制到 `%APPDATA%\com.adkm.knowledgebase`，旧目录保留未删。因公开前从未分发，未写自动迁移代码（无法用现有测试覆盖，且不存在第二个安装）；公开之后再改 identifier 时才必须实现「启动检测 → 递归复制 → 完成标记」。
 
 === 新增

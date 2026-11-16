@@ -1,7 +1,7 @@
 /**
  * R96 Excluded files E2E — browser mode :1420.
  * Run: node .calibration/r96-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 96 additions" (㊽ 续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 96 additions" (㊽ 续续续).
  *
  * Path patterns (glob `*` / `{regex}`) hide matching files from search + the graph and
  * dim them in the file explorer (still openable). Pure front-end, no .md writes.

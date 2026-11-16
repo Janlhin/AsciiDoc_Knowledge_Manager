@@ -1,7 +1,7 @@
 /**
  * R125 compat CachedMetadata.listItems E2E — browser mode :1420.
  * Run: node .calibration/r125-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 125 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 125 additions" (compat 商业主轴).
  *
  * Obsidian getFileCache(file).listItems: ListItemCache[] = every list item ({position, parent,
  * task?, id?}). parent encoding: nested item → parent line number of its parent item; ROOT item →

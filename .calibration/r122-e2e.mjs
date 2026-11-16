@@ -1,7 +1,7 @@
 /**
  * R122 compat DataAdapter.writeBinary create-or-overwrite E2E — browser mode :1420.
  * Run: node .calibration/r122-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 122 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 122 additions" (compat 商业主轴).
  *
  * Obsidian DataAdapter.writeBinary CREATES-OR-OVERWRITES. R122: try createBinary (create_new +
  * tree refresh for a NEW file); if the path exists, overwrite atomically via modifyBinary (R120

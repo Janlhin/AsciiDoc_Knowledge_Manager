@@ -1,7 +1,7 @@
 /**
  * R239 bookmarks:bookmark-search E2E — browser mode :1420.
  * Run: node .calibration/r239-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 239 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 239 additions".
  *
  * Completes search bookmarks: a command to CREATE one from the current search query
  * (SearchPanel mirrors its query into workspace.currentSearchQuery; the command reads + adds)

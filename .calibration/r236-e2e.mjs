@@ -1,7 +1,7 @@
 /**
  * R236 Note composer "Template file location" E2E — browser mode :1420.
  * Run: node .calibration/r236-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 236 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 236 additions".
  *
  * Obsidian's Note composer applies a template when extracting a selection into a new note.
  * Geode threads extractTemplatePath through extractRange: default "" → verbatim (prior); a

@@ -7,7 +7,7 @@
  * on the identical word-count plugin.)
  *
  * Run: node .calibration/r66-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 66 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 66 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

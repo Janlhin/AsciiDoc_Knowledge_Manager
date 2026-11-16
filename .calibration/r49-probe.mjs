@@ -8,7 +8,7 @@
  * The recovery MODAL + command are React-effect bound (App-Nap §D) → browser E2E.
  *
  * Run: node .calibration/r49-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 49 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 49 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

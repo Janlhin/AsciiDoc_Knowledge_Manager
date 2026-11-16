@@ -1,7 +1,7 @@
 /**
  * R95 code-block copy button E2E — browser mode :1420.
  * Run: node .calibration/r95-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 95 additions" (㊶ 续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 95 additions" (㊶ 续续).
  *
  * A post-render hydration pass adds a hover "Copy" button to every reading-view code
  * fence (pre>code). markdown.ts is UNTOUCHED (byte-neutral). Verifies the button

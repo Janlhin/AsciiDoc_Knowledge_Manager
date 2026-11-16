@@ -1,7 +1,7 @@
 /**
  * R26 media/PDF embed E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r26-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 26 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 26 additions".
  *
  * Covers: reading-view audio/video/pdf embeds render as native <audio>/<video>/
  * <iframe class=geode-embed-pdf>; PDF page anchor (#page=N) rides on the iframe

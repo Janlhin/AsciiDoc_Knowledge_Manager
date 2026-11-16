@@ -1,7 +1,7 @@
 /**
  * R251 (A1) hotkeys-page command source prefix E2E — browser mode :1420.
  * Run: node .calibration/r251-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 251 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 251 additions".
  *
  * Obsidian's hotkeys page is a FLAT list where plugin commands show "Source: name"
  * (e.g. "Bookmarks: ...") and core app/editor commands have no prefix. R251 derives the source

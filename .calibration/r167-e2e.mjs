@@ -1,7 +1,7 @@
 /**
  * R167 — Tier 7: AbstractInputSuggest<T> type-ahead completion — browser :1420.
  * Run: node .calibration/r167-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 167 additions" (Tier 7, AbstractInputSuggest).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 167 additions" (Tier 7, AbstractInputSuggest).
  *
  * The fixture plugin (?obsfixture=1) binds a FixtureInputSuggest to a live <input>
  * (data-testid fixture-input-suggest) over candidates [apple, apricot, banana], and

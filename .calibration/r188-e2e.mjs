@@ -2,7 +2,7 @@
  * R188 — G3 partial→done: editor:fold / editor:unfold split (Obsidian editor:fold /
  * editor:unfold, separate from editor:toggle-fold) — browser :1420.
  * Run: node .calibration/r188-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 188 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 188 additions".
  *
  * Drives the live CM view: cursor on a foldable heading → editor:fold renders a
  * .cm-foldPlaceholder; editor:unfold removes it. Folding is view-only — the doc bytes

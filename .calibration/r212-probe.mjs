@@ -7,7 +7,7 @@
  * seconds after plugin load.
  *
  * Run: node .calibration/r212-probe.mjs   (release binary must be built WITH R212)
- * Contract: docs/ARCHITECTURE.md "Round 212 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 212 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

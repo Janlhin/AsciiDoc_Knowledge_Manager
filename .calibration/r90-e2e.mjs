@@ -1,7 +1,7 @@
 /**
  * R90 graph colour groups E2E — browser mode against dev :1420.
  * Run: node .calibration/r90-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 90 additions" (㊵ groups).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 90 additions" (㊵ groups).
  *
  * Covers nodeGroupColor (via __geodeGraphGroupColor) — path:/text/first-match —
  * parseGraphPrefs groups backward-compat, and the settings Groups list (add /

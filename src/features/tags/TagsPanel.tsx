@@ -1,7 +1,7 @@
 // Tags right-sidebar panel (R41): every vault tag + file count; click to search.
 // R69: right-click a tag → vault-wide rename via @core/tagRewrite.
 // R150 (㊻): nested tags (#a/b) render as a collapsible hierarchy tree, like Obsidian's tag pane.
-// Contract: docs/ARCHITECTURE.md "Round 41/69/150 additions".
+// Contract: docs/internal/ARCHITECTURE.md "Round 41/69/150 additions".
 // Layering: features/ may import only @core/*, @app/AppContext, @app/icons.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";

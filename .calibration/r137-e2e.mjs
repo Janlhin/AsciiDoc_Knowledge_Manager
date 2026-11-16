@@ -1,7 +1,7 @@
 /**
  * R137 compat WorkspaceLeaf.setViewState programmatic mode switch E2E — browser mode :1420.
  * Run: node .calibration/r137-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 137 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 137 additions".
  *
  * Obsidian has no public MarkdownView.setMode; plugins switch a markdown view's mode via
  * leaf.setViewState({type:"markdown", state:{mode:"source"|"preview", source?}}). R137 makes Geode's

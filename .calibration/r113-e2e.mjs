@@ -1,7 +1,7 @@
 /**
  * R113 compat app.commands E2E — browser mode :1420.
  * Run: node .calibration/r113-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 113 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 113 additions" (compat 商业主轴).
  *
  * Obsidian `app.commands`: executeCommandById(id)=>boolean, listCommands()=>Command[],
  * commands=Record<id,Command>. Backed by the core CommandRegistry (shared with the palette).

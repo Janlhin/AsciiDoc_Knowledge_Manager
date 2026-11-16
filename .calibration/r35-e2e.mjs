@@ -1,7 +1,7 @@
 /**
  * R35 bracket/quote auto-pair + selection-wrap E2E — browser mode (Memory vault)
  * against dev :1420. Run: node .calibration/r35-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 35 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 35 additions".
  *
  * Covers:
  *  A. probe (window.__geodeBrackets.wrap): the PURE markdown selection-wrap

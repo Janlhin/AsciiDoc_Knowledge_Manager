@@ -158,6 +158,7 @@ docs/               项目文档与规范原文
 ├── CONTRIBUTING.md         协作约定
 ├── SECURITY.md             安全策略
 ├── mtx.config.md           工具配置说明
+├── internal/               构建期日志（不属公开文档面）
 └── plans/                  各层实施计划
 ```
 
@@ -181,7 +182,6 @@ docs/               项目文档与规范原文
 | [`docs/project-charter-v2.adoc`](docs/project-charter-v2.adoc) | 产品章程：定位、P0 目标、能力分层 L1–L4 |
 | [`docs/route-evaluation.adoc`](docs/route-evaluation.adoc) | 底座选型的评估方法与候选对照 |
 | [`docs/obsidian-clone-report.adoc`](docs/obsidian-clone-report.adoc) | Obsidian 克隆候选的横向核查 |
-| [`docs/obsidian-reverse-engineering.adoc`](docs/obsidian-reverse-engineering.adoc) | Obsidian 本体逆向结论与落点映射 |
 | [`docs/geode-baseline.adoc`](docs/geode-baseline.adoc) | 底座现状基线：与目标的差距对照 |
 | [`docs/technical-decisions/`](docs/technical-decisions/) | 架构决策记录（ADR-0001 起） |
 | [`docs/adkm-decision-sheet.md`](docs/adkm-decision-sheet.md) | 待决事项单：勾选式，逐条给出选项与建议 |
@@ -193,6 +193,7 @@ docs/               项目文档与规范原文
 | [`docs/format-preview-baseline.adoc`](docs/format-preview-baseline.adoc) | 多格式只读预览基线：FB2 / CBZ / Kindle（MOBI/KF8）/ 共享图片阅读器、依赖放行与编辑冻结（T-054 / T-055 / D-022 / D-024） |
 | [`docs/backup-guide.adoc`](docs/backup-guide.adoc) | 备份指南：可选分盘/异地备份怎么用、"该备什么"、与系统备份/网盘的组合与陷阱（T-057 / D-026） |
 | [`docs/main-thread-audit.adoc`](docs/main-thread-audit.adoc) | 主线程成本审计：哪些工作占着 UI 线程、实测数字、可搬性分级与三阶段迁移方案（T-062，提案） |
+| [`docs/internal/`](docs/internal/) | 构建期施工日志（ARCHITECTURE / HANDOFF / OBSIDIAN-COMPAT / ROADMAP），供追溯历史决策，不属公开文档面 |
 
 ## 来源与许可
 

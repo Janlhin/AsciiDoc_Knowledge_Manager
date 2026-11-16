@@ -1,7 +1,7 @@
 /**
  * R103 local-graph depth + incoming/outgoing E2E — browser mode :1420.
  * Run: node .calibration/r103-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 103 additions" (㊵ 续续续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 103 additions" (㊵ 续续续续续).
  *
  * Local graph gains depth 1–5 (was 1|2) + Incoming/Outgoing link-direction toggles
  * (default both on = prior undirected BFS, zero regression). Pure direction-aware

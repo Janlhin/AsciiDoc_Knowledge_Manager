@@ -1,7 +1,7 @@
 /**
  * R24 unlinked-mentions E2E — browser mode (Memory vault) against dev server :1420.
  * Run: node .calibration/r24-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 24 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 24 additions".
  *
  * Covers: detection (basename + alias), exclusions (existing link / inline code /
  * word-boundary plural), Link-all rewrite + surface preservation, CJK substring

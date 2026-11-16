@@ -1,7 +1,7 @@
 /**
  * R158 compat app.internalPlugins bookmarks instance E2E — browser mode :1420.
  * Run: node .calibration/r158-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 158 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 158 additions" (compat 商业主轴).
  *
  * Obsidian's (non-public) `app.internalPlugins.getPluginById("bookmarks").instance`:
  * getBookmarks()/addItem(item)/removeItem(item)/getItemTitle(item). Backed by R27's native

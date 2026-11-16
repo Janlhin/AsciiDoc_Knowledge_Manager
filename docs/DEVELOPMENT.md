@@ -1,6 +1,6 @@
 # ADKM 开发引导
 
-> 给未来的开发轮次（人类或 AI agent）的最短上手路径。核心使命见 [ROADMAP.md](ROADMAP.md)。
+> 给未来的开发轮次（人类或 AI agent）的最短上手路径。核心使命见 [ROADMAP.md](internal/ROADMAP.md)。
 
 ## 5 分钟上手
 
@@ -16,7 +16,7 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 
 ## 阅读顺序
 
-1. `docs/ARCHITECTURE.md` — **必读**，分层规则 + 核心 API + 组件契约 + 本轮新增契约
+1. `docs/internal/ARCHITECTURE.md` — **必读**，分层规则 + 核心 API + 组件契约 + 本轮新增契约
 2. `src/core/types.ts` → `vault.ts` → `metadata.ts` → `workspace.ts` — 数据模型主线
 3. 你要改的 feature 目录（`src/features/<name>/`）
 4. 插件相关看 `docs/PLUGINS.md`

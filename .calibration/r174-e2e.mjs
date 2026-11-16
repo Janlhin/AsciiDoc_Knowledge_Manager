@@ -3,7 +3,7 @@
  * Platform.resourcePathPrefix + fileManager.getAvailablePathForAttachment /
  * getNewFileParent) — browser :1420.
  * Run: node .calibration/r174-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 174 additions" (Tier 8, D12+D16).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 174 additions" (Tier 8, D12+D16).
  *
  * The fixture plugin (?obsfixture=1) runs an async IIFE in onload that calls each
  * new API and JSON-stringifies the results into <div data-testid="fixture-d1216-results">.

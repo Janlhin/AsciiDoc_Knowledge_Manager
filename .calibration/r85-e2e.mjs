@@ -1,7 +1,7 @@
 /**
  * R85 font families E2E — browser mode against dev :1420.
  * Run: node .calibration/r85-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 85 additions" (㊺).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 85 additions" (㊺).
  *
  * Covers sanitizeFontFamily (CSS-injection guard, via __geodeFontSanitize) +
  * the 3 font setters applying --font-interface/--font-text/--font-monospace +

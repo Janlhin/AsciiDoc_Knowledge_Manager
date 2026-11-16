@@ -9,7 +9,7 @@
  *
  * 功能流由 r92(slider)/r89(dropdown) 覆盖；本套件锁 FORM 保真（控件型对·旧 segmented testid 已消）。
  * Run: node .calibration/r271-e2e.mjs   (dev server :1420 up)
- * Contract: docs/ARCHITECTURE.md "Round 271 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 271 additions".
  */
 import { chromium } from "playwright";
 

@@ -2,7 +2,7 @@
  * R173 — Tier 8 D9 sanitizeHTMLToDom (SECURITY: XSS vector battery)
  * — browser :1420.
  * Run: node .calibration/r173-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 173 additions" (Tier 8, D9).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 173 additions" (Tier 8, D9).
  *
  * obsidian.sanitizeHTMLToDom(html) is a conservative allowlist cleaner returning
  * a DocumentFragment. The fixture plugin (?obsfixture=1) runs an IIFE in onload

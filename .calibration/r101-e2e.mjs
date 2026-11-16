@@ -1,7 +1,7 @@
 /**
  * R101 attachments-as-graph-nodes E2E — browser mode :1420.
  * Run: node .calibration/r101-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 101 additions" (㊵ 续续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 101 additions" (㊵ 续续续续).
  *
  * An "Attachments" toggle merges attachment nodes (id `attachment:<path>`, yellow) +
  * note→attachment edges into the graph, client-side (buildAttachmentGraph over

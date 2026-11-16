@@ -1,7 +1,7 @@
 /**
  * R130 compat workspace.on('file-menu') E2E — browser mode :1420.
  * Run: node .calibration/r130-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 130 additions" (compat 商业主轴 · file-menu phase 1).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 130 additions" (compat 商业主轴 · file-menu phase 1).
  *
  * Obsidian workspace.on('file-menu', (menu, file, source, leaf?) => menu.addItem(...)) — plugins add
  * items to file/folder context menus. Geode bridges via a CORE registry: compat registers ONE

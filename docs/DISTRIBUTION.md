@@ -7,23 +7,21 @@
 
 ## 更新签名密钥（minisign）
 
-- 密钥对在 `.tauri-keys/adkm.key`（私钥）+ `adkm.key.pub`（公钥），**gitignore，永不入库**。
-- 公钥已写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
-- **私钥丢失 = 永远无法向已装机用户推送更新**（公钥烧在已分发的安装包里）。
-  请把 `.tauri-keys/` 备份到密码管理器/离线介质。密钥密码只保存在本机密码管理器（该口令曾写在本文件，随仓库公开已作废，须重新生成密钥对并轮换）
-  （正式对外发布前必须重新生成强密码密钥；
-  注意 **Windows 无法表达空字符串环境变量**，空密码密钥在 Windows 上构建会死等
-  交互式密码提示，所以密钥必须带密码）。
+- 密钥对在 `.tauri-keys/adkm.key`（私钥）+ `adkm.key.pub`（公钥），**gitignore，永不入库**；口令单独存放在 `.tauri-keys/adkm.key.pass.txt`（同样 gitignore）。
+- 公钥已写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。2026-11-16 已轮换：新公钥 ID `8018A0ACD0AB5712`，旧 `geode` 密钥对作废弃用（此前口令曾以明文写在本文件，随历史重写一并清除）。
+- **私钥或口令丢失 = 永远无法向已装机用户推送更新**（公钥烧在已分发的安装包里）。请把 `.tauri-keys/` 备份进密码管理器或离线介质，备份完成后删掉本机的 `adkm.key.pass.txt`。
+- 密钥必须带密码：**Windows 无法表达空字符串环境变量**，空密码密钥在 Windows 上构建会卡在交互式密码提示。
 
 ## 发布一个新版本
 
-1. 三处版本号同步 bump：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`
-   （About 页版本字样在 `core/i18n/dict.views.ts` 的 about 文案，顺手核对）。
+1. 五处版本号同步 bump：`package.json`、`package-lock.json`（根与 `packages[""]` 各一处）、
+   `src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`。
+   About 页版本取自 `package.json`（`PRODUCT.version`），不需要另改文案。
 2. 设置签名环境变量后构建：
 
    ```powershell
    # 变量要的是私钥【内容】（或改用 TAURI_SIGNING_PRIVATE_KEY_PATH 传绝对路径）
-   $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keysdkm.key -Raw)
+   $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keys/adkm.key -Raw)
    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<密钥密码>"
    npm run tauri build
    ```

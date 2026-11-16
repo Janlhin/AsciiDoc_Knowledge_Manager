@@ -1,7 +1,7 @@
 /**
  * R81 tab context menu E2E — browser mode :1420.
  * Run: node .calibration/r81-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 81 additions" (㊿).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 81 additions" (㊿).
  */
 import { chromium } from "playwright";
 

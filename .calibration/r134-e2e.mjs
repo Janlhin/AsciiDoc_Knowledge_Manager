@@ -1,7 +1,7 @@
 /**
  * R134 live-preview plugin code blocks E2E — browser mode :1420.
  * Run: node .calibration/r134-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 134 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 134 additions".
  *
  * registerMarkdownCodeBlockProcessor(lang, (body, el, ctx) => …) now renders the fence as a LIVE
  * widget in the editor (not just reading view): a registered ```<lang> fence the cursor is outside

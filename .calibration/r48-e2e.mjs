@@ -1,7 +1,7 @@
 /**
  * R48 configurable daily notes E2E — browser mode vs dev :1420.
  * Run: node .calibration/r48-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 48 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 48 additions".
  *
  *  A. configurable format/folder via __geodeDaily (stamp/path/parse follow).
  *  B. settings UI drives the format/folder/template Stores.

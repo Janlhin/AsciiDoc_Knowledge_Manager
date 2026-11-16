@@ -1,7 +1,7 @@
 /**
  * R109 wikilink [[note#^ block-reference completion E2E — browser mode :1420.
  * Run: node .calibration/r109-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 109 additions" (㊹ 续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 109 additions" (㊹ 续).
  *
  * `[[<note>#^<query>` completes the resolved note's block references — the LABEL is the block
  * TEXT (Geode mints opaque ids, so you pick by content), the inserted text is the id →

@@ -42,7 +42,7 @@
 |warning/info
 |===
 
-术语词表取自仓库既有约定（`docs/ARCHITECTURE.md` 的「中文术语表」与英文技术写法），默认只收高置信条目，避免满屏误报。
+术语词表取自仓库既有约定（`docs/internal/ARCHITECTURE.md` 的「中文术语表」与英文技术写法），默认只收高置信条目，避免满屏误报。
 扫描复用索引解析器的同一套掩码（`maskCodeRegions` + 屏蔽 frontmatter），因此**代码块与 frontmatter 里的文字不触发检查**，且字符偏移保持稳定，可直接用于跳转。
 
 == 用法

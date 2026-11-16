@@ -9,7 +9,7 @@
  * The merge command + switcher UI are React-effect bound (App-Nap §D) → browser E2E.
  *
  * Run: node .calibration/r47-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 47 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 47 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, readdirSync } from "node:fs";

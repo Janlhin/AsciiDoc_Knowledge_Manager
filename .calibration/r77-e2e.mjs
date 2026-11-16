@@ -1,7 +1,7 @@
 /**
  * R77 block-id mint E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r77-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 77 additions" (㊴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 77 additions" (㊴).
  *
  * Covers blockRefAt (via __geodeBlockRef): paragraph mint / existing reuse /
  * blank / code-fence / frontmatter → null — AND the "Copy link to block" command:

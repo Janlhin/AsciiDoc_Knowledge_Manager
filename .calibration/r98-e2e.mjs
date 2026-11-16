@@ -1,7 +1,7 @@
 /**
  * R98 backlinks "Show more context" E2E — browser mode :1420.
  * Run: node .calibration/r98-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 98 additions" (㊷ 续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 98 additions" (㊷ 续).
  *
  * A toggle expands each backlink snippet from the matched LINE to the surrounding
  * PARAGRAPH (blank-line delimited). Panel-side (re-reads source content for linked

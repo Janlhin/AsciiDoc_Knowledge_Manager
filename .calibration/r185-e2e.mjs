@@ -2,7 +2,7 @@
  * R185 — G3 partial→done: view/appearance toggle commands + show-search default
  * hotkey — browser :1420.
  * Run: node .calibration/r185-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 185 additions" (G3 partial calibration).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 185 additions" (G3 partial calibration).
  *
  * The matrix marked these partial (settings switch exists, no command). R185 adds
  * commands that flip the existing appearance setting via its setter (pure display:

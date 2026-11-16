@@ -1,7 +1,7 @@
 /**
  * R71 markdown internal-link render + click navigation E2E — browser mode
  * (Memory vault) against dev :1420. Run: node .calibration/r71-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 71 additions" (㉞-b).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 71 additions" (㉞-b).
  *
  * Covers: a standard markdown link [text](note.md) that resolves to a NOTE now
  * renders as an internal-link anchor (reading view via __geodeRenderMarkdown) and

@@ -1,7 +1,7 @@
 /**
  * R178 — G2-a: Settings modal visual calibration — browser :1420.
  * Run: node .calibration/r178-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 178 additions" (G2-a).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 178 additions" (G2-a).
  *
  * Pure-frontend visual calibration of the settings window toward Obsidian:
  *  1. Fix the light-mode whole-window blue focus ring — the modal root takes

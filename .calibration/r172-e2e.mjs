@@ -1,7 +1,7 @@
 /**
  * R172 compat MarkdownPreviewRenderer (static post-processor class) E2E — browser mode :1420.
  * Run: node .calibration/r172-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 172 additions" (Tier 8 D11 · static post-processor surface).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 172 additions" (Tier 8 D11 · static post-processor surface).
  *
  * obsidian.MarkdownPreviewRenderer is a STATIC class:
  *   - registerPostProcessor(pp, sortOrder?)   → routes into the SAME core registry as

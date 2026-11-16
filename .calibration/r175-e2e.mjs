@@ -2,7 +2,7 @@
  * R175 compat Workspace navigation (openLinkText #subpath reveal · getMostRecentLeaf ·
  * setActiveLeaf) E2E — browser mode :1420.
  * Run: node .calibration/r175-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 175 additions" (Tier 8 D15 · Workspace navigation).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 175 additions" (Tier 8 D15 · Workspace navigation).
  *
  * The fixture (?obsfixture=1) onload exposes window.__compatWorkspace = this.app.workspace —
  * the COMPAT App's obsidian-shaped workspace (the surface under test). The geode-NATIVE app

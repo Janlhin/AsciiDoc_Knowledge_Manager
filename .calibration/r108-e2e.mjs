@@ -1,7 +1,7 @@
 /**
  * R108 [[ completion lists non-md attachments E2E — browser mode :1420.
  * Run: node .calibration/r108-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 108 additions" (㊹ 续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 108 additions" (㊹ 续续).
  *
  * The `[[` autocomplete now offers non-md attachments (images/pdf/…) — picking inserts
  * `[[image.png]]` (link) or `![[image.png]]` (embed, when `![[` was typed). Link text = the

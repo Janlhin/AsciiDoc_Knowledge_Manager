@@ -1,7 +1,7 @@
 /**
  * R248 (G2-b) settings Files&Links page section-subheaders E2E — browser mode :1420.
  * Run: node .calibration/r248-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 248 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 248 additions".
  *
  * Extends R246's `.settings-subheader` grouping to the Files & Links page: reorders 11 flat settings
  * into 顶部(默认位置, headerless) → 链接(Links) → 回收站(Trash) → 高级(Advanced) + adds the 3 subheaders

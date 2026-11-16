@@ -1,7 +1,7 @@
 /**
  * R23 templates E2E — browser mode (Memory vault) against dev server :1420.
  * Run: node .calibration/r23-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 23 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 23 additions".
  */
 import { chromium } from "playwright";
 

@@ -1,7 +1,7 @@
 /**
  * R37 back/forward navigation history E2E — browser mode (Memory vault) vs dev :1420.
  * Run: node .calibration/r37-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 37 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 37 additions".
  *
  * Navigation history is a workspace STORE op (per-tab back/forward of viewed
  * files) — fully drivable, no live view needed. Covers:

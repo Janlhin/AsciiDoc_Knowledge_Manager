@@ -1,7 +1,7 @@
 /**
  * R181 — G3: per-view "Show X" sidebar-panel commands — browser :1420.
  * Run: node .calibration/r181-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 181 additions" (G3).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 181 additions" (G3).
  *
  * Geode has the panels (explorer/search left; backlinks/outline/tags/allproperties
  * right) but only show-footnotes / show-outgoing-links had commands. R181 adds the

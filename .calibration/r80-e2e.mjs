@@ -1,7 +1,7 @@
 /**
  * R80 search toolbar E2E — sort / collapse / more-context / copy — browser :1420.
  * Run: node .calibration/r80-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 80 additions" (㊸).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 80 additions" (㊸).
  */
 import { chromium } from "playwright";
 

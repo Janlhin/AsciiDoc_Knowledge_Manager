@@ -1,7 +1,7 @@
 /**
  * R124 compat CachedMetadata.sections E2E — browser mode :1420.
  * Run: node .calibration/r124-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 124 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 124 additions" (compat 商业主轴).
  *
  * Obsidian getFileCache(file).sections: SectionCache[] = top-level block segmentation
  * ({type, position, id?}). Geode classifies each block by its first line (non-exhaustive per

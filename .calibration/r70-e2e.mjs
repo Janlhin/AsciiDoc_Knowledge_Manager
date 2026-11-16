@@ -1,7 +1,7 @@
 /**
  * R70 markdown-link rename rewrite E2E — browser mode (Memory vault) against
  * dev :1420. Run: node .calibration/r70-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 70 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 70 additions".
  *
  * Covers ㉞-a: the R16 verified-rewrite engine, extended to rewrite standard
  * markdown links `[text](note.md)` on file/folder rename (was wikilink-only),

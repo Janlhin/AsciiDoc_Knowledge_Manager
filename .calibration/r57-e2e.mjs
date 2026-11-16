@@ -1,7 +1,7 @@
 /**
  * R57 live-preview display math E2E — browser vs :1420.
  * Run: node .calibration/r57-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 57 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 57 additions".
  *
  *  A. pure detection/placeholder (window.__geodeMath): $$ block ranges (renderer-
  *     confirmed) + the .geode-math-block placeholder.

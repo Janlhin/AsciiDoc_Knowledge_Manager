@@ -3,7 +3,7 @@
  * editor:insert-math-block (插入数学块 `$$…$$`) / editor:insert-horizontal-rule
  * (插入分隔线 `***`). Extends the R33 pure format engine (core/format.ts) with 3
  * INSERT-only ops. Browser :1420.   Run: node .calibration/r198-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 198 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 198 additions".
  *
  * A  = byte-level __geodeFormat.apply probe (exact FormatEdit) for each op.
  * D  = setext-safety render PROOF via __geodeRenderMarkdown: `***` after text →

@@ -1,7 +1,7 @@
 /**
  * R120 compat Vault.modifyBinary E2E — browser mode :1420.
  * Run: node .calibration/r120-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 120 additions" (compat 商业主轴, 收 R111 显式 gap).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 120 additions" (compat 商业主轴, 收 R111 显式 gap).
  *
  * Obsidian Vault.modifyBinary(file, ArrayBuffer) OVERWRITES an existing binary file. Geode core
  * modifyBinary writes via tmp + rename (atomic — a mid-write crash never truncates the existing

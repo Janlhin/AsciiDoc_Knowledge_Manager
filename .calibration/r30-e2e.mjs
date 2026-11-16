@@ -1,7 +1,7 @@
 /**
  * R30 Properties sidebar view E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r30-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 30 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 30 additions".
  *
  * NOTE: the Memory vault ships a seed sample vault, so assertions use uniquely
  * prefixed property keys (ap*) that cannot collide with seed frontmatter.

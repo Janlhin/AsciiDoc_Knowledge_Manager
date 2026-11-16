@@ -1,7 +1,7 @@
 /**
  * R119 compat CachedMetadata.embeds E2E — browser mode :1420.
  * Run: node .calibration/r119-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 119 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 119 additions" (compat 商业主轴).
  *
  * Obsidian getFileCache(file).embeds: EmbedCache[] for `![[..]]` wikilink embeds, filed SEPARATELY
  * from .links (`[[..]]`). EmbedCache = {link, original, displayText?, position}. Geode core indexes

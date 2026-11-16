@@ -7,7 +7,7 @@
  * (React) are covered by the browser r41-e2e.
  *
  * Run: node .calibration/r41-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 41 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 41 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

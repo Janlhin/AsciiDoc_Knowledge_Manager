@@ -1,7 +1,7 @@
 /**
  * R69 vault-wide tag rename E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r69-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 69 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 69 additions".
  *
  * Covers ㉝ renameTagAcrossVault via the always-on window.__geodeRenameTag probe
  * (real vault/metadata/documents engine) + the TagsPanel right-click → rename UI:

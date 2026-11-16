@@ -19,8 +19,8 @@ Please read:
 
 - [README.md](README.md)
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/OBSIDIAN-COMPAT.md](docs/OBSIDIAN-COMPAT.md), if your change touches plugin compatibility
+- [docs/internal/ARCHITECTURE.md](docs/internal/ARCHITECTURE.md)
+- [docs/internal/OBSIDIAN-COMPAT.md](docs/internal/OBSIDIAN-COMPAT.md), if your change touches plugin compatibility
 
 ## Local setup
 

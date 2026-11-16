@@ -6,7 +6,7 @@
  * on disk so the real-fs metadata index parses their wikilinks.
  *
  * Run: node .calibration/r62-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 62 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 62 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

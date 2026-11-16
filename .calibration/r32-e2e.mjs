@@ -1,7 +1,7 @@
 /**
  * R32 macOS Cmd (Mod) modifier-key support E2E — browser mode against dev :1420.
  * Run: node .calibration/r32-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 32 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 32 additions".
  *
  * Covers:
  *  A. grammar probe (__geodeHotkey, BOTH platform branches on a mac host):

@@ -1,7 +1,7 @@
 /**
  * R227 appearance "Quick font size adjustment" (Ctrl/Cmd + wheel) E2E — browser mode :1420.
  * Run: node .calibration/r227-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 227 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 227 additions".
  *
  * Obsidian's "Quick font size adjustment" (default OFF): hold Ctrl/Cmd + scroll to change the font
  * size. Geode installs a global wheel listener gated on a persisted toggle; it reuses the vetted

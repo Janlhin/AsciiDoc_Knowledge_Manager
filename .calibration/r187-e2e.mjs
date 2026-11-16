@@ -2,7 +2,7 @@
  * R187 — G3 partial→done: directional pane focus commands
  * (Obsidian focus-{left,right,top,bottom}-tab-group) — browser :1420.
  * Run: node .calibration/r187-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 187 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 187 additions".
  *
  * Builds a deterministic split layout  row[ column[A, C], B ]  →
  *   A = top-left (0,0,.5,.5) · C = bottom-left (0,.5,.5,.5) · B = right full-height (.5,0,.5,1)

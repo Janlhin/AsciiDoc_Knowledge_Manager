@@ -1,6 +1,6 @@
 [package]
 name = "adkm"
-version = "0.269.0"
+version = "0.0.1"
 description = "ADKM — a local-first AsciiDoc/Markdown knowledge base, built on Geode"
 license = "Apache-2.0"
 edition = "2021"

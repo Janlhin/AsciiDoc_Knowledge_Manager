@@ -2,7 +2,7 @@
  * Editor `#` tag completion (R41) — typing `#` + tag chars (at line start or after
  * whitespace) suggests existing vault tags; accept inserts `#fulltag`. Mirrors the
  * native CM6 path used by slashCommands / `[[` wikilink completion (features must
- * never import compat). Contract: docs/ARCHITECTURE.md "Round 41 additions".
+ * never import compat). Contract: docs/internal/ARCHITECTURE.md "Round 41 additions".
  */
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import type { GeodeApp } from "@app/AppContext";

@@ -1,7 +1,7 @@
 /**
  * R247 (G2-b) settings Editor page section-subheaders E2E — browser mode :1420.
  * Run: node .calibration/r247-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 247 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 247 additions".
  *
  * Extends R246's `.settings-subheader` grouping to the Editor page: reorders 17 flat settings into
  * 顶部(headerless) → 显示(Display) → 行为(Behavior) + adds the 显示/行为 subheaders (reference 01).

@@ -1,7 +1,7 @@
 /**
  * R159 compat app.internalPlugins daily-notes instance.options E2E — browser mode :1420.
  * Run: node .calibration/r159-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 159 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 159 additions" (compat 商业主轴).
  *
  * Obsidian (non-public) `app.internalPlugins.getPluginById("daily-notes").instance.options`:
  * { folder, format, template, autorun } — the config obsidian-daily-notes-interface reads

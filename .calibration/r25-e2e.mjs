@@ -1,7 +1,7 @@
 /**
  * R25 page-preview (hover) E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r25-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 25 additions — 悬停预览".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 25 additions — 悬停预览".
  *
  * Covers: explorer-row hover (no modifier) raises a card; leaving hides it;
  * reading-view link hover (no modifier); editor (.cm-content) requires Ctrl/Cmd

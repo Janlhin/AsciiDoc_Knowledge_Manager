@@ -1,7 +1,7 @@
 /**
  * R62 Outgoing Links pane E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r62-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 62 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 62 additions".
  *
  * Covers ㉓ dedicated Outgoing Links panel (separate right-sidebar tab, Obsidian
  * core-plugin parity): tab opens the pane; resolved links list under "Links",

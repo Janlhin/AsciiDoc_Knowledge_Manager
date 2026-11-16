@@ -1,7 +1,7 @@
 /**
  * R140 Explorer bulk operations (multi-select delete + move) E2E — browser mode :1420.
  * Run: node .calibration/r140-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 140 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 140 additions".
  *
  * Right-click a multi-selection → built-in Delete N (confirm → trash each ROOT, dedup-to-roots so a
  * folder + its child only trashes the folder) / Move N (→ MoveToModal → move all into a folder,

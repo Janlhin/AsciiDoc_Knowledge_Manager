@@ -1,7 +1,7 @@
 /**
  * R75 query-embed E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r75-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 75 additions" (㊲).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 75 additions" (㊲).
  *
  * Covers: runQueryBlock (via __geodeQueryBlock) — match/empty/error — AND the
  * rendered result list in reading view + live preview, with click navigation on

@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebFetch
 `$ARGUMENTS` 若指定了具体项或「连做 N 项 / 做到候选池清空」则照它；否则取候选池下一项。
 
 ## Step 0 · 定位
-- 确保已读 `CLAUDE.md`、`docs/ROADMAP.md` 末「候选池/执行队列」、`docs/HANDOFF.md`「三句话背景」。
+- 确保已读 `CLAUDE.md`、`docs/internal/ROADMAP.md` 末「候选池/执行队列」、`docs/internal/HANDOFF.md`「三句话背景」。
 - 选定本轮项 = `$ARGUMENTS` 指定项，或候选池既定顺序的**下一项**。**不要问用户做哪一项。**
 - 该项契约已冻结在 `ARCHITECTURE.md`「Round XX additions」（如 R25 悬停预览）→ 直接照契约执行。
 
@@ -61,12 +61,12 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebFetch
 - OBSIDIAN-COMPAT 套件矩阵**不回退**。
 
 ## Step 6 · 收尾（写文档 = 循环闭合，不可省）
-> **Stop hook 会强制把关**：有未提交改动、或代码改了却没更新 `docs/HANDOFF.md`，本轮**结束不了**。文档必须写全、改动必须提交，循环才闭合（下次「阅读 handoff」才能续上）。
+> **Stop hook 会强制把关**：有未提交改动、或代码改了却没更新 `docs/internal/HANDOFF.md`，本轮**结束不了**。文档必须写全、改动必须提交，循环才闭合（下次「阅读 handoff」才能续上）。
 - **撰写交付文档**：
-  - `docs/HANDOFF.md`：刷新顶部 **START HERE** 区（版本 / 上一轮 / 下一项+契约位置 / 待拍板项）+ 把本轮根因教训追加到「三句话背景」。
-  - `docs/ROADMAP.md`：完成记录 + 候选池出队。
-  - `docs/ARCHITECTURE.md`：本轮 As-built（根因修复记录）。
-  - `docs/OBSIDIAN-COMPAT.md`：套件矩阵不回退。
+  - `docs/internal/HANDOFF.md`：刷新顶部 **START HERE** 区（版本 / 上一轮 / 下一项+契约位置 / 待拍板项）+ 把本轮根因教训追加到「三句话背景」。
+  - `docs/internal/ROADMAP.md`：完成记录 + 候选池出队。
+  - `docs/internal/ARCHITECTURE.md`：本轮 As-built（根因修复记录）。
+  - `docs/internal/OBSIDIAN-COMPAT.md`：套件矩阵不回退。
 - 版本号**三处对齐**（package.json / tauri.conf.json / SettingsModal `APP_VERSION`）。
 - 提交：`feat(rXX):` 代码 + `docs(rXX):` 文档（具体文件，不用 `git add .`）→ `git push`。
 - 报告用户：本轮做了什么、**本轮分档（机械/逻辑 + 一句判定依据）**、修了几个根因、套件状态、**简化门结果（clean / 删了 N 处死代码+冗余 / 机械档跳过——「不简化」也留痕、可审计是否被滥用成 churn）**、**下一项是什么**。

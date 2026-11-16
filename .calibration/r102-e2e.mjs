@@ -1,7 +1,7 @@
 /**
  * R102 read-only attachment viewer E2E — browser mode :1420.
  * Run: node .calibration/r102-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 102 additions" (㊽ 续续续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 102 additions" (㊽ 续续续续续).
  *
  * Non-md image/binary files open in a read-only viewer (viewType "attachment") instead
  * of the editable markdown editor — the data-safety boundary (no documents.acquire, no

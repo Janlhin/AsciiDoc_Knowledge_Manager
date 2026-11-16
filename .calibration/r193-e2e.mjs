@@ -2,7 +2,7 @@
  * R193 — G3 missing→done: bookmarks:unbookmark / bookmarks:bookmark-all-tabs
  * (Obsidian bookmark commands) — browser :1420.
  * Run: node .calibration/r193-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 193 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 193 additions".
  *
  * Reuses the vetted bookmark store (isFileBookmarked/toggleFile/add). unbookmark is a
  * dedicated REMOVE gated on isFileBookmarked; bookmark-all-tabs adds every open file-backed

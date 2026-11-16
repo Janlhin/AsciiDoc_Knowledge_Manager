@@ -1,7 +1,7 @@
 /**
  * R97 "Move to…" folder picker E2E — browser mode :1420.
  * Run: node .calibration/r97-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 97 additions" (㊽ 续续续续).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 97 additions" (㊽ 续续续续).
  *
  * A fuzzy folder picker opened from the Explorer right-click "Move to…"; selecting a
  * folder routes through the vetted moveNode (R28/R16 renameWithLinkUpdate), so links are

@@ -1,7 +1,7 @@
 /**
  * R166 — Tier 7 B1: uninstall community (obsidian) plugin — browser :1420.
  * Run: node .calibration/r166-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 166 additions" (Tier 7 B1).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 166 additions" (Tier 7 B1).
  *
  * PluginManager.uninstall(id): removeRecord → persistEnabled(false) → vault.remove
  * (.obsidian/plugins/<id>). Scoped to source==="obsidian"; id validated single safe

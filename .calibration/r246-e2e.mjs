@@ -1,7 +1,7 @@
 /**
  * R246 (G2-b) settings Appearance page section-subheaders E2E — browser mode :1420.
  * Run: node .calibration/r246-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 246 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 246 additions".
  *
  * Obsidian groups each settings page's rows under gray subheadings (reference 03 §三/§五).
  * R246 reorders the Appearance page into 主题(headerless) → 界面 → 字体 and adds the 界面/字体

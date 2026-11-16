@@ -1,7 +1,7 @@
 /**
  * R153 editor "Auto pair brackets" toggle E2E — browser mode :1420.
  * Run: node .calibration/r153-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 153 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 153 additions".
  *
  * Obsidian's "Auto pair brackets" (default ON) auto-closes ( [ { " ' while typing. Geode had
  * closeBrackets() always on; R153 puts it in a CM compartment behind a persisted setting toggle.

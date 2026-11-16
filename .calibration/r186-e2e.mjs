@@ -2,7 +2,7 @@
  * R186 — G3 missing→done: "Set heading 1-6" / "Remove heading" editor commands —
  * browser :1420.
  * Run: node .calibration/r186-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 186 additions" (G3 missing pure-edit).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 186 additions" (G3 missing pure-edit).
  *
  * Extends the R33 format engine with setHeadingLevel (fixed level 1-6, or 0=remove),
  * vs the existing cycling toggle-heading. DATA-SAFETY: byte-level transform tests via

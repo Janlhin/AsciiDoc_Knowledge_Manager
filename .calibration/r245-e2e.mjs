@@ -1,7 +1,7 @@
 /**
  * R245 (G2-b 设置页视觉打磨) settings nav active-item fidelity E2E — browser mode :1420.
  * Run: node .calibration/r245-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 245 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 245 additions".
  *
  * Obsidian selects the settings left-nav item with a NEUTRAL highlight
  * (--background-modifier-active-hover), not the accent — accent is reserved for toggles /

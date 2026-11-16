@@ -1,7 +1,7 @@
 /**
  * R28 explorer drag-to-move E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r28-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 28 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 28 additions".
  *
  * Drives the SAME decision core the Explorer drop handler uses, via the
  * always-on probe window.__geodeExplorerMove(fromPath, hoveredPath) — the four

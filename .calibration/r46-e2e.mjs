@@ -1,7 +1,7 @@
 /**
  * R46 obsidian:// URI (in-app slice) E2E — browser mode vs dev :1420.
  * Run: node .calibration/r46-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 46 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 46 additions".
  *
  *  A. pure parser (window.__geodeUri.parse): open/new/search/unknown/null/decode.
  *  B. executor (window.__geodeUri.handle): open?file → opens target, new → creates+opens,

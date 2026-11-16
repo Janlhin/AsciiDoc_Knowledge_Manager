@@ -1,7 +1,7 @@
 /**
  * R156 "Fold heading" toggle E2E — browser mode :1420.
  * Run: node .calibration/r156-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 156 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 156 additions".
  *
  * Obsidian's "Fold heading" Editor setting (default ON) gates whether the editor offers fold
  * points for heading sections. R156 gates the heading branch of markdownFoldRange behind a

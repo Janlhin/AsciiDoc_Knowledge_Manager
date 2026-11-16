@@ -7,7 +7,7 @@
  * helpers (name derivation / sanitize / content / link), which run synchronously.
  *
  * Run: node .calibration/r44-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 44 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 44 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

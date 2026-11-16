@@ -1,7 +1,7 @@
 /**
  * R163 — Tier 7 B2: plugin settings "one plugin, one tab" left-nav IA — browser :1420.
  * Run: node .calibration/r163-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 163 additions" (Tier 7 B2).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 163 additions" (Tier 7 B2).
  *
  * Each enabled plugin's settings section becomes its own left-nav entry; clicking
  * it renders only that plugin's display() (imperative mount/unmount). Pure frontend

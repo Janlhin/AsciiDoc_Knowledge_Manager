@@ -1,7 +1,7 @@
 /**
  * R54 Setext heading folding E2E — browser vs :1420.
  * Run: node .calibration/r54-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 54 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 54 additions".
  *
  *  A. pure fold-range geometry (window.__geodeFoldRange): Setext + ATX section ends.
  *  B. live folding: editor:toggle-fold on a Setext heading collapses its section.

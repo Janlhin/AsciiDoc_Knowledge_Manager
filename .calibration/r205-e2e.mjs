@@ -4,7 +4,7 @@
  * GFM table skeleton (header + body row, 2 columns) at the cursor, placing the
  * caret in the first header cell. Mirrors R198 horizontal-rule: does NOT consume
  * the selection (collapses to `to`). Browser :1420.  Run: node .calibration/r205-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 205 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 205 additions".
  *
  * A = byte-level __geodeFormat.apply probe (exact FormatEdit) for each context.
  * D = render PROOF via __geodeRenderMarkdown: the skeleton renders as a real

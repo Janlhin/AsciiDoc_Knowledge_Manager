@@ -8,7 +8,7 @@
  * on malformed JSON rather than overwriting Obsidian's data, vault-switch
  * guard. Mirrors the discipline in `core/properties.ts` (types.json RMW).
  *
- * Contract frozen in docs/ARCHITECTURE.md "Round 27 additions".
+ * Contract frozen in docs/internal/ARCHITECTURE.md "Round 27 additions".
  */
 import { Store } from "./store";
 import type { Vault } from "./vault";

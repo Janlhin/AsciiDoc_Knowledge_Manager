@@ -1,7 +1,7 @@
 /**
  * R147 compat MarkdownView.showSearch(replace?) E2E — browser mode :1420.
  * Run: node .calibration/r147-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 147 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 147 additions".
  *
  * Adds the confirmed-missing @public MarkdownView.showSearch(replace?) (obsidian.d.ts:4233). It
  * delegates to CM's openSearchPanel (the R34 editor-find mechanism) on the view's editor.cm;

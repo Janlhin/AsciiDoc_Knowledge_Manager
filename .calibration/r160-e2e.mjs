@@ -1,7 +1,7 @@
 /**
  * R160 — C5 visible sidebar collapse/expand toggles E2E — browser mode :1420.
  * Run: node .calibration/r160-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 160 additions" (Tier 7 C5).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 160 additions" (Tier 7 C5).
  *
  * C5 state/methods/commands/persistence already existed (R2+); this round adds
  * the only missing piece — a dedicated, always-visible collapse/expand affordance

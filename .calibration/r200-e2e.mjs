@@ -1,7 +1,7 @@
 /**
  * R200 — G3 missing→done: editor right-click context menu native Cut/Copy/Paste + always-show.
  * Completes R131's deferred slice (compat/obsidian/editorMenu.ts). Browser :1420.
- * Run: node .calibration/r200-e2e.mjs   Contract: docs/ARCHITECTURE.md "Round 200 additions".
+ * Run: node .calibration/r200-e2e.mjs   Contract: docs/internal/ARCHITECTURE.md "Round 200 additions".
  *
  * Uses a SYNTHETIC contextmenu event dispatched on the CM contentDOM so a programmatic
  * selection is preserved (a real right-click would move the caret). Clipboard perms granted.

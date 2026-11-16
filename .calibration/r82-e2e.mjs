@@ -1,7 +1,7 @@
 /**
  * R82 Backlinks / Outgoing panel enhancement E2E — browser mode :1420.
  * Run: node .calibration/r82-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 82 additions" (㊷).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 82 additions" (㊷).
  *
  * Covers ㊷ panel toolbars: sortAndFilterLinks truth table (probe hook) +
  * backlinks linked-mentions sort/filter/collapse-all/per-source toggle +

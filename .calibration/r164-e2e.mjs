@@ -1,7 +1,7 @@
 /**
  * R164 — Tier 7 C2: editable inline title → rename — browser :1420.
  * Run: node .calibration/r164-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 164 additions" (Tier 7 C2). DATA-SAFETY round.
+ * Contract: docs/internal/ARCHITECTURE.md "Round 164 additions" (Tier 7 C2). DATA-SAFETY round.
  *
  * Click the inline title → input → commit routes through renameWithLinkUpdate (R16
  * vetted: flush dirty body first, rewrite links, rename; file:renamed retargets tab).

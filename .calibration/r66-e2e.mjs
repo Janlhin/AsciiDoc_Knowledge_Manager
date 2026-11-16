@@ -1,7 +1,7 @@
 /**
  * R66 status-bar enhancements E2E — browser mode against dev :1420.
  * Run: node .calibration/r66-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 66 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 66 additions".
  *
  * Covers ㉙ (core status-bar items, per Obsidian): a backlink-count item that
  * tracks the active note's linked-mention total and updates when ANOTHER note's

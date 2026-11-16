@@ -1,7 +1,7 @@
 /**
  * R204 — G3 §2: editor:rename-heading (片 A — rename heading text + same-file self-anchor links).
  * Pure logic = core/renameHeading.ts. Browser :1420.   Run: node .calibration/r204-e2e.mjs
- * Contract: docs/ARCHITECTURE.md "Round 204 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 204 additions".
  *
  * A = byte-level renameHeadingAt via __geodeRenameHeading (heading + self-anchor; case/markdown/alias/
  *     embed match; link-unsafe guard; cross-file untouched; no-op cases). B = registration. C = live CM.

@@ -1,6 +1,6 @@
 // Calendar right-sidebar pane (R43): a self-drawn month grid; click a day to
 // open/create its daily note; days with notes are dotted, today highlighted.
-// Contract: docs/ARCHITECTURE.md "Round 43 additions".
+// Contract: docs/internal/ARCHITECTURE.md "Round 43 additions".
 // Layering: features/ may import only @core/*, @app/AppContext, @app/icons.
 import { useMemo, useState } from "react";
 import { useApp } from "@app/AppContext";

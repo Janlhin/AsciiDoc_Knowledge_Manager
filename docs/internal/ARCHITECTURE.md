@@ -9659,7 +9659,7 @@ readonly settingsSections: Store<ReadonlyArray<PluginSettingsSection>>;
 `loadObsidianPlugins(app: Omit<AppHandle, "ui"> & { plugins: PluginManager }, vault: Vault): Promise<void>` (from `@compat/obsidian/loader`)
 is idempotent like `loadExternal`: unloads previously loaded obsidian records first.
 Calibrated signatures live in `.calibration/API-REFERENCE.md` (regenerate per
-docs/OBSIDIAN-COMPAT.md); implement EXACTLY against it, never from memory.
+docs/internal/OBSIDIAN-COMPAT.md); implement EXACTLY against it, never from memory.
 Internal layout is the implementor's choice within `src/compat/`; fixed points:
 - `index.ts` exports the full `require("obsidian")` module surface.
 - `loader.ts`: discover → validate manifest (missing id/name/version rejects; other gaps warn;

@@ -1,7 +1,7 @@
 /**
  * R143 search "Match case" global toggle E2E — browser mode :1420.
  * Run: node .calibration/r143-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 143 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 143 additions".
  *
  * Obsidian's global search has a "Match case" toggle (Aa), default OFF. R143 wires it: the toggle
  * flips how `default`-mode terms are interpreted (insensitive ↔ sensitive); explicit match-case:/

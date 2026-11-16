@@ -8,7 +8,7 @@
  * covers it on the identical CM editor.
  *
  * Run: node .calibration/r67-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 67 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 67 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

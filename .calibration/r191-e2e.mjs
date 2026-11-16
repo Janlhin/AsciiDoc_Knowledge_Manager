@@ -2,7 +2,7 @@
  * R191 — G3 missing→done: editor:add-cursor-above / editor:add-cursor-below
  * (Obsidian multi-cursor) — browser :1420.
  * Run: node .calibration/r191-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 191 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 191 additions".
  *
  * Drives the live CM view: add-cursor-below adds a collapsed cursor one line down at the
  * same column (cascading), add-cursor-above one line up; no-op at the doc edge. The doc

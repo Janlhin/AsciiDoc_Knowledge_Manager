@@ -4,7 +4,7 @@
  * construct → show → click → hide; App-Nap-safe, no async render).
  *
  * Run: node .calibration/r144-probe.mjs   (release binary must be built WITH R144)
- * Contract: docs/ARCHITECTURE.md "Round 144 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 144 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

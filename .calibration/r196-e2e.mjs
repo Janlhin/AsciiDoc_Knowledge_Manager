@@ -1,7 +1,7 @@
 /**
  * R196 — G3 missing→done: editor:add-alias / editor:add-tag (Obsidian add-alias /
  * add-tag) — browser :1420. Run: node .calibration/r196-e2e.mjs   (dev server up)
- * Contract: docs/ARCHITECTURE.md "Round 196 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 196 additions".
  *
  * Extends the R22 add-property one-shot Store with an optional key; PropertiesPanel
  * consumes it via the vetted submitAdd path (creates frontmatter if needed, adds the

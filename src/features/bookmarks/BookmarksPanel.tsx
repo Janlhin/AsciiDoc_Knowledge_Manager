@@ -1,5 +1,5 @@
 // Bookmarks left-sidebar panel (R27).
-// Contract: docs/ARCHITECTURE.md "Round 27 additions".
+// Contract: docs/internal/ARCHITECTURE.md "Round 27 additions".
 // Layering: features/ may import only @core/*, @app/AppContext, @app/icons.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";

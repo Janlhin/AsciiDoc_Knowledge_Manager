@@ -17,7 +17,7 @@
 商业主轴确立为 **Obsidian 插件生态一键迁移**：以兼容层（shim）方式实现 Obsidian 插件
 API 的分 Tier 兼容，开发中用 WebFetch 对照 `docs.obsidian.md` 与官方 `obsidian.d.ts`
 自我校准，用真实插件套件验收。完整判断、Tier 表、法律边界、验收方式见
-**`docs/OBSIDIAN-COMPAT.md`**（后续轮次的头号输入）。ADKM 原生插件 API 保持第一公民，
+**`docs/internal/OBSIDIAN-COMPAT.md`**（后续轮次的头号输入）。ADKM 原生插件 API 保持第一公民，
 shim 建立其上。
 
 ## 已完成
@@ -58,7 +58,7 @@ Ctrl+\\ / Ctrl+Shift+\\ 分屏命令；同文件多实例非脏实时同步。
 
 ### R4 — v0.4（2026-06-10）Obsidian 插件兼容层 + 共享文档模型
 
-**Obsidian compat T0+T1+T1.5**（`src/compat/obsidian/`，详见 docs/OBSIDIAN-COMPAT.md）：
+**Obsidian compat T0+T1+T1.5**（`src/compat/obsidian/`，详见 docs/internal/OBSIDIAN-COMPAT.md）：
 `.obsidian/plugins` 发现/加载/启停对齐 community-plugins.json；`require("obsidian")` 注入
 （+@codemirror/* host 实例 + path shim）；Plugin/Vault(TFile 单例 registry)/MetadataCache/
 Workspace/Notice/Modal/Setting DSL/SuggestModal/Menu/最小 Editor 子集；DOM 原型增强；
@@ -1314,7 +1314,7 @@ Tab/Shift-Tab 列表缩进、空列表项 Backspace 出列 **均已工作**—�
 > 执行口径沿用历轮：逐项按序自主推进，验收 = 四条底线 + 官方校准（docs.obsidian.md）+ 双端 probe 不回退。
 > **标 ⚠️ 者需先与用户确认诉求或先 code-verify，再开工。**
 >
-> **视觉/文案事实来源**：复刻本梯队条目前对照 `reference/`——42 张 Obsidian 官方截图逐页提取的体系化 md（八类：编辑器/文件与链接/外观/热键/核心插件/第三方插件/通用-账户-库/右键菜单），各文档表头标注对接的本梯队条目号。**目标 = 像素级界面复刻**：截图是视觉验收的事实标准，跨屏视觉规范（配色/布局/控件样式/排版/验收）见 `reference/00-界面复刻规范.md`。与 `docs/OBSIDIAN-COMPAT.md`（插件 API 兼容）互补：一个管「长什么样、有哪些选项」，一个管「插件 API 怎么对齐」。
+> **视觉/文案事实来源**：复刻本梯队条目前对照 `reference/`——42 张 Obsidian 官方截图逐页提取的体系化 md（八类：编辑器/文件与链接/外观/热键/核心插件/第三方插件/通用-账户-库/右键菜单），各文档表头标注对接的本梯队条目号。**目标 = 像素级界面复刻**：截图是视觉验收的事实标准，跨屏视觉规范（配色/布局/控件样式/排版/验收）见 `reference/00-界面复刻规范.md`。与 `docs/internal/OBSIDIAN-COMPAT.md`（插件 API 兼容）互补：一个管「长什么样、有哪些选项」，一个管「插件 API 怎么对齐」。
 
 **A · 快捷键 / 命令缺口**
 
@@ -1329,8 +1329,8 @@ Tab/Shift-Tab 列表缩进、空列表项 Backspace 出列 **均已工作**—�
 |---|---|---|
 | ~~**B1 插件管理面板（启停 / 设置入口 / 删除 / 浏览）**~~ | ✅ **R166 完成（删除/卸载部分）** | SettingsModal 给 obsidian（社区）插件加卸载按钮（`plugin-uninstall-<id>`，inline trash svg）→ `confirmDelete` → 新 `PluginManager.uninstall(id)`：`removeRecord`（停运行时）→ `persistEnabled(false)`（摘 community-plugins.json）→ `vault.remove(.obsidian/plugins/<dir>)`。**D1 修**：删 `installDir`（真实文件夹名）非 manifest id（loader warn 二者可异、否则错删/漏删）。对抗评审 9 维→1 major（D1 已修）+ 18 e2e（含 dir≠id 回归 + vault.remove spy 验封闭）。**v1 defer**：external（`.geode` dev 脚本，无 id→file 映射）/ builtin（打包）不可卸载；**marketplace 浏览/安装**（需网络/越界）；齿轮进设置（R163 B2 已做左栏 per-plugin tab）。 |
 | ~~**B2 插件设置「一个插件一个 Tab」**~~ | ✅ **R163 完成** | SettingsModal 左栏 SECTIONS 后为每个 enabled 插件的 settingsSection 生成独立 nav 条目（`settings-nav-plugin-<id>`，puzzle icon + 插件名 + `plugin:` 前缀选中态），点击右栏只渲该插件 `display()`（复用 `PluginSettingsBody` 命令式 mount/unmount，`key` 保证切插件真卸载/挂载）。删 PluginsSection 内 crammed 折叠卡片堆 + `PluginSettingsBlock` 组件 + 5 条 orphan 死 CSS。选中插件被禁用→fallback 回 Plugins。对抗评审 9 维全证伪 + 20 e2e（含 cross-plugin 切换 + live-add + fallback）。**v1 defer**：插件自定义图标（PluginSettingsSection 无 icon 字段，全用 puzzle）。 |
-| **B3 "很多插件无法加载"（Tier 兼容长尾）** | **进行中 · 用户已给样本**（套件 5/5 加载启用；2026-06-21 用户桌面实测报 **10 个加载失败插件**，已按根因归四类、逐条 code-verify → **见下「B3-附」表**）| 逐插件按根因修：① 补缺的 obsidian 导出 ② Node/Electron 模块最小垫片 ③ `global` 垫片 ④ `window.require` 受控垫片。流程：看控制台越级 warn-stub + 设置页缺口报告 → 补 shim 或登记缺口。详见 `docs/OBSIDIAN-COMPAT.md`。 |
-| **B4 obsidian API 全签名一致（长期）** | **进行中**（compat 按 Tier 推进，已对照官方 `obsidian.d.ts` 160+ 签名）| 长期目标：把越级 warn-stub 逐 Tier 转真实现。范围、法律边界、Tier 表见 `docs/OBSIDIAN-COMPAT.md`（头号输入）。 |
+| **B3 "很多插件无法加载"（Tier 兼容长尾）** | **进行中 · 用户已给样本**（套件 5/5 加载启用；2026-06-21 用户桌面实测报 **10 个加载失败插件**，已按根因归四类、逐条 code-verify → **见下「B3-附」表**）| 逐插件按根因修：① 补缺的 obsidian 导出 ② Node/Electron 模块最小垫片 ③ `global` 垫片 ④ `window.require` 受控垫片。流程：看控制台越级 warn-stub + 设置页缺口报告 → 补 shim 或登记缺口。详见 `docs/internal/OBSIDIAN-COMPAT.md`。 |
+| **B4 obsidian API 全签名一致（长期）** | **进行中**（compat 按 Tier 推进，已对照官方 `obsidian.d.ts` 160+ 签名）| 长期目标：把越级 warn-stub 逐 Tier 转真实现。范围、法律边界、Tier 表见 `docs/internal/OBSIDIAN-COMPAT.md`（头号输入）。 |
 
 **C · 操作性功能**
 

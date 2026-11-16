@@ -2,7 +2,7 @@
  * R170 — Tier 8 D9 math: renderMath / finishRenderMath / loadMathJax
  * — browser :1420.
  * Run: node .calibration/r170-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 170 additions" (Tier 8, D9).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 170 additions" (Tier 8, D9).
  *
  * The fixture plugin (?obsfixture=1) runs a one-shot async IIFE in onload that:
  *   1. renderMath("x^2", false) — SYNC returns an HTMLElement with class

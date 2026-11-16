@@ -2,7 +2,7 @@
  * R184 — G3 (ui-only→done): file-op COMMANDS (duplicate / rename / move / new-folder)
  * routing the active file to the Explorer's vetted handlers — browser :1420.
  * Run: node .calibration/r184-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 184 additions" (G3 ui-only→done remainder).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 184 additions" (G3 ui-only→done remainder).
  *
  * The matrix marked these ui-only (right-click/button only). R184 promotes them to
  * commands operating on the ACTIVE file via a one-shot workspace.explorerFileAction

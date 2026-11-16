@@ -2,7 +2,7 @@
  * R171 — Tier 8 D3 search: prepareFuzzySearch / prepareSimpleSearch
  * — browser :1420.
  * Run: node .calibration/r171-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 171 additions" (Tier 8, D3).
+ * Contract: docs/internal/ARCHITECTURE.md "Round 171 additions" (Tier 8, D3).
  *
  * The fixture plugin (?obsfixture=1) runs a SYNCHRONOUS IIFE in onload that:
  *   1. prepareFuzzySearch("foo")("foobar") — substring fast-path returns

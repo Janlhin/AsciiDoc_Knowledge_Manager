@@ -1,7 +1,7 @@
 /**
  * R144 compat Menu API completion E2E — browser mode :1420.
  * Run: node .calibration/r144-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 144 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 144 additions".
  *
  * Adds the two confirmed-missing public Menu methods (obsidian.d.ts): `static forEvent(evt)`
  * (@1.6.0, the modern context-menu idiom) + `setParentElement(el)` (@0.16.0). Verified via the

@@ -1,7 +1,7 @@
 /**
  * R194 — G3 missing→done: editor:clear-metadata-properties (Obsidian "Clear note
  * properties") — browser :1420. Run: node .calibration/r194-e2e.mjs   (dev server up)
- * Contract: docs/ARCHITECTURE.md "Round 194 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 194 additions".
  *
  * Removes the whole frontmatter block (reusing the R22-vetted properties bounds). Drives
  * the live CM view and asserts exact doc bytes: the block is gone, the body is preserved,

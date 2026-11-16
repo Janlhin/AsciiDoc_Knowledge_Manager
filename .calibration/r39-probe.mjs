@@ -10,7 +10,7 @@
  * (sanitizeTab) is covered by the r39-e2e reload test.
  *
  * Run: node .calibration/r39-probe.mjs   (release binary must be built)
- * Contract: docs/ARCHITECTURE.md "Round 39 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 39 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

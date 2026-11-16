@@ -1,7 +1,7 @@
 /**
  * R45 Workspaces (saved layouts) E2E — browser mode vs dev :1420.
  * Run: node .calibration/r45-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 45 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 45 additions".
  *
  *  save current layout → appears in list → load restores the open-file set →
  *  delete removes it → fault-tolerant load prunes a since-deleted file's tab.

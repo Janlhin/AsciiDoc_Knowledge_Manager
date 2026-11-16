@@ -1,7 +1,7 @@
 /**
  * R33 markdown formatting commands + shortcuts E2E — browser mode against dev :1420.
  * Run: node .calibration/r33-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 33 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 33 additions".
  *
  * Covers:
  *  A. pure-function probe (__geodeFormat.apply(op, text, from, to)) — deep-equals

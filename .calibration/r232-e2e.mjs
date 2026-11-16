@@ -1,7 +1,7 @@
 /**
  * R232 editor "Smart lists" toggle E2E — browser mode :1420.
  * Run: node .calibration/r232-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 232 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 232 additions".
  *
  * Obsidian's "Smart lists" (智能列表, default ON): pressing Enter inside a list continues/
  * renumbers/outdents the list markup. Geode had @codemirror/lang-markdown's markdownKeymap

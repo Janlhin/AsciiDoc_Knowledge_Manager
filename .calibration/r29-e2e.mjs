@@ -2,7 +2,7 @@
  * R29 fold persistence + reading-view heading fold E2E — browser mode (Memory
  * vault) against dev :1420.
  * Run: node .calibration/r29-e2e.mjs   (dev server must be up)
- * Contract: docs/ARCHITECTURE.md "Round 29 additions".
+ * Contract: docs/internal/ARCHITECTURE.md "Round 29 additions".
  *
  * Covers:
  *  1. foldStore probe round-trip (window.__geodeFold.save/load): Obsidian-shape
