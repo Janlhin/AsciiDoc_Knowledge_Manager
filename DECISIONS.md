@@ -483,3 +483,17 @@
   - *把开关放进命令面板而非设置*：否决理由——用户按浏览器的心理模型去设置里找，命令面板不构成可发现性。
 - **影响范围**：`src/core/startup.ts`（新增）、`src/core/workspace.ts`（`restore` / `persist` / `adoptVaultStorage` 三处 gate）、`src/features/settings/SettingsModal.tsx`（分区 + 单选组件）、`src/core/i18n/dict.views.ts`（7 键 en/zh）、`src/features/settings/settings.scss`（单选行样式）、`tests/startup.test.ts`（4 用例）、`tests/e2e/run.mjs`（第 15 条 `startup-mode`）。
 - **诚实缺口**：fresh 模式下不记忆标签（有意，已写入 UI 文案）；「最近关闭的标签」仍只在会话内（跨启动不保留）；没有「打开指定工作区 / 一组固定标签」；单窗口架构下不涉及多窗口状态。**复审条件**：若用户要求按工作区启动或"每次启动问一次"，重开此条并先补设置项语义（工作区选择器、询问频率），不要在现有两态上叠条件分支。
+
+## D-028 首帧颜色＝内联引导决定，主题镜像到单一 localStorage 键
+
+- **日期**：2026-11-16
+- **状态**：**已实施**（T-059）。
+- **决策**：在 `index.html` 的 `<head>` 里放一段**内联脚本 + 两行关键 CSS**，在 bundle 执行之前决定 `data-theme` 并给 `<html>` 上底色。主题的权威值仍在工作区快照里，但另**镜像**一份到 `localStorage["adkm.theme"]`（写入点：`setTheme()` 与 `applyDocumentEffects()`），内联脚本只读这一个键；键缺失/非法时按 `prefers-color-scheme` 解析，与 `resolveTheme("system", …)` 同语义。
+- **背景（实测，不是猜测）**：用 CDP 在真机上装 `PerformanceObserver` 测启动——重载 800 条笔记的库，`first-contentful-paint` **176 ms**、`domContentLoaded` 71 ms、**无任何 >50 ms 长任务**、`metadataIndexMs` 0.9 ms（水合 800 条）。所以"启动那瞬间卡顿"不是 JS 计算量。真正的可见症状是**颜色闪变**：`app.scss` 的 `:root` 默认是深色（`--bg-app:#1e1e1e`），而 `data-theme` 要等 bundle 跑完才写，**浅色主题用户每次启动都会先看到一帧深色**，然后跳到浅色。
+- **被采纳方案**：内联脚本只做三件事——读镜像键、必要时用 `matchMedia` 解析、写 `dataset.theme`；并用 `html{background:#1e1e1e} / html[data-theme="light"]{background:#f5f5f5}` 两行关键 CSS 保证首帧底色正确（两个字面量镜像 `--bg-app`，属 critical CSS，改色需同步）。全部包在 `try/catch` 里：存储被禁时退化为旧行为，绝不阻断启动。
+- **被否决的替代方案**：
+  - *内联脚本直接解析工作区快照*：否决理由——主题在**按库**的快照里（`geode.workspace.v2:<path>`），启动时不知道该读哪个键；遍历全部键既慢又可能读到别的库。
+  - *把 CSS 默认改成浅色*：否决理由——只是把闪变方向反过来，深色用户（多数）变成受害方。
+  - *窗口先隐藏、等 React 就绪再 show*：否决理由——会把"闪一下"换成"白屏更久"，且需要改窗口生命周期与失败兜底；作为后续优化保留，不在本片。
+- **影响范围**：`index.html`（内联引导 + 关键 CSS）、`src/core/workspace.ts`（`mirrorThemeForBootstrap`，两处调用）、`src/main.tsx`（`__appScriptAt` 标记，供 E2E 校验先后顺序）、`tests/e2e/run.mjs`（`startup-mode` 增加断言：引导时间戳 ≤ bundle 开始、`data-theme` 已解析、计算出的底色与主题一致）。
+- **诚实缺口**：只修"首帧颜色"。**WebView2 初始化与窗口创建的那段（页面内无法测量）没有优化**；`--editor-font-size` 仍由 JS 应用（会触发一次重排，不产生颜色闪变）；若系统主题在启动瞬间切换，内联值可能与随后的 `applyDocumentEffects` 不一致（随后纠正）。**复审条件**：若用户反馈的仍是"卡住不动"而非"闪一下"，改走窗口 show 时机与 WebView2 冷启动测量（需要进程级时间戳），不要再调 CSS。
