@@ -20,7 +20,7 @@
 - **提出**：2026-11-16
 - **问题**：用户反馈「EPUB 预览也有问题（目录/进度不对）」。实读代码发现组件只有 83 行、只调 `rendition.display()`：**无目录、无 relocated 监听、无位置读写**，永远从第一页打开。根因是 **EPUB 在 E2E 中零覆盖**（ebook 用例只测 FB2/CBZ/图片）。
 - **方法**：`core/epubNav.ts` 提供纯逻辑（拍平 TOC、忽略锚点的文档比较、位置存取、spine 百分比）；`EpubPreview` 重写为工具栏 + 侧栏目录 + 翻页 + 去抖保存，恢复失败回退第一页。百分比用 spine 索引（O(1)），**不用** `locations.generate()`（50MB 书要数秒主线程）。
-- **完成判据**：① `npx vitest run tests/epubNav.test.ts` 退出码 0（9 用例）；② 全量 `npm test` 通过（193 passed）；③ `npm run verify` 0；④ 真机 E2E **17/17**（新增第 17 条 `epub-toc-progress`：目录出 3 行 → 跳到末章 100% → **重载后回到同一位置**），`--self-check` 通过；⑤ D-030 / CHANGELOG 同步。
+- **完成判据**：① `npx vitest run tests/epubNav.test.ts` 退出码 0（9 用例）；② 全量 `npm test` 通过（193 passed）；③ `npm run verify` 0；④ 真机 E2E **20/20**（第 17 条 `epub-toc-progress`：目录 3 行 → 跳末章 100% → 重载后回到同一位置；第 18 条 `pdf-restore-no-stall`：启动阻塞 0 ms；第 19/20 条覆盖翻页与无目录的书），`--self-check` 通过；⑤ D-030 / CHANGELOG 同步。
 - **解决**：**完成（2026-11-16）**。详见 `DECISIONS.md` D-030。
 - **仍缺**：位置不跨设备；换文件后只能回第一页；目录不折叠；无字号/主题偏好；无全书搜索（需 Rust 解压或索引，见 D-029 方向）。
 
