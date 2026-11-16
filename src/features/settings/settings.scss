@@ -173,6 +173,22 @@
   border-bottom: none;
 }
 
+/* T-058: radio rows (startup behaviour) — label text next to the control,
+   left-aligned like a browser's startup page picker instead of the usual
+   text-left / control-right split. */
+.setting-item-choice {
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.setting-item-choice input[type="radio"] {
+  flex: none;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+
 .setting-info {
   min-width: 0;
 }
