@@ -52,7 +52,7 @@ ADKM 不是"给某个 Markdown 工具加一个 AsciiDoc 渲染器"，而是在�
 
 环境要求：
 
-- Node.js 20+（仓库 `.nvmrc` 为 `26.13.0`，CI 使用 Node 20）
+- Node.js 22（仓库 `.nvmrc` 固定 `22.23.2`，CI 以该文件为准）
 - Rust stable + Cargo（Tauri 2.12 的 MSRV 为 1.90）
 - Windows 需 Visual Studio 2022 的 C++ 工具链与 WebView2 运行时；其他平台见 <https://tauri.app/start/prerequisites/>
 
