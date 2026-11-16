@@ -497,3 +497,20 @@
   - *窗口先隐藏、等 React 就绪再 show*：否决理由——会把"闪一下"换成"白屏更久"，且需要改窗口生命周期与失败兜底；作为后续优化保留，不在本片。
 - **影响范围**：`index.html`（内联引导 + 关键 CSS）、`src/core/workspace.ts`（`mirrorThemeForBootstrap`，两处调用）、`src/main.tsx`（`__appScriptAt` 标记，供 E2E 校验先后顺序）、`tests/e2e/run.mjs`（`startup-mode` 增加断言：引导时间戳 ≤ bundle 开始、`data-theme` 已解析、计算出的底色与主题一致）。
 - **诚实缺口**：只修"首帧颜色"。**WebView2 初始化与窗口创建的那段（页面内无法测量）没有优化**；`--editor-font-size` 仍由 JS 应用（会触发一次重排，不产生颜色闪变）；若系统主题在启动瞬间切换，内联值可能与随后的 `applyDocumentEffects` 不一致（随后纠正）。**复审条件**：若用户反馈的仍是"卡住不动"而非"闪一下"，改走窗口 show 时机与 WebView2 冷启动测量（需要进程级时间戳），不要再调 CSS。
+
+## D-029 启动路径上的 PDF：延后到首帧之后，超过 32 MB 改为「点击加载」
+
+- **日期**：2026-11-16
+- **状态**：**已实施**（T-060）。
+- **决策**：`AttachmentView` 的 PDF 分支做两件事——①**所有 PDF 都延后两帧**（跨过启动首绘）才开始 `readBinary`；②**超过 32 MB 的 PDF 不自动读取**，显示占位与「加载 PDF」按钮，用户点了才读（浏览器对大插件内容也是这个策略）。
+- **背景（实测，用户先怀疑、后被证实）**：用户指出「可能是 PDF/EPUB 标签」。用 rAF 帧间隔探针在真机 release 上量：恢复 3 个 EPUB 标签（含 6 MB 重书）**无卡顿**；恢复 8 个笔记标签（4 个源码模式）+800 条笔记的库**无卡顿**；恢复**一个 60 MB PDF** → 首绘 112 ms 之后出现 **72 ms + 151 ms** 两次主线程阻塞。用户判断正确。
+- **机制**：PDF 走 `<embed src=blobUrl>`，需要先把整份文件经 IPC 读入、复制成 `Uint8Array`、再 `new Blob` ——这三步都在主线程，成本随文件线性增长；WebView2 的 PDF 查看器本身在独立进程（所以 4.4 MB 时无感，60 MB 才暴露）。
+- **被采纳方案**：双闸门（时间闸 + 体积闸）。体积取自文件树里的 `size`（桌面端由 Rust `vault_list` 用 FS metadata 填充），拿不到 size 时**只延后、不拦截**——宁可慢一点也不能让用户永远打不开。延后用两次 `requestAnimationFrame`（最小可验证单位），组件卸载时取消。
+- **被否决的替代方案**：
+  - *只延后、不做体积闸*：否决理由——只是把 151 ms 从"启动瞬间"挪到"启动之后 200 ms"，用户仍会感到卡；且 200 MB 扫描书会把延后变成 1 秒级卡顿。
+  - *只做体积闸、不延后*：否决理由——32 MB 以下的 PDF 仍会在启动首绘阶段争用主线程。
+  - *改造成 pdf.js 渲染（可控分页）*：否决理由——新依赖 + 重新实现文本层/选中/缩放，超出本片；体积闸已消除启动成本。
+  - *永久要求点击（所有 PDF）*：否决理由——对日常小 PDF 是明显退步，用户会认为是 bug。
+- **影响范围**：`src/features/attachment/AttachmentView.tsx`（`armed` 状态、尺寸读取、双闸门、占位 UI）、`src/core/i18n/dict.views.ts`（`attachment.pdfLoad` / `attachment.pdfLarge`）、`src/styles/app.scss`（`.attachment-pdf-load`）、`tests/e2e/run.mjs`（夹具新增 `docs/scan-small.pdf`（结构合法）与 `docs/scan-big.pdf`（40 MB 零字节，内容从不被读）+ 第 16 条 `pdf-startup-gate`）。
+- **诚实缺口**：32 MB 是**经验阈值**，不是从硬件模型推出来的；超大图片、超大视频仍走原路径（没有同类实测）；`.workbuddy` 之外的其它重格式（docx/xlsx/epub）本轮未加闸；用户在「点击加载」后仍会有一次与文件大小成正比的卡顿（不可避免，除非换成分页式渲染）。
+- **复审条件**：若用户报告「大 PDF 点开也会卡很久」，下一步是引入分片读取或 pdf.js 按页渲染，而不是继续调阈值；若报告「小 PDF 打开也慢」，先量再动，别凭阈值猜。

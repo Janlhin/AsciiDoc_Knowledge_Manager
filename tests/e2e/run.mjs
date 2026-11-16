@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: fifteen high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: sixteen high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -262,6 +262,39 @@ async function prepareVault(dir) {
   // No third-party ebook binary is bundled into the repo (see MANIFEST.md).
   writeFileSync(path.join(dir, "sample.mobi"), "not a real MOBI container");
   writeFileSync(path.join(dir, "sample.azw3"), "not a real KF8 container");
+  // T-061: PDF startup gate. scan-small.pdf is a real (if tiny) PDF; scan-big.pdf is
+  // 40 MB of zeros whose CONTENT is never read while the gate holds — only its size
+  // matters for the assertion.
+  writePdf(path.join(dir, "docs", "scan-small.pdf"));
+  writeFileSync(path.join(dir, "docs", "scan-big.pdf"), Buffer.alloc(40 * 1024 * 1024));
+}
+
+/** Structurally valid single-page PDF (correct xref offsets) for the gate case. */
+function writePdf(file) {
+  const parts = [];
+  const offsets = [];
+  let length = 0;
+  const push = (s) => {
+    const b = Buffer.from(s, "latin1");
+    parts.push(b);
+    length += b.length;
+  };
+  const obj = (id, body) => {
+    offsets[id] = length;
+    push(`${id} 0 obj\n${body}\nendobj\n`);
+  };
+  push("%PDF-1.4\n");
+  obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2, "<< /Type /Pages /Count 1 /Kids [3 0 R] >>");
+  obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R >>");
+  const stream = "BT /F1 12 Tf 40 800 Td (scan) Tj ET\n";
+  obj(4, `<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+  const xrefAt = length;
+  let table = "xref\n0 5\n0000000000 65535 f \n";
+  for (let id = 1; id <= 4; id += 1) table += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+  push(table);
+  push(`trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`);
+  writeFileSync(file, Buffer.concat(parts));
 }
 
 /**
@@ -937,6 +970,35 @@ async function main() {
     );
     const restored = await c.evaluate(`document.querySelectorAll('.tab-bar .tab').length`);
     return `${freshTabs} tab(s) in a fresh window; ${restored} restored after switching back`;
+  });
+
+  // ---- 16. T-061: a large PDF must not be read during startup ------------
+  await runCase("pdf-startup-gate", async () => {
+    // earlier cases may have left the docs folder expanded — only toggle when closed
+    const smallVisible = () => c.evaluate(
+      `!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]')`,
+    );
+    if (!(await smallVisible())) {
+      await c.click('[data-testid="explorer-item"][data-path="docs"]');
+      await sleep(500);
+    }
+    assert(await smallVisible(), "the docs folder did not reveal the PDF fixtures");
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]'),
+      "could not open scan-small.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 15000,
+      "a small PDF still mounts (deferred past the boot paint)");
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not open scan-big.pdf");    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 15000,
+      "the 40 MB PDF is gated behind a button");
+    const embeds = await c.evaluate(`document.querySelectorAll('[data-testid="attachment-pdf"]').length`);
+    assert(embeds === 0, `a gated PDF must not create an <embed> before the user asks (got ${embeds})`);
+
+    assert(await c.click('[data-testid="attachment-pdf-load"]'), "the gate has no load button");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
+      "clicking load mounts the PDF");
+    return "small PDF mounts after paint; a 40 MB PDF waits for an explicit load";
   });
 
   c.close();
