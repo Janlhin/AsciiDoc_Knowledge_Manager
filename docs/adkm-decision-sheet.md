@@ -35,12 +35,14 @@
 
 ### D-01　占位符替换范围（Q21）
 
-> 现状：`src/core/product.ts` 是唯一真源，7 个 token（`APP_NAME` 等），**没有构建期替换**——所以窗口标题现在字面显示 `APP_NAME`。
+> 现状：`src/core/product.ts` 是唯一真源，7 个值已于 2026-11-16 全部填实（记录见 `docs/product-placeholders.adoc`）。此前这些 token 没有构建期替换，窗口标题曾字面显示 `APP_NAME`。
 
 - [ ] **A** 只换**用户可见文案**（实测 8 处：错误页中英双版、设置页、插件列表、debug info、compat 层的 warn 文案等），不动类型名 / 存储键 / CSS 类
 - [ ] **B** 连构建期标识也一起换（productName / identifier / crate name / 包名全换）
 - [x] **C** 全换，含 `window.geode` 插件契约、72 个 localStorage 键、35 个 CSS 类
 - [ ] ☑ **我的建议：A** —— 换 localStorage 键 = 用户全部设置失效；换 `window.geode` 破坏有公开文档的插件 API 契约
+
+**实际执行（2026-11-16）**：按 A 落地——只改用户可见文案与构建期显示名；`window.geode`、localStorage 键、CSS 类、内部类型名全部原样保留。
 
 **备注**：
 
@@ -52,6 +54,8 @@
 
 ☑ **我的建议：A** —— 其余 5 项确实还没有内容，硬填等于我替你编
 
+**实际执行（2026-11-16）**：按 C 落地——7 个值全部填实（标语、描述、技术栈、图形、署名都已写入 `product.ts`）。
+
 **备注**：
 
 ### D-03　构建期标识（Q23）
@@ -61,6 +65,8 @@
 - [ ] **C** 全不改
 
 ☑ **我的建议：A** —— identifier 是「用户数据的家」，改它要写迁移；productName 和 exe 名纯属显示，改零风险
+
+**实际执行（2026-11-16）**：按 B 落地——`identifier` 已改为 `com.adkm.knowledgebase`；因公开前从未分发，未写自动迁移代码，本机旧数据目录一次性复制到新目录（见 `TASKS.md` 的 Q-004）。
 
 **备注**：
 

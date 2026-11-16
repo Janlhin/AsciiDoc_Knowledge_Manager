@@ -12,6 +12,12 @@
 
 * **公开前移除 Obsidian 逆向分析文档（3 份）**：`docs/obsidian-reverse-engineering.adoc`、`docs/technical-decisions/ADR-0005-obsidian-rea-findings.adoc`、`docs/command-gap-matrix.adoc` 已删除，并重写 git 历史以从提交记录中清除。三者记录了对商业发行包的解包过程与内部结构，仓库转公开后不再保留。兼容层矩阵 `docs/OBSIDIAN-COMPAT.md` 与功能差距审计 `docs/OBSIDIAN_REPLICA_GAP_AUDIT.md` 保留，结论不受影响。
 
+=== 变更
+
+* **产品身份统一为 ADKM（公开前）**：产品名从底座 Geode 改为 ADKM。构建期标识：`tauri.conf.json` 的 `productName` = `ADKM`、`identifier` = `com.adkm.knowledgebase`、窗口标题 = `ADKM`、`Cargo.toml` 包名 = `adkm`（产物即 `adkm.exe`，无需 `mainBinaryName`）、`package.json` 与 `package-lock.json` 名 = `adkm`。界面文案 22 处、文档自称 698 处同步替换；`window.geode` 插件契约、`.geode` 插件目录、`geode.*` 存储键、CSS 类与内部类型名**一律保留**——换它们等于让用户设置失效、并把有公开文档的插件 API 打断。`Cargo.toml` 补 `license = "Apache-2.0"`，仓库根新增 `NOTICE` 以履行上游署名义务；README、ADR-0003、章程等 10 处对上游 Geode 的署名保留。
+* **产品身份占位符填实**：`src/core/product.ts` 的七个值此前是 `APP_NAME` / `APP_TAGLINE` / `0.0.0` 这类占位符，而欢迎页与关于页**直接渲染**它们——界面当时实际显示 `APP_LOGO APP_NAME` 和版本 `0.0.0`。现已填实，`version` 改由 `package.json` 提供；`index.html` 与原生窗口标题同步为 `ADKM`；示例库欢迎笔记正文改写；词表里三个已无消费方的占位键也填成真实文案。
+* **`identifier` 变更的数据目录处理**：旧 `%APPDATA%\com.geode.knowledgebase`（63.4 MB 索引）已一次性复制到 `%APPDATA%\com.adkm.knowledgebase`，旧目录保留未删。因公开前从未分发，未写自动迁移代码（无法用现有测试覆盖，且不存在第二个安装）；公开之后再改 identifier 时才必须实现「启动检测 → 递归复制 → 完成标记」。
+
 === 新增
 
 * **EPUB 阅读器补全：目录、翻页、阅读位置（T-061 / D-030）**：原来的 EPUB 预览只有 83 行、只调 `display()`——**没有目录、没有进度**，每本书永远从第一页打开，跳转一关就丢（EPUB 此前在 E2E 里零覆盖，所以没人发现）。现在有工具栏（目录 / 上一页 / 百分比 / 下一页）、按层级缩进的目录侧栏、当前章高亮、方向键翻页；阅读位置按 `{cfi, index, percent}` 去抖保存，重启后回到原处，CFI 失效时回退第一页。百分比用 spine 索引计算（O(1)），刻意不用 `locations.generate()`——那会为了进度条把 50MB 的书在主线程数秒。

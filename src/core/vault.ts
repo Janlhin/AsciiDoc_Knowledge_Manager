@@ -607,9 +607,9 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 const DEMO_FILES: Record<string, string> = {
-  "Welcome.md": `# Welcome to Geode 💎
+  "Welcome.md": `# Welcome to ADKM 💎
 
-Geode is a **local-first** markdown knowledge base.
+ADKM is a **local-first** markdown knowledge base.
 
 - Create notes, link them with [[Wiki Links]]
 - Explore connections in the [[Graph View|graph]]
@@ -667,7 +667,7 @@ See also [[Getting Started]].
 `,
   "Daily Notes/2026-06-09.md": `# 2026-06-09
 
-Started exploring [[Welcome|Geode]]. The [[Graph View]] is neat.
+Started exploring [[Welcome|ADKM]]. The [[Graph View]] is neat.
 
 - [x] Set up vault
 - [ ] Migrate notes

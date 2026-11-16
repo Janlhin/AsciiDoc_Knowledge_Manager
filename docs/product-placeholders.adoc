@@ -9,7 +9,7 @@ toc::[]
 
 == 这份文档管什么
 
-关于页、欢迎页、窗口标题里原本写着上游 Geode 的品牌文案与过期技术栈（还写着 React 18 / Vite 6，实际已是 React 19.3 / vite-plus 1.6）。这些值现在**全部换成占位符**，等待项目所有者填写。
+关于页、欢迎页、窗口标题里原本写着上游 Geode 的品牌文案与过期技术栈（还写着 React 18 / Vite 6，实际已是 React 19.3 / vite-plus 1.6）。这些值先被换成占位符，**2026-11-16 已按 ADKM 填实**，填写记录见本文「填写记录」一节。
 
 同时把「界面语言」与「基础明暗」的默认值改为**跟随系统**，并把完整的 I18N 改造登记为未来任务。
 
@@ -19,53 +19,59 @@ toc::[]
 
 [source,typescript]
 ----
+import pkg from "../../package.json";
+
 export const PRODUCT = {
-  name: "APP_NAME",
-  version: "0.0.0",
-  tagline: "APP_TAGLINE",
-  description: "APP_DESCRIPTION",
-  techStack: "APP_TECH_STACK",
-  logo: "APP_LOGO",
-  credit: "APP_CREDIT",
+  name: "ADKM",
+  version: pkg.version,          // 不再写死，跟随 package.json
+  tagline: "本地优先的 AsciiDoc 知识库",
+  description: "把 AsciiDoc 与 Markdown 收进同一个本地库：统一索引、跨格式链接、离线可用。基于 Geode（Apache-2.0）构建。",
+  techStack: "Tauri 2 · React 19 · TypeScript · CodeMirror 6",
+  logo: "◆",
+  credit: "© 2026 Janlhin · Built on Geode (Apache-2.0)",   // 已定义，暂未渲染
 } as const;
 ----
 
 消费方只读常量，不自行拼接品牌文案。这是为未来 I18N 预留的接缝：届时必须改动的文件只有这一个。
 
-== 待填清单
+== 填写记录
 
 [cols="1,2,2",options="header"]
 |===
-|占位符 |出现位置 |说明
+|项 |现在的值 |同步位置
 
-|`APP_NAME`
-|`src/core/product.ts`、`index.html` 的 `<title>`、`src-tauri/tauri.conf.json` 的 `app.windows[0].title`
-|三处必须同步。前两处是页面标题，第三处是原生窗口标题
+|`name`
+|`ADKM`
+|`index.html` 的 `<title>`、`src-tauri/tauri.conf.json` 的 `app.windows[0].title`（此前三处都是 `APP_NAME`，窗口标题因此字面显示占位符）
 
-|`APP_VERSION`
-|不再使用；显示版本由 `PRODUCT.version` 提供
-|真实构建版本以 `package.json` / `tauri.conf.json` 的 `version` 为准，`PRODUCT.version` 只是展示值
+|`version`
+|取自 `package.json`（当前 `0.269.0`）
+|关于页、`app:show-debug-info`、升级检查的「当前版本」都用它，此前写死 `0.0.0`
 
-|`APP_TAGLINE`
-|`src/core/product.ts`；词表 `app.vaultTagline` 也已改为占位符
-|欢迎页 / 空库提示的一句话
+|`tagline`
+|本地优先的 AsciiDoc 知识库
+|欢迎页（空库选择器）
 
-|`APP_DESCRIPTION`
-|`src/core/product.ts`；词表 `settings.aboutDesc`（en/zh）保留占位符
-|关于页长描述
+|`description`
+|把 AsciiDoc 与 Markdown 收进同一个本地库……基于 Geode（Apache-2.0）构建。
+|关于页
 
-|`APP_TECH_STACK`
-|`src/core/product.ts`；词表 `settings.aboutStack`（en/zh）保留占位符
-|原文已过期，填写时按当前实际技术栈写
+|`techStack`
+|Tauri 2 · React 19 · TypeScript · CodeMirror 6
+|关于页
 
-|`APP_LOGO`
-|`src/core/product.ts`；关于页与欢迎页
-|当前是字符占位，未来替换为图标组件或资源路径
+|`logo`
+|`◆`（字符占位）
+|关于页 + 欢迎页标题；未来替换为图标资源
 
-|`APP_CREDIT`
-|`src/core/product.ts`（已定义，暂未渲染）
-|版权 / 归属行，需要时再在关于页接出来
+|`credit`
+|© 2026 Janlhin · Built on Geode (Apache-2.0)
+|已定义，暂未在关于页渲染
 |===
+
+=== 仍是占位 / 待定
+
+品牌强调色仍保留上游色板（理由见下文）；`credit` 一行尚未在关于页渲染。除这两项外，产品身份文案均已填实。
 
 === 不能只改字符串的项目
 
@@ -88,7 +94,7 @@ export const PRODUCT = {
 |纯内部标识符，非展示数据；改名波及 50+ 处 import，收益为零，**建议保留**
 |===
 
-因此本次只改了 `title` 字段，没有碰 `identifier`。
+2026-11-16 的改名已把 `identifier` 一并从 `com.geode.knowledgebase` 改为 `com.adkm.knowledgebase`；应用数据目录随之更换，旧目录（索引库、窗口状态、最近库列表）需要手动复制到新目录才不丢。
 
 == 系统默认
 
@@ -172,8 +178,8 @@ npm run verify
 # 退出码 0，构建产物 CSS 规则集合不应少于改造前
 
 # 人工核对（桌面版）
-# 1. 设置 → 关于：显示 APP_NAME / APP_DESCRIPTION / APP_TECH_STACK 等占位符，无 ADKM 品牌文案
+# 1. 设置 → 关于：显示「◆ ADKM 0.269.0」+ 中文描述 + 技术栈行，无任何 APP_ 占位符
 # 2. 语言下拉第一项为「跟随系统」，默认选中（无历史偏好时）
 # 3. 外观 → 主题默认「跟随系统」；切换系统明暗后应用随之切换
-# 4. 欢迎页标题为占位符，不出现 💎 ADKM
+# 4. 欢迎页标题为「◆ ADKM」，副标题为「本地优先的 AsciiDoc 知识库」
 ----

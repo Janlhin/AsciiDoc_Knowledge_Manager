@@ -487,13 +487,11 @@
 - **Q-012 OneDrive 检查**：只读检查 + 给出"库位置建议"；不改用户任何文件。
 - **Q-013 备份增强**：定时（需设置界面 + 触发时机）/ 增量（需 base 快照与差异包）/ 加密（需密钥管理，且"忘了密钥=数据丢失"）。建议顺序：定时 → 增量 → 加密。
 
-**Q-004 待定方案（2026-11-15 已确认要做，缺两个参数）**
+**Q-004 产品身份迁移（2026-11-16 已落地）**
 
-- **范围**：`productName` `ADKM` → `AsciiDoc Knowledge Manager`；`identifier` `com.adkm.knowledgebase` → 待定（建议 `com.janlhin.*`）；`package.json` 的 `name` 是否同步改（该字段是内部包名，不影响用户可见名称）。
-- **为什么必须一并迁移**：identifier 决定应用数据目录。现值 `%APPDATA%\com.adkm.knowledgebase\` 内含索引库（实测 39 MB / 415 行）、设置、最近库列表。改 identifier 而不迁移 = 用户侧「数据全丢」。
-- **迁移方式（已定）**：启动时检测——新目录不存在且旧目录存在 → **递归复制**（不是移动，失败时旧数据仍在）→ 写完成标记 → 之后的启动只看新目录。必须在改 identifier 的同一次提交里实现，不允许先改后补。
-- **未做验证的部分**：迁移在真实用户数据上只跑一次，无法用现有测试覆盖（无 E2E）；实施后需要一次「旧目录改名→启动→核对行数/设置仍在」的手工验证。
-- **待你拍板**：① identifier 前缀；② `package.json` name 是否同步改。
+- **结果**：`productName` `ADKM`；`identifier` `com.adkm.knowledgebase`；`Cargo` 包名 `adkm`（产物 `adkm.exe`）；`package.json` `name` 与锁文件同步为 `adkm`；另补 `Cargo.toml` 的 `license` 字段与仓库根 `NOTICE`。
+- **数据目录迁移**：本机旧目录 `%APPDATA%\com.geode.knowledgebase`（63.4 MB，内含 `index`）已一次性**复制**到 `%APPDATA%\com.adkm.knowledgebase`，旧目录保留未删。
+- **为什么没有写自动迁移代码**：这个 identifier 在公开前从未分发，除作者本机外不存在任何安装；自动迁移也无法用现有测试覆盖（无 E2E）。为一次性场景往公开仓库塞未验证的递归复制逻辑不划算。公开之后再改 identifier 时，才必须实现「启动检测 → 递归复制 → 完成标记」。
 
 ## 已决
 

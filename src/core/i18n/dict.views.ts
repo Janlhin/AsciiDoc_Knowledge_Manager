@@ -359,10 +359,11 @@ export const en = {
   "settings.cmdPalette.noMatch": "No matching commands.",
 
   // ---- settings: about ----
-  // ADKM: identity copy moved to src/core/product.ts (placeholders).
+  // ADKM: identity copy lives in src/core/product.ts.
   // These keys are retained so the future I18N pass has a stable slot.
-  "settings.aboutDesc": "APP_DESCRIPTION",
-  "settings.aboutStack": "APP_TECH_STACK",
+  "settings.aboutDesc":
+    "ADKM keeps AsciiDoc and Markdown in one local vault: unified index, cross-format links, works offline. Built on Geode (Apache-2.0).",
+  "settings.aboutStack": "Tauri 2 · React 19 · TypeScript · CodeMirror 6",
 
   // ---- settings: updates (R9, desktop only) ----
   "settings.update.title": "Updates",
@@ -854,9 +855,10 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.cmdPalette.noMatch": "没有匹配的命令。",
 
   // ---- settings: about ----
-  // ADKM: 品牌文案已迁至 src/core/product.ts（占位符）。保留键位供未来 I18N 改造。
-  "settings.aboutDesc": "APP_DESCRIPTION",
-  "settings.aboutStack": "APP_TECH_STACK",
+  // ADKM: 品牌文案已迁至 src/core/product.ts。保留键位供未来 I18N 改造。
+  "settings.aboutDesc":
+    "把 AsciiDoc 与 Markdown 收进同一个本地库：统一索引、跨格式链接、离线可用。基于 Geode（Apache-2.0）构建。",
+  "settings.aboutStack": "Tauri 2 · React 19 · TypeScript · CodeMirror 6",
 
   // ---- settings: updates (R9, desktop only) ----
   "settings.update.title": "更新",

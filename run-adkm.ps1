@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$exe = Join-Path $here "src-tauri\target\release\geode.exe"
+$exe = Join-Path $here "src-tauri\target\release\adkm.exe"
 
 Write-Host ""
 Write-Host "  ADKM" -ForegroundColor Magenta
@@ -31,7 +31,7 @@ if (-not (Test-Path $Vault)) {
     exit 1
 }
 
-$running = Get-Process geode -ErrorAction SilentlyContinue
+$running = Get-Process adkm -ErrorAction SilentlyContinue
 if ($running) {
     Write-Host "检测到已有 ADKM 在运行（PID $($running[0].Id)）。" -ForegroundColor Yellow
     Write-Host "请先关闭旧窗口再启动新工作区，或直接切到那个窗口。" -ForegroundColor DarkGray

@@ -7,7 +7,7 @@
 
 ## 更新签名密钥（minisign）
 
-- 密钥对在 `.tauri-keys/geode.key`（私钥）+ `geode.key.pub`（公钥），**gitignore，永不入库**。
+- 密钥对在 `.tauri-keys/adkm.key`（私钥）+ `adkm.key.pub`（公钥），**gitignore，永不入库**。
 - 公钥已写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
 - **私钥丢失 = 永远无法向已装机用户推送更新**（公钥烧在已分发的安装包里）。
   请把 `.tauri-keys/` 备份到密码管理器/离线介质。密钥密码只保存在本机密码管理器（该口令曾写在本文件，随仓库公开已作废，须重新生成密钥对并轮换）
@@ -47,9 +47,9 @@
    }
    ```
 
-5. 把 setup.exe + latest.json 上传到发布渠道。当前 `tauri.conf.json` 的 endpoint 指向
-   `https://github.com/Janlhin/AsciiDoc_Knowledge_Manager/releases/latest/download/latest.json`（**占位**——
-   正式渠道定下来后改这一行并重新构建）。
+5. 把 setup.exe + latest.json 上传到发布渠道。当前 `tauri.conf.json` 的 endpoint 指向本仓库
+   `https://github.com/Janlhin/AsciiDoc_Knowledge_Manager/releases/latest/download/latest.json`；
+   仓库一旦转 public 并发布第一个 release，这条链路即可用，无需再改。
 
 ## 客户端更新链路（已实现）
 
