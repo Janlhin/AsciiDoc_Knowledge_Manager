@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: thirteen high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: fourteen high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -9,8 +9,9 @@
  *
  * Env overrides: GEODE_EXE, GEODE_E2E_VAULT, E2E_PORT.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { connectCdp, waitForCdp, sleep } from "./cdp.mjs";
@@ -208,6 +209,12 @@ function fb2(title, body) {
 
 const FB2_PLAIN = fb2("E2E FictionBook", "<title><p>Chapter One</p></title><p>Hello from FB2.</p>");
 const FB2_ZIPPED = fb2("Zipped FictionBook", "<p>Book came out of a ZIP archive.</p>");
+
+/** File entries of a backup archive (directory entries filtered out). */
+async function readZipEntries(file) {
+  const zip = await JSZip.loadAsync(readFileSync(file));
+  return Object.keys(zip.files).filter((k) => !zip.files[k].dir);
+}
 
 /** Write the fixture notes into a throwaway vault directory. */
 async function prepareVault(dir) {
@@ -825,6 +832,43 @@ async function main() {
     );
     assert(binarySnaps === 0, `an image must not have snapshots, got ${binarySnaps}`);
     return `.adoc save recorded history (${before} → ${before + 1}); image kept 0`;
+  });
+
+  // ---- 14. T-057: optional off-disk backup writes a real archive outside ----
+  await runCase("offdisk-backup", async () => {
+    const target = process.env.GEODE_E2E_BACKUP || path.join(os.tmpdir(), "adkm-e2e-backup");
+    rmSync(target, { recursive: true, force: true });
+    mkdirSync(target, { recursive: true });
+
+    const first = await c.evaluate(
+      `globalThis.__geodeBackup.run(${JSON.stringify(target)}, 10, Date.now())`,
+    );
+    assert(first && first.ok === true, `backup failed: ${JSON.stringify(first)}`);
+
+    // the archive is on disk, holds the document and the config tree
+    const entries = await readZipEntries(path.join(target, first.name));
+    assert(entries.includes("E2E-Guide.adoc"), "archive lost the AsciiDoc document");
+    assert(entries.some((e) => e.startsWith(".obsidian/")), "archive lost the .obsidian config tree");
+    assert(!entries.some((e) => e.startsWith(".trash/")), "archive must skip the trash");
+
+    // a target inside the vault must be refused (otherwise it recurses)
+    const vaultPath = await c.evaluate(`globalThis.__geodeBackup.vaultPath()`);
+    assert(typeof vaultPath === "string" && vaultPath.length > 0, "probe did not expose the vault path");
+    const refused = await c.evaluate(
+      `globalThis.__geodeBackup.run(${JSON.stringify(path.join(vaultPath, "bk"))}, 10, Date.now())`,
+    );
+    assert(refused && refused.ok === false && refused.reason === "inside-vault",
+      `vault-internal target was not refused: ${JSON.stringify(refused)}`);
+
+    // retention: a second run with keep=1 leaves exactly one archive
+    const second = await c.evaluate(
+      `globalThis.__geodeBackup.run(${JSON.stringify(target)}, 1, Date.now() + 5000)`,
+    );
+    assert(second && second.ok === true, `second backup failed: ${JSON.stringify(second)}`);
+    const left = readdirSync(target).filter((n) => n.startsWith("adkm-backup-"));
+    assert(left.length === 1 && left[0] === second.name,
+      `keep=1 should leave exactly the newest archive, got ${JSON.stringify(left)}`);
+    return `${first.name}: ${entries.length} entries; inside-vault refused; keep=1 → 1 archive`;
   });
 
   c.close();
