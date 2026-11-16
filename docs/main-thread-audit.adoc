@@ -1,0 +1,151 @@
+= 主线程成本审计与搬迁方案
+:日期: 2026-11-16
+:状态: 提案（T-062，待裁决后再实施）
+
+== 一句话结论
+
+这个应用**没有任何 Web Worker**，所有解析、解压、编码都发生在唯一能响应输入的线程上。而在大文件这条链上，**"把字节搬进来"比"解析它"更贵**：一个 144 MB 的 PDF/EPUB，光前端解码就要 300 ms 级的主线程时间（实测见下）。所以搬迁顺序应该是**先去掉传输税，再把解析搬进 Worker/Rust**——而不是先上 GPU。
+
+== 判定标准
+
+一项工作算"主线程成本"，须满足其一：① 同步占用主线程 ≥ 16 ms（一帧）；② 持有大块内存并在主线程做逐字节/逐元素处理；③ 触发多次布局/重绘。GPU 只加速"绘制"，对 ①② 无效；多核只有在**Worker 或 Rust 线程**里才用得上。
+
+== 实测基线（release 构建，本机）
+
+[cols="3,2,4",options="header"]
+|===
+| 场景 | 实测 | 方法
+
+| 打开 60 MB PDF（闸门修复前）
+| 首绘 112 ms 后 **72 ms + 151 ms** 阻塞
+| rAF 帧间隔探针 + 220 ms 对照
+
+| 打开 51 MB 真实 EPUB（库中《穷查理宝典》）
+| 外壳挂载 101 ms，随后 0.6–17 s 内 **10 次 >50 ms**，累计约 **730 ms**
+| 同上
+
+| 启动恢复 8 个笔记标签 + 800 条笔记的库
+| 无 >50 ms 帧间隔
+| 同上
+
+| **144 MB 二进制的 JS 侧解码**
+| `atob` **106 ms** + 逐字节循环 **216 ms** ≈ **322 ms**；中间字符串 **201,326,592** 字符
+| 页面内基准（`atob` + `charCodeAt` 循环，即 `vault.readBinary` 的现有实现）
+|===
+
+最后一行是本次审计最重要的发现：`vault_read_binary` 在 Rust 侧 `base64` 编码，前端 `atob` 后再**逐字节 push 进 Uint8Array**。这 322 ms 与文件大小线性相关，且**每次**打开大文件都要付。
+
+== 全量清单（按预期收益排序）
+
+[cols="4,3,4,4,2",options="header"]
+|===
+| 模块 | 现状（线程） | 成本来源 | 搬迁方案 | 收益
+
+| `vault_read_binary` / `writeBinary`
+| 主线程（IPC 字符串 + atob + 逐字节循环）
+| 144 MB → ≈322 ms 解码 + 201 M 字符字符串 + Rust 侧编码
+| **P0-1** Rust 返回原始字节（`tauri::ipc::Response`），前端直接拿 `ArrayBuffer`
+| 高（所有大文件通用）
+
+| `EpubPreview`（epub.js + JSZip）
+| 主线程解压整本
+| 51 MB → 累计 ≈730 ms 掉帧（实测）
+| **P0-2** Rust 侧解压到缓存目录，前端按章节读；或至少把解压搬进 Worker
+| 高
+
+| `PptxPreview`（JSZip）
+| 主线程解压
+| 随文件线性增长（未实测）
+| **P0-2** 同上（Rust 解压，前端只取 XML）
+| 中
+
+| `backup.ts`（整库 ZIP）
+| 主线程（`zip.generateAsync`）
+| 650 MB 库 → 数百 MB 内存 + 长时间占用
+| **P0-3** 整段移到 Rust（`zip` crate），前端只收进度事件
+| 高（但只在手动备份时）
+
+| `DocxPreview`（mammoth）
+| 主线程
+| 大文档数十至数百 ms（未实测）
+| **P1-1** Worker（transferable ArrayBuffer）
+| 中
+
+| `XlsxPreview`（SheetJS + 网格）
+| 主线程
+| 大表解析 + 渲染（未实测）
+| **P1-2** 解析进 Worker；渲染保留主线程（DOM 不可搬）
+| 中
+
+| `asciidoctorPreview`（WASM）
+| 主线程
+| 每次预览重渲染都跑一次
+| **P1-3** Worker（WASM 在 worker 里同样可用）
+| 中（大 adoc 文件）
+
+| `searchIndex` / `metadata` 全量重建
+| 主线程（按文件 `await` 交错，但正则扫描在主线）
+| 库越大越明显
+| **P1-4** Worker（只回传结构化结果）
+| 中
+
+| `GraphView`（d3-force）
+| 主线程逐帧 tick
+| 节点数 × 迭代次数
+| **P2-1** Worker 跑布局（回传坐标）+ 节点上限/采样
+| 中
+
+| `ImageReader` / 图片列表
+| 主线程建 Blob，解码由浏览器
+| 多图时 blob 创建与内存
+| **P2-2** 复用 P0-1 后自然减半
+| 低–中
+|===
+
+== 不能搬 / 不该搬
+
+* **React 渲染与 CodeMirror 输入**：必须在主线程（DOM/输入法）。
+* **epub.js 的 iframe 排版**：iframe 里的布局由浏览器决定，搬不走；能搬的是它**前面**的解压。
+* **PDF 查看器**：已经在独立进程（Chromium 内置），这也是为什么 144 MB PDF 打开后滚动不卡——卡的是我们喂给它的那一步。
+* **原生对话框 / 剪贴板 / 菜单**：Tauri 侧，本就异步。
+
+== 三阶段计划
+
+=== P0：去掉传输税与主线程解压（收益最大，风险最低）
+
+. **P0-1 原始字节 IPC**：`vault_read_binary`、`vault_write_binary`、`vault_read` 的大文件变体改用 `tauri::ipc::Response`（v2 提供）。前端 `readBinary` 直接返回 `Uint8Array`，删掉 `atob` 与逐字节循环。
+   * 预期：144 MB 读取省 **≈322 ms** 主线程 + 约 200 MB 临时字符串。
+   * 验收：同一 144 MB 文件，`readBinary` 前后各测一次，探针记录主线程阻塞时长；帧间隔无 >50 ms。
+. **P0-2 EPUB/PPTX 解压移到 Rust**：新增 `unzip_list` / `unzip_read`（只解到内存或缓存目录，写入仍受 `assertSafeRelPath` 约束）。前端只请求当前章节的 HTML/CSS/图片。
+   * 预期：51 MB 书的 730 ms 掉帧降到首章级（几十 ms）。
+   * 验收：同样用 rAF 探针量"打开到首章可读"；E2E 增加"大 EPUB 打开无 >50 ms 帧间隔"。
+. **P0-3 备份 ZIP 移到 Rust**：`zip` crate 在 Rust 线程打包，前端只显示进度。
+   * 预期：备份期间界面可交互。
+   * 验收：650 MB 库备份时，主线程无 >50 ms 帧间隔。
+
+=== P1：解析进 Worker
+
+W-1 `DocxPreview`（mammoth）、W-2 `XlsxPreview`（SheetJS 解析部分）、W-3 `asciidoctorPreview`、W-4 索引重建。
+统一做法：`new Worker(new URL("./x.worker.ts", import.meta.url), { type: "module" })` + `postMessage` 传输 `ArrayBuffer`（零拷贝），Worker 只回传结构化数据（不要回 DOM 片段以外的重对象）。
+风险：mammoth 的浏览器构建对 DOM 有依赖，需在 Worker 里实测；不行则退回 Rust（`docx-rs`）。
+
+=== P2：图谱与渲染
+
+* 布局进 Worker；或直接把迭代数按节点数做上限（`O(n)` 采样）。
+* 绘制若仍是 canvas 2D 且节点数上千，再考虑 WebGL——**这是唯一值得谈 GPU 的地方**。
+
+== 测量方法（可复现）
+
+* 帧间隔探针：`Page.addScriptToEvaluateOnNewDocument` 注入 rAF 计时间隔，末尾用 220 ms 忙等**做对照**（WebView2 的 `longtask` API 在本机不触发，别再依赖它）。
+* 阶段耗时：`__geodePerf`（已有 `metadataIndexMs` / `graphBuildMs`），本轮新增 `bootPhase*` 与 `binaryDecodeMs`。
+* 任何性能改动必须先有"改前"数字，改后同夹具复测——这条已经在 D-028/D-029 里成为惯例。
+
+== 我不建议做的事
+
+* **上 WebGPU/WebGL 解决"打开大文件卡"**：两者都不处理 IO 与解压，改了也不会快。
+* **把 ECharts/D3 之类整库换掉**：换库不改变"在哪个线程"。
+* **调 JIT/打包体积**：发布包已 9.9 MB，解析耗时不是当前瓶颈。
+
+== 建议的下一步
+
+先做 **P0-1 + P0-2**：一个改 IPC 形态，一个把 EPUB 解压搬走。这两项合计覆盖你实际遇到的"大 PDF/大 EPUB 卡顿"的绝大部分，且不动任何 UI 语义。P0-3（备份）放在其后，因为它只在手动备份时发生。
