@@ -1,0 +1,45 @@
+name: E2E (manual)
+
+# 浏览器侧回归套件，手动触发。里面依赖 .calibration 的 230 个脚本与 Playwright/Chromium，
+# 放不进 PR 门禁，所以单独成一个 workflow，需要时在 Actions 页面点 Run workflow。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e:
+    name: 浏览器回归（CDP）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 安装校准套件与 Chromium
+        working-directory: .calibration
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: 起开发服务
+        run: |
+          npm run dev &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:1420 >/dev/null && { echo "dev server up"; break; }
+            sleep 1
+          done
+
+      - name: 已交付轮次的用例
+        run: |
+          node .calibration/r23-e2e.mjs
+          node .calibration/r24-e2e.mjs
