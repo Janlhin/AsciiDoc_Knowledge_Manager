@@ -907,6 +907,24 @@ async function main() {
 
     await setMode("fresh");
     await reload();
+
+    // T-059: the theme must be decided by the inline bootstrap in index.html,
+    // BEFORE this bundle runs — otherwise the first frame paints in the wrong
+    // colour (the stylesheet default is dark).
+    const themeBoot = await c.evaluate(`JSON.stringify({
+      boot: window.__themeBootstrapAt ?? null,
+      script: window.__appScriptAt ?? null,
+      theme: document.documentElement.dataset.theme ?? null,
+      bg: getComputedStyle(document.documentElement).backgroundColor,
+    })`);
+    const boot = JSON.parse(themeBoot);
+    assert(boot.boot !== null, "the pre-paint theme bootstrap did not run");
+    assert(boot.script !== null && boot.boot <= boot.script,
+      `theme decided after the bundle started (boot=${boot.boot}, script=${boot.script})`);
+    assert(boot.theme === "dark" || boot.theme === "light", `data-theme not resolved: ${boot.theme}`);
+    const expectedBg = boot.theme === "dark" ? "rgb(30, 30, 30)" : "rgb(245, 245, 245)";
+    assert(boot.bg === expectedBg, `first frame colour ${boot.bg} != ${expectedBg} for ${boot.theme}`);
+
     const freshTabs = await c.evaluate(`document.querySelectorAll('.tab-bar .tab').length`);
     assert(freshTabs === 0, `a fresh window must restore no tabs, got ${freshTabs}`);
 

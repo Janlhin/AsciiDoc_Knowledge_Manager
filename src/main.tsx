@@ -119,6 +119,12 @@ import { BUILTIN_PLUGINS } from "./plugins";
 import "./styles/app.scss";
 import "./styles/adoc-preview.scss";
 
+/* T-059: bundle-start marker. The E2E compares it with the inline bootstrap's
+ * timestamp in index.html to prove the theme was decided BEFORE this module ran
+ * (i.e. before the first frame could be painted in the wrong colour). */
+(globalThis as typeof globalThis & { __appScriptAt?: number }).__appScriptAt =
+  Math.round(performance.now());
+
 /* ---------------- top-level error boundary ---------------- */
 
 interface ErrorBoundaryState {

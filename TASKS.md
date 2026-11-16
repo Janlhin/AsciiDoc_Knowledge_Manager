@@ -6,6 +6,16 @@
 
 ## 待办
 
+### T-059 首帧主题引导：消除启动时的颜色闪变（D-028）
+
+- **提出**：2026-11-16
+- **现象**：用户反馈「启动那瞬间卡顿」。
+- **取证（先量后改）**：CDP 装 `PerformanceObserver`，重载 800 条笔记的库——`first-contentful-paint` **176 ms**、`domContentLoaded` 71 ms、**无 >50 ms 长任务**、`metadataIndexMs` 0.9 ms；13 条笔记的库 FCP 120 ms。结论：不是 JS 计算量。根因是**颜色闪变**：`:root` 默认深色，`data-theme` 要等 bundle 才写，浅色用户每次启动先看到一帧 `#1e1e1e`。
+- **方法**：`index.html` 内联脚本在 bundle 前读 `localStorage["adkm.theme"]`（工作区快照的镜像键，`setTheme` / `applyDocumentEffects` 写入），缺失时按 `prefers-color-scheme` 解析；两行关键 CSS 给 `html` 上底色。全部 try/catch，存储被禁则退化为旧行为。
+- **完成判据**：① `npm run typecheck` 0；② `npm run verify` 0；③ 真机 `npm run test:e2e` **15/15**，`startup-mode` 新增断言：`__themeBootstrapAt ≤ __appScriptAt`、`data-theme` 已解析、计算背景色与主题一致；`--self-check` 通过；④ D-028 / CHANGELOG 同步。
+- **解决**：**完成（2026-11-16）**。详见 `DECISIONS.md` D-028。
+- **仍缺**：WebView2 初始化与窗口创建段未优化（页面内无法测量）；`--editor-font-size` 仍由 JS 应用（一次重排，无颜色闪变）；「窗口就绪后再 show」作为后续可选优化保留。
+
 ### T-058 启动行为设置：恢复上次会话 / 全新窗口（D-027）
 
 - **提出**：2026-11-16

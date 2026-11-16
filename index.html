@@ -5,6 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>APP_NAME</title>
+    <!-- T-059 / D-028: pre-paint theme bootstrap. The theme lives inside the
+         per-vault workspace snapshot, which cannot be read before the bundle runs;
+         the stylesheet's default is DARK, so a light-theme user got a dark frame at
+         the start of every launch. This inline script reads the mirrored kind and
+         paints the right frame before any module executes. core/workspace.ts keeps
+         `adkm.theme` in sync (kinds: "dark" | "light" | "system"). -->
+    <style>
+      /* Critical first-frame colours — literals mirror --bg-app in src/styles/app.scss. */
+      html { background: #1e1e1e; }
+      html[data-theme="light"] { background: #f5f5f5; }
+    </style>
+    <script>
+      (function () {
+        try {
+          var kind = localStorage.getItem("adkm.theme");
+          if (kind !== "dark" && kind !== "light") {
+            kind = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.dataset.theme = kind;
+          window.__themeBootstrapAt = Math.round(performance.now());
+        } catch (e) {
+          /* storage blocked — the app applies the theme after boot, as before */
+        }
+      })();
+    </script>
   </head>
   <body>
     <!-- R267: static `.app-container` (Obsidian's outermost root class) wrapping React's #root.
