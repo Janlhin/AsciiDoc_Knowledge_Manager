@@ -419,6 +419,11 @@ export const en = {
   "attachment.rendering": "Rendering…",
   "attachment.pdfLarge": "{size} — held back so it cannot slow down startup",
   "attachment.pdfLoad": "Load PDF",
+  // T-061 EPUB reader chrome
+  "epub.contents": "Contents",
+  "epub.previous": "Prev",
+  "epub.next": "Next",
+  "epub.noContents": "This book has no table of contents",
   "attachment.save": "Save",
   "attachment.saved": "Saved",
   "attachment.xlsxHint": "Editable — click Save to write changes back to the file",
@@ -908,6 +913,11 @@ export const zh: Record<keyof typeof en, string> = {
   "attachment.rendering": "渲染中…",
   "attachment.pdfLarge": "{size} · 点击加载（大文件不随启动读取）",
   "attachment.pdfLoad": "加载 PDF",
+  // T-061 EPUB 阅读器控件
+  "epub.contents": "目录",
+  "epub.previous": "上一页",
+  "epub.next": "下一页",
+  "epub.noContents": "这本书没有目录",
   "attachment.save": "保存",
   "attachment.saved": "已保存",
   "attachment.xlsxHint": "可编辑 — 点击「保存」将改动写回文件",
