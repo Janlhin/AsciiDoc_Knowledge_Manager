@@ -17,7 +17,7 @@ const base = {
 describe("buildDebugInfo", () => {
   it("keeps the original header and plugin list", () => {
     const text = buildDebugInfo(base);
-    expect(text.startsWith("Geode debug info:")).toBe(true);
+    expect(text.startsWith("ADKM debug info:")).toBe(true);
     expect(text).toContain("Version: 0.269.0");
     expect(text).toContain("1. Compat (compat)");
   });

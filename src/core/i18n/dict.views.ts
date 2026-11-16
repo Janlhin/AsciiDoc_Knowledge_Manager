@@ -257,7 +257,7 @@ export const en = {
   // ---- settings: plugins ----
   // note split around the inline <code> element (word order differs per locale)
   "settings.pluginsNotePre":
-    "Built-in plugins extend Geode with commands, status bar items and more. Plugins can also be registered at runtime via ",
+    "Built-in plugins extend ADKM with commands, status bar items and more. Plugins can also be registered at runtime via ",
   "settings.pluginsNotePost": ".",
   "settings.pluginGroupBuiltin": "Built-in",
   "settings.pluginGroupExternal": "External",
@@ -758,7 +758,7 @@ export const zh: Record<keyof typeof en, string> = {
   "settings.uniqueNoteTemplate": "模板文件位置",
 
   // ---- settings: plugins ----
-  "settings.pluginsNotePre": "内置插件为 Geode 提供命令、状态栏项等扩展能力。也可以在运行时通过 ",
+  "settings.pluginsNotePre": "内置插件为 ADKM 提供命令、状态栏项等扩展能力。也可以在运行时通过 ",
   "settings.pluginsNotePost": " 注册插件。",
   "settings.pluginGroupBuiltin": "内置",
   "settings.pluginGroupExternal": "外部",

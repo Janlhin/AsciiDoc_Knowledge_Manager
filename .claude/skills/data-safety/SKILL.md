@@ -1,9 +1,9 @@
 ---
 name: data-safety
-description: Geode 数据安全与写入正确性回归清单。当改动涉及编辑器（CodeMirror / EditorPane）、vault 读写、文件重命名/删除、自动保存、frontmatter/properties、模板展开、链接改写（rename / 未链接提及 / Link）、阅读视图渲染管线（core/markdown.ts），或任何会写入用户 .md 文件的代码时，加载并逐条执行本清单。覆盖数据安全四类竞态、历轮已知根因 checklist、阅读视图字节级承诺、桌面 probe 时序纪律、可复跑回归资产。
+description: ADKM 数据安全与写入正确性回归清单。当改动涉及编辑器（CodeMirror / EditorPane）、vault 读写、文件重命名/删除、自动保存、frontmatter/properties、模板展开、链接改写（rename / 未链接提及 / Link）、阅读视图渲染管线（core/markdown.ts），或任何会写入用户 .md 文件的代码时，加载并逐条执行本清单。覆盖数据安全四类竞态、历轮已知根因 checklist、阅读视图字节级承诺、桌面 probe 时序纪律、可复跑回归资产。
 ---
 
-# Geode 数据安全回归
+# ADKM 数据安全回归
 
 > **第一底线**：任何路径下用户编辑不丢失、写入字节不损坏。自主开发模式无人工把关，本清单 = 最后一道安全网。改到上述任何处，**先对照本清单再提交**。
 

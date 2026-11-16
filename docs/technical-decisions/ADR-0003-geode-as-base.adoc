@@ -20,7 +20,7 @@
 
 影响范围：全局
 
-本 ADR 记录两个相互绑定的决策：放弃 VS Code 扩展形态，以及选择 Geode 作为实现底座。二者不可分割——桌面形态是选择 Geode 的前提，选择 Geode 也锁定了技术栈。
+本 ADR 记录两个相互绑定的决策：放弃 VS Code 扩展形态，以及选择 ADKM 作为实现底座。二者不可分割——桌面形态是选择 ADKM 的前提，选择 ADKM 也锁定了技术栈。
 --
 
 == 1. 背景
@@ -30,7 +30,7 @@
 在进入实现前，需要重新确认该路径，原因有三：
 
 . 实测表明 AsciiDoc 的解析能力边界（ADR-0001）使得核心引擎的工作量高于原估算，而 VS Code 扩展形态对本项目的价值增益有限。
-. 存在可复用的开源桌面实现（Geode），能显著缩短 UI 层工期。
+. 存在可复用的开源桌面实现（ADKM），能显著缩短 UI 层工期。
 . 协作方使用 Obsidian（Markdown），需要工具同时容纳 Markdown 与 AsciiDoc，而单一格式的专用工具无法满足。
 
 == 2. 问题
@@ -39,7 +39,7 @@
 
 *Q1*：首期交付形态是 VS Code 扩展还是独立桌面应用？
 
-*Q2*：若为桌面应用，是从零构建，还是基于既有开源项目扩展？基准候选为 Geode、Nodum、Luhmann。
+*Q2*：若为桌面应用，是从零构建，还是基于既有开源项目扩展？基准候选为 ADKM、Nodum、Luhmann。
 
 == 3. Q1：交付形态
 
@@ -86,7 +86,7 @@
 |===
 |候选 |栈 |规模 |许可 |评估
 
-|Geode
+|ADKM
 |Tauri 2 + React 18 + TS + CM6
 |51,954 行 TS/TSX + 821 行 Rust
 |Apache-2.0
@@ -115,7 +115,7 @@
 
 === 4.3 决定
 
-采用 *Geode* 作为底座，fork 后在 `src/core/parsers/` 增量新增 AsciiDoc 解析器，不替换 Markdown 引擎。
+采用 *ADKM* 作为底座，fork 后在 `src/core/parsers/` 增量新增 AsciiDoc 解析器，不替换 Markdown 引擎。
 
 === 4.4 可复用性与改动边界（实测）
 
@@ -149,7 +149,7 @@
 
 === 4.5 技术栈锁定
 
-跟随 Geode，不另行选择：
+跟随 ADKM，不另行选择：
 
 * TypeScript 5.x（strict）
 * Tauri 2（Rust 侧仅桥接）
@@ -161,13 +161,13 @@
 * Asciidoctor.js 4.x（AsciiDoc 解析）
 * d3-force（图谱）
 
-*未选择 Wails + Svelte 的理由*：该组合与 Personal Git Vault 的技术路线一致，但会作废 Geode 的复用价值、现有 AsciiDoc 工具链的兼容性，以及协作者的 TypeScript 技能栈。Go 侧优势不足以抵消这三项损失。
+*未选择 Wails + Svelte 的理由*：该组合与 Personal Git Vault 的技术路线一致，但会作废 ADKM 的复用价值、现有 AsciiDoc 工具链的兼容性，以及协作者的 TypeScript 技能栈。Go 侧优势不足以抵消这三项损失。
 
 == 5. 后续影响
 
 === 5.1 上游合并策略
 
-Geode 处于 active alpha（v0.269.0），迭代频繁。为控制合并成本：
+ADKM 处于 active alpha（v0.269.0），迭代频繁。为控制合并成本：
 
 . fork 时固定到具体 commit，并记录该 commit 的哈希与日期。
 . 改动集中在 `src/core/parsers/`、`src/core/validate/` 等上游不存在的路径，尽量减少对上游文件的修改。
@@ -177,12 +177,12 @@ Geode 处于 active alpha（v0.269.0），迭代频繁。为控制合并成本�
 
 === 5.2 许可义务
 
-Geode 为 Apache-2.0。fork 后须：
+ADKM 为 Apache-2.0。fork 后须：
 
 * 保留 `LICENSE` 原文。
 * 新建 `NOTICE`，声明本项目包含源自 Geode 的代码及其版权归属。
 * 被修改的文件保留原版权头，并注明修改。
-* 不得使用 Obsidian 或 Geode 的名称与图标暗示官方关联。
+* 不得使用 Obsidian 或 ADKM 的名称与图标暗示官方关联。
 
 === 5.3 能力上限的对外表述
 

@@ -1,6 +1,6 @@
-# Geode Plugin API
+# ADKM Plugin API
 
-Geode is extensible through the same API its built-in features use.
+ADKM is extensible through the same API its built-in features use.
 
 ## Quick start (runtime registration)
 
@@ -53,7 +53,7 @@ plugins cannot leak handlers.
 - `src/plugins/daily-note.ts` — commands + vault writes
 - `src/plugins/random-note.ts` — navigation
 
-Built-ins are regular `GeodePlugin` objects compiled in; they have no special powers.
+Built-ins are regular `ADKMPlugin` objects compiled in; they have no special powers.
 
 ## External plugins
 

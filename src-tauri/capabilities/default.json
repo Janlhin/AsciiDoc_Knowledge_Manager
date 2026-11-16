@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capabilities for the main Geode window",
+  "description": "Capabilities for the main ADKM window",
   "windows": ["main"],
   "permissions": [
     "core:default",

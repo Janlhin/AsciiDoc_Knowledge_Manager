@@ -149,7 +149,7 @@
 
 |纯文本文件
 |磁盘上的 .md / .adoc 原文
-|Geode、SilverBullet、Zettlr
+|ADKM、SilverBullet、Zettlr
 |新增一个解析器
 
 |自有块格式
@@ -172,7 +172,7 @@
 一个笔记软件要变“好”，几乎必然要做同步、手机端、加密、全文检索、块级引用。这五件事都在把正文往结构化方向推，一旦推进去就拿不回纯文本。因此：
 
 * **最好用的几个**（Joplin、SiYuan、Logseq、Trilium）恰好是最难改的。
-* **最好改的几个**（Geode、SilverBullet、Zettlr）恰好功能最少、最年轻。
+* **最好改的几个**（ADKM、SilverBullet、Zettlr）恰好功能最少、最年轻。
 
 这条规律是本报告最重要的发现，它解释了为什么连续检索九款软件都收敛到同一个结论。
 
@@ -184,7 +184,7 @@
 |===
 |项目 |技术栈 |许可 |规模 |正文存储 |判定
 
-|Geode
+|ADKM
 |Tauri 2 + React 18 + TypeScript
 |Apache-2.0
 |51,954 行 TS + 821 行 Rust
@@ -271,7 +271,7 @@
 
 === 关键证据
 
-==== Geode：唯一四条全过
+==== ADKM：唯一四条全过
 
 代码层面的可改造性已实测：
 
@@ -287,7 +287,7 @@
 
 ==== Knowledge Base：README 与实际相反
 
-README 宣称 Tauri 2 + 双向链接 + 图谱 + FTS5 + 同步 + 加密，看起来起点高于 Geode。实际代码：
+README 宣称 Tauri 2 + 双向链接 + 图谱 + FTS5 + 同步 + 加密，看起来起点高于 ADKM。实际代码：
 
 [source,sql]
 ----
@@ -304,7 +304,7 @@ CREATE TABLE IF NOT EXISTS notes (
 
 整张表没有 `file_path`。它与 Joplin 同类：数据库为真理源，笔记不以文件形式存在。这与立项书里“原始文档始终位于用户指定的文件夹”的原则正面冲突。
 
-规模也是 Geode 的 3.4 倍，多出的部分几乎全在 AI 问答、同步、加密、数据库迁移这些 ADKM 不需要的方向。
+规模也是 ADKM 的 3.4 倍，多出的部分几乎全在 AI 问答、同步、加密、数据库迁移这些 ADKM 不需要的方向。
 
 ==== Joplin：没有路径
 
@@ -480,9 +480,9 @@ ScanMacro(ASource, 'link:', ABaseDir, Result);
 
 **适用条件**：自己天天用、手机和平板都要看，不追求作品感。
 
-=== 路线 C：Geode 改造
+=== 路线 C：ADKM 改造
 
-**形态**：fork Geode，新增 AsciiDoc 解析器，得到带安装包的 Windows 桌面应用。
+**形态**：fork ADKM，新增 AsciiDoc 解析器，得到带安装包的 Windows 桌面应用。
 
 **白送**：52k 行中约 25k 可用——图谱渲染、虚拟化文件树、tabs 与分屏、命令面板、backlinks、outline、搜索面板、设置页，外加 10,397 行 md 的 Obsidian 插件兼容层。
 
@@ -641,7 +641,7 @@ ScanMacro(ASource, 'link:', ABaseDir, Result);
 |1,080
 |0
 
-|C Geode 改造
+|C ADKM 改造
 |强
 |无
 |部分
@@ -691,7 +691,7 @@ ScanMacro(ASource, 'link:', ABaseDir, Result);
 
 === 情形三：想站在成熟项目肩上
 
-选 **C（Geode 改造）**。
+选 **C（ADKM 改造）**。
 
 理由：唯一四条硬条件全过的项目。10,397 行兼容层、多标签分屏、命令面板、设置页全部白送。
 

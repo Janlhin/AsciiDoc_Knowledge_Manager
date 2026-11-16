@@ -40,7 +40,7 @@
 |`https://github.com/Janlhin/AsciiDoc_Knowledge_Manager.git`
 
 |应用标识
-|`com.geode.knowledgebase`
+|`com.adkm.knowledgebase`
 |===
 
 === 技术栈：底座当时 vs 现在
@@ -246,7 +246,7 @@ ____
 == 关联文档
 
 * `project-charter-v2.adoc`：定位、原则、P0 与非目标。
-* `route-evaluation.adoc`：五条路线评估，路线 C（以 Geode 为底座）的依据。
+* `route-evaluation.adoc`：五条路线评估，路线 C（以 ADKM 为底座）的依据。
 * `technical-decisions/ADR-0003-geode-as-base.adoc`：选 geode 作底座的决策。
 * `technical-decisions/ADR-0004-deep-modification.adoc`：深度改造七层与样式三规则。
 * `obsidian-clone-report.adoc`：社区模仿品核查（**参照产品**方向，与本文的**底座差异**不是一回事）。

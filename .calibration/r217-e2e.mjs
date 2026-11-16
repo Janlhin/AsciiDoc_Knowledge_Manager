@@ -41,7 +41,7 @@ const built = await app(() => window.__geodeDebugInfo({
     { name: "Gamma", id: "gamma", enabled: true },
   ],
 }));
-const expected = "Geode debug info:\nVersion: 1.2.3\nPlatform: TestOS\nLocale: en\nPlugins installed: 3\nPlugins enabled: 2\n1. Alpha (alpha)\n2. Gamma (gamma)";
+const expected = "ADKM debug info:\nVersion: 1.2.3\nPlatform: TestOS\nLocale: en\nPlugins installed: 3\nPlugins enabled: 2\n1. Alpha (alpha)\n2. Gamma (gamma)";
 ok("buildDebugInfo formats the block + numbers ONLY enabled plugins", built === expected, JSON.stringify(built));
 
 console.log("B. command registration");
@@ -60,7 +60,7 @@ ok("command-notice toast shown with the copied message",
   await app(() => { const el = document.querySelector('[data-testid="command-notice"]'); return !!el && el.textContent.includes("Debug info copied"); }));
 const clip = await app(() => navigator.clipboard.readText().catch(() => "(denied)"));
 ok("clipboard holds the debug-info block (header + version + plugins lines)",
-  clip.startsWith("Geode debug info:") && /\nVersion: \d+\.\d+\.\d+/.test(clip) && clip.includes("Plugins installed:"),
+  clip.startsWith("ADKM debug info:") && /\nVersion: \d+\.\d+\.\d+/.test(clip) && clip.includes("Plugins installed:"),
   JSON.stringify(clip.slice(0, 120)));
 ok("clipboard reports the r217 probe plugin among enabled", clip.includes("(r217)"), JSON.stringify(clip));
 

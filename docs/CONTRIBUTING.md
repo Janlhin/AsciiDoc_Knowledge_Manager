@@ -1,8 +1,8 @@
-# Contributing to Geode
+# Contributing to ADKM
 
-Thanks for taking the time to improve Geode.
+Thanks for taking the time to improve ADKM.
 
-Geode is still in active alpha, so the best contributions are focused, well-scoped changes that preserve the local-first markdown contract.
+ADKM is still in active alpha, so the best contributions are focused, well-scoped changes that preserve the local-first markdown contract.
 
 ## Good first contribution areas
 

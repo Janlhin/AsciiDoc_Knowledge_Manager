@@ -1,7 +1,7 @@
 # compat-fixtures — vendored real Obsidian community plugins (committed regression assets)
 
 These are **unmodified, vendored real Obsidian community plugins**, committed as
-fixtures for Geode's Obsidian-compatibility regression suite (`.calibration/rNNN-e2e.mjs`).
+fixtures for ADKM's Obsidian-compatibility regression suite (`.calibration/rNNN-e2e.mjs`).
 Unlike the gitignored `compat-vault/` (the manual desktop-probe suite) and the
 hand-written synthetic fixture (`src/compat/obsidian/fixture.ts`), these let the
 automated browser harness load and drive a *real, published* plugin bundle through
@@ -37,6 +37,6 @@ at test time and injects them via `window.__geodeObsidianPlugins`.
   `PluginSettingTab` (words-per-minute setting). It reads the active note's word count and
   writes a `"<m>m <s>s read time"` estimate (default 130 wpm) into the status bar. Proves a
   real lifecycle/status-bar/settings plugin runs, not just an editor-command one.
-- Note: manifest is `isDesktopOnly: true`; Geode's loader does not gate that (the browser
+- Note: manifest is `isDesktopOnly: true`; ADKM's loader does not gate that (the browser
   E2E is a dev surface of a desktop app), so it loads in browser mode.
 - Driven by: `.calibration/r259-e2e.mjs`.

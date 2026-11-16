@@ -54,9 +54,9 @@ export const en = {
   "vaultSwitcher.remove": "Remove from list",
   "app.errorTitle": "Something went wrong",
   "app.errorBody":
-    "Geode hit an unexpected error. Your notes are plain files on disk and are safe. Reloading usually fixes it; if it keeps happening, clear the saved state below.",
+    "ADKM hit an unexpected error. Your notes are plain files on disk and are safe. Reloading usually fixes it; if it keeps happening, clear the saved state below.",
   "app.errorClear": "Clear saved state & reload",
-  "app.bootFailed": "Geode failed to start",
+  "app.bootFailed": "ADKM failed to start",
 
   // ---- command names (App.tsx registrations) ----
   "cmd.commandPalette": "Open command palette",
@@ -367,9 +367,9 @@ export const zh: Record<keyof typeof en, string> = {
   "vaultSwitcher.remove": "从列表移除",
   "app.errorTitle": "出错了",
   "app.errorBody":
-    "Geode 遇到了意外错误。你的笔记是磁盘上的纯文本文件，安全无虞。重新加载通常即可修复；若问题反复出现，请清除下方保存的状态。",
+    "ADKM 遇到了意外错误。你的笔记是磁盘上的纯文本文件，安全无虞。重新加载通常即可修复；若问题反复出现，请清除下方保存的状态。",
   "app.errorClear": "清除已保存状态并重新加载",
-  "app.bootFailed": "Geode 启动失败",
+  "app.bootFailed": "ADKM 启动失败",
 
   // ---- command names (App.tsx registrations) ----
   "cmd.commandPalette": "打开命令面板",

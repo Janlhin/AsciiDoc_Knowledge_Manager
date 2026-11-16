@@ -121,7 +121,7 @@ git remote remove upstream
 
 == 商标与归属
 
-* 本仓库**不以 Geode 名义发布**。Geode 名称与图标不在 Apache-2.0 授权范围内。
+* 本仓库**不以 ADKM 名义发布**。ADKM 名称与图标不在 Apache-2.0 授权范围内。
 * 不声称与 Obsidian 或 Dynalist Inc. 存在关联、赞助或背书关系。“Obsidian” 为其权利人商标。
 * `src/compat/` 为独立实现的兼容层，不包含 Obsidian 的专有代码或资源。
 * 上游作者与本项目无隶属关系。

@@ -1,0 +1,25 @@
+ADKM — AsciiDoc Knowledge Manager
+Copyright 2026 Janlhin
+
+This product is a substantially modified derivative of Geode
+(https://github.com/AlexHercules/geode), which is licensed under the
+Apache License, Version 2.0.
+
+The vendored snapshot corresponds to upstream commit 7a8ce22 (2026-07-04).
+Since then the codebase was rebuilt and deeply modified: AsciiDoc reading
+view and cross-format link index, UI/workspace layer rewrites, editor and
+settings behaviour changes, and removal of upstream branding strings.
+
+The full modification record is in PROVENANCE.adoc and DECISIONS.md.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this product except in compliance with the License. You may obtain a copy
+of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.

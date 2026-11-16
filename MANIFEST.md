@@ -16,16 +16,16 @@
 - 边界：仅 devDependency；不进入生产应用。复用已有 React、ReactDOM、Vitest，不增加另一套测试运行器。
 - License conclusion: MIT permits this use. Retain the package's copyright and license notice when redistributing it; npm preserves those files. No jsdom runtime import is added to the application.
 
-### Geode
+### ADKM
 
 | 字段 | 内容 |
 | --- | --- |
-| 名称 | Geode（本地优先 Markdown 知识库） |
+| 名称 | ADKM（本地优先 Markdown 知识库） |
 | 来源 URL | https://github.com/AlexHercules/geode |
 | 版本 | 0.269.0 |
 | 校验值 | 源码仓库，无二进制 SHA256。完整性锚点为 **commit `7a8ce22cb6fd289913c1032e7ecdc3667033748e`** 与 **tree `09a6f647b1fad36d17942bed7fa74602ca405ba1`**，可用 `git cat-file -p 7a8ce22` 与 `git ls-tree` 复核 |
 | 用途 | 本项目代码基线。本项目在其之上做分层深度改造，改造范围见 `docs/PROVENANCE.adoc` |
-| 许可结论 | **Apache-2.0，允许闭源衍生**。义务：保留 `LICENSE` 全文；修改过的文件带显著变更声明（已在 22 个 SCSS 文件头标注）；上游无 `NOTICE` 文件，故无第 4(d) 条传播义务。**「Geode」名称与图标不在授权范围内**，本项目不以该名义发布 |
+| 许可结论 | **Apache-2.0，允许闭源衍生**。义务：保留 `LICENSE` 全文；修改过的文件带显著变更声明（已在 22 个 SCSS 文件头标注）；上游无 `NOTICE` 文件，故无第 4(d) 条传播义务。**「ADKM」名称与图标不在授权范围内**，本项目不以该名义发布 |
 
 ### 本项目自有的生成物
 

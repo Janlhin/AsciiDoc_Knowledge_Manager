@@ -5,7 +5,7 @@
 A working rebuild on top of [Geode](https://github.com/AlexHercules/geode) (Apache-2.0). Early stage,
 source is public, but it is not a usable release yet.
 
-> 工作代号 ADKM，产品名未定。本仓库是 Geode 的深度改造分支，当前处于改造初期。
+> 工作代号 ADKM，产品名未定。本仓库是 ADKM 的深度改造分支，当前处于改造初期。
 
 ---
 
@@ -106,7 +106,7 @@ npx tauri build
 产物：
 
 ```
-src-tauri/target/release/geode.exe                              约 5.1 MB
+src-tauri/target/release/adkm.exe                              约 5.1 MB
 src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 ```
 
@@ -119,7 +119,7 @@ src-tauri/target/release/bundle/nsis/*-setup.exe                约 4.6 MB
 双击 `run-adkm.ps1`（右键 →「使用 PowerShell 运行」），或直接：
 
 ```sh
-src-tauri/target/release/geode.exe "%USERPROFILE%\Desktop\Blueprint"
+src-tauri/target/release/adkm.exe "%USERPROFILE%\Desktop\Blueprint"
 ```
 
 第一个参数会被当成 vault 根目录，跳过文件夹选择对话框。省略参数则恢复上次打开的库。
@@ -200,7 +200,7 @@ docs/               项目文档与规范原文
 
 - 上游基线：提交 `7a8ce22`（2026-07-04）
 - 完整来源说明、改动清单与许可义务履行情况见 [docs/PROVENANCE.adoc](docs/PROVENANCE.adoc)
-- 商标：「Geode」名称与图标不在 Apache-2.0 授权范围内，本项目不以该名义发布
+- 商标：「ADKM」名称与图标不在 Apache-2.0 授权范围内，本项目不以该名义发布
 - 与 Obsidian、Dynalist Inc. 无关联；「Obsidian」为其权利人商标
 
 ## 状态说明

@@ -60,10 +60,10 @@ export const FIXTURE_PLUGIN_ID = "geode-compat-fixture";
 
 const MANIFEST = {
   id: FIXTURE_PLUGIN_ID,
-  name: "Geode Compat Fixture",
+  name: "ADKM Compat Fixture",
   version: "1.0.0",
   minAppVersion: "1.0.0",
-  author: "Geode",
+  author: "ADKM",
   description: "Built-in test plugin exercising the Obsidian compat surface (browser E2E).",
 };
 
@@ -166,7 +166,7 @@ var FixtureSettingTab = class extends obsidian.PluginSettingTab {
   display() {
     var containerEl = this.containerEl;
     containerEl.empty();
-    containerEl.createEl("div", { text: "Geode compat fixture settings", cls: "setting-item-heading", attr: { "data-testid": "fixture-settings-heading" } });
+    containerEl.createEl("div", { text: "ADKM compat fixture settings", cls: "setting-item-heading", attr: { "data-testid": "fixture-settings-heading" } });
     new obsidian.Setting(containerEl)
       .setName("Greeting")
       .setDesc("Stored in data.json via saveData()")

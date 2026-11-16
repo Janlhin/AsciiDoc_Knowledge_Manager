@@ -126,9 +126,9 @@
 > - **Obsidian 本体**：ToS 禁止反编译 / 衍生作品 → 死的
 > - **跟随上游 Geode**：它自己的兼容层也是 T0/T1，**T3（Canvas 等）明确不承诺**，且已停更 → 解决不了插件问题
 > - **其他底座**（Logseq / 思源 / SilverBullet / Zettlr / Foam / AFFiNE / Trilium）：插件 API **全部与 Obsidian 不通用**
-> - **唯一真宿主**：opensidian（Rust + Tauri v2，`require("obsidian")` 真能用，API 覆盖比 Geode 更全）——但 **GPL-3.0** + 前端是原生 JS 不是 React/TS
+> - **唯一真宿主**：opensidian（Rust + Tauri v2，`require("obsidian")` 真能用，API 覆盖比 ADKM 更全）——但 **GPL-3.0** + 前端是原生 JS 不是 React/TS
 
-- [ ] **A** 继续自建兼容层，把 opensidian 的 API 导出表当**功能对标清单**补缺口（Canvas / Keymap / FileManager 这些 Geode 标 T3 不做的）——两边同为 clean-room（只参照 MIT 的 `obsidian.d.ts`），无法律冲突
+- [ ] **A** 继续自建兼容层，把 opensidian 的 API 导出表当**功能对标清单**补缺口（Canvas / Keymap / FileManager 这些 ADKM 标 T3 不做的）——两边同为 clean-room（只参照 MIT 的 `obsidian.d.ts`），无法律冲突
 - [ ] **B** fork opensidian，接受 GPL-3.0 + 把前端重写成 React/TS
 - [ ] **C** 维持现状，不补缺口
 

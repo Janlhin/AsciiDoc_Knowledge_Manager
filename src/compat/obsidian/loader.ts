@@ -88,7 +88,7 @@ const HOST_MODULES: Record<string, unknown> = {
 
 function hostRequire(id: string): unknown {
   const mod = HOST_MODULES[id];
-  if (mod === undefined) throw new Error(`module not available in Geode: ${id}`);
+  if (mod === undefined) throw new Error(`module not available in ADKM: ${id}`);
   return mod;
 }
 
@@ -323,11 +323,11 @@ async function runLoad(
     }
     let minAppWarning: string | undefined;
     if (isNonEmptyString(raw.minAppVersion) && semverCompare(raw.minAppVersion, apiVersion) > 0) {
-      minAppWarning = `requires app ${raw.minAppVersion} (Geode reports ${apiVersion})`;
+      minAppWarning = `requires app ${raw.minAppVersion} (ADKM reports ${apiVersion})`;
       console.warn(`[obsidian-compat] ${id}: ${minAppWarning} — loading anyway`);
     }
     if (plugins.list().some((r) => r.plugin.id === id)) {
-      console.error(`[obsidian-compat] ${id}: collides with an existing Geode plugin — skipped`);
+      console.error(`[obsidian-compat] ${id}: collides with an existing ADKM plugin — skipped`);
       return { id, status: "skipped", detail: "id collision with a host plugin" };
     }
 

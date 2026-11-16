@@ -8,7 +8,7 @@
 
 == 一句话结论
 
-**不是。Geode 不是最像的，也不是最好的。**
+**不是。ADKM 不是最像的，也不是最好的。**
 
 三个问题必须分开答，混在一起会得出错误结论：
 
@@ -25,11 +25,11 @@
 |838 星、248k 行、图谱 + 基础视图 + Canvas 三件齐全
 
 |最适合当 ADKM 底座的是谁
-|Geode
+|ADKM
 |Apache-2.0 + TypeScript + React + Windows 已实测构建成功
 |===
 
-**Geode 只在第三个问题上赢。** 它的星标数是 6——六个。这一点在后面的 <<_星标与像无关>> 单独说明。
+**ADKM 只在第三个问题上赢。** 它的星标数是 6——六个。这一点在后面的 <<_星标与像无关>> 单独说明。
 
 == 什么叫「像」
 
@@ -74,7 +74,7 @@ GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格
 * Mdit
 * Foam（VS Code 插件）
 
-**Geode 与 Opensidian 都不在这个名单里。** 这不代表它们不合格，而是说明这份目录的口径是「vault 格式兼容」，不是「应用行为复刻」。两个口径必须分开看，否则会误判。
+**ADKM 与 Opensidian 都不在这个名单里。** 这不代表它们不合格，而是说明这份目录的口径是「vault 格式兼容」，不是「应用行为复刻」。两个口径必须分开看，否则会误判。
 
 == 候选清单
 
@@ -86,7 +86,7 @@ GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格
 |===
 |项目 |技术栈 |许可 |代码规模 |★ |tag |发布平台
 
-|Geode
+|ADKM
 |Tauri 2 + React 18 + TypeScript
 |Apache-2.0
 |53,834 行（TS/TSX 183 个文件）
@@ -139,7 +139,7 @@ GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格
 
 **Lokus 的许可不是开源。** LICENSE 首行是 `Fair Core License, Version 1.0, MIT Future License`。这是一种「延迟开源」许可：期满后才转为 MIT，在此之前对竞争性使用有额外限制。它不在 OSI 认可的开源许可列表内。想 fork 它做自己的产品，法务上并不干净。
 
-**Geode 的 0 个 tag 值得注意。** `package.json` 版本号已经到 0.269.0，但仓库里一个 git tag 都没有。这说明它的版本号是内部迭代计数，没有对外发布流程。对比 Mdit 的 141 个 tag、Otterly 的 17 个，差别是「有没有对外承诺」。
+**ADKM 的 0 个 tag 值得注意。** `package.json` 版本号已经到 0.269.0，但仓库里一个 git tag 都没有。这说明它的版本号是内部迭代计数，没有对外发布流程。对比 Mdit 的 141 个 tag、Otterly 的 17 个，差别是「有没有对外承诺」。
 
 **Opensidian 的发布只有 Linux。** 但 `tauri.conf.json` 里的 bundle targets 是默认值（未限定），意味着源码层面可以交叉构建 Windows 版本。它没有 Windows 包，是因为维护者只做 Linux，不是因为技术上做不到。
 
@@ -151,7 +151,7 @@ GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格
 |===
 |项目 |F1 三模式 |F2 .obsidian |F3 插件 API |F4 主题 |F5 Canvas |F6 链接解析
 
-|Geode
+|ADKM
 |26
 |17
 |14
@@ -220,7 +220,7 @@ GitHub 上有一份 `awesome-obsidian-alternatives`，其 Tier 1 定义很严格
 
 代价：GPL-3.0（传染）、纯 Linux 发布、Rust 主导（前端是原生 JS，无 TypeScript）。
 
-=== Geode：插件 API 挖得最深，但不是最像
+=== ADKM：插件 API 挖得最深，但不是最像
 
 它做了一件别人没做的事：**写了 10,397 行 Obsidian 插件兼容层**，实现 vault / workspace / metadata / settings / modals / menus / notices / markdown rendering / CodeMirror 集成。`src/compat/obsidian/loader.ts` 明确从 `<vault>/.obsidian/plugins/` 加载，注释写着「Idempotent like PluginManager.loadExternal」。
 
@@ -278,7 +278,7 @@ MIT、Svelte 5 + CodeMirror 6、117k 行、17 个 tag、三平台安装包齐全
 |唯一复刻了受限模式与插件浏览器；原生读 themes / snippets / plugins；Canvas 有实现
 
 |2
-|Geode
+|ADKM
 |插件 API 最厚（10,397 行），真读 `.obsidian/plugins`；但无 Canvas，插件体系双轨
 
 |3
@@ -331,7 +331,7 @@ MIT、Svelte 5 + CodeMirror 6、117k 行、17 个 tag、三平台安装包齐全
 |2
 |早期
 
-|Geode
+|ADKM
 |6
 |0
 |alpha，无对外发布
@@ -345,7 +345,7 @@ MIT、Svelte 5 + CodeMirror 6、117k 行、17 个 tag、三平台安装包齐全
 |===
 |项目 |许可 |我方技术栈 |改造面 |结论
 
-|Geode
+|ADKM
 |Apache-2.0
 |TS + React
 |新增解析器，核心不动
@@ -386,7 +386,7 @@ MIT、Svelte 5 + CodeMirror 6、117k 行、17 个 tag、三平台安装包齐全
 
 === 一个必须接受的事实
 
-Geode 只有 6 个星标。这意味着：
+ADKM 只有 6 个星标。这意味着：
 
 * 没有社区在做代码审查，它的 53,834 行里可能藏着未被发现的问题
 * 没有第三方验证过它的 Obsidian 插件兼容层是否真能跑常见插件（README 说 in progress）
@@ -398,22 +398,22 @@ Geode 只有 6 个星标。这意味着：
 
 === 一个可以利用的事实
 
-Geode 的 Canvas 是空的。而 Canvas 恰好是 ADKM 立项书 §5.4 里「related-to 关系来自用户手工标注」的数据源。
+ADKM 的 Canvas 是空的。而 Canvas 恰好是 ADKM 立项书 §5.4 里「related-to 关系来自用户手工标注」的数据源。
 
-也就是说，如果能实现 `.canvas` 解析，ADKM 补的正好是 Geode 的缺口，而不是重复它已有的东西。这是一个真实的功能位，不是硬造的理由。
+也就是说，如果能实现 `.canvas` 解析，ADKM 补的正好是 ADKM 的缺口，而不是重复它已有的东西。这是一个真实的功能位，不是硬造的理由。
 
 === 一个需要修正的预期
 
-我在前几轮说过「Geode 是唯一四条全过的」——那是按「文件即真理 + 宽松许可 + TS + 改造成本」四个条件筛的，成立。
+我在前几轮说过「ADKM 是唯一四条全过的」——那是按「文件即真理 + 宽松许可 + TS + 改造成本」四个条件筛的，成立。
 
-但如果「像不像 Obsidian」也是条件，Geode 排第二，Opensidian 第一。**两个结论都对，因为问题不同。** 报告把这一点写清楚，免得将来回头看觉得前后矛盾。
+但如果「像不像 Obsidian」也是条件，ADKM 排第二，Opensidian 第一。**两个结论都对，因为问题不同。** 报告把这一点写清楚，免得将来回头看觉得前后矛盾。
 
 == 星标与「像」无关
 六个项目的星标数与「像」的程度，相关性接近于零：
 
 * 最像的 Opensidian 是 382 星，排第二
 * 最多星的 Lokus 是 838 星，但在「像」上排第三，且许可有问题
-* 星最少的 Geode 是 6 星，却在插件 API 上做得最深
+* 星最少的 ADKM 是 6 星，却在插件 API 上做得最深
 
 原因不难理解：星标奖励的是「功能多、界面好看、能装就上手」，不奖励「内部行为一致」。而「像」恰恰是内部行为的事。
 
@@ -464,10 +464,10 @@ git ls-remote --tags "https://github.com/<repo>.git" | wc -l
 
 |各项目实际可用性
 |未验证
-|只构建过 Geode，其余五个未编译运行
+|只构建过 ADKM，其余五个未编译运行
 |===
 
-**明确未做的事**：Opensidian、Lokus、Otterly、Mdit、Cherit 均未构建运行，它们的实际可用性来自 README 与代码结构推断。若要把其中任何一个当作备选，必须按 Geode 的方式实测构建一次。
+**明确未做的事**：Opensidian、Lokus、Otterly、Mdit、Cherit 均未构建运行，它们的实际可用性来自 README 与代码结构推断。若要把其中任何一个当作备选，必须按 ADKM 的方式实测构建一次。
 
 == 修订记录
 

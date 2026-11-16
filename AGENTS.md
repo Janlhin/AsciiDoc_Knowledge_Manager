@@ -13,7 +13,7 @@
 | `npm run verify` | 全量校验（类型 + 构建） | 退出码 0 |
 | `npm run typecheck` | `tsc --noEmit` | 退出码 0，零错误 |
 | `npm run build` | 前端产物构建 | 退出码 0 |
-| `npm run tauri build --no-bundle` | 桌面可执行文件 | 产出 `src-tauri/target/release/geode.exe` |
+| `npm run tauri build --no-bundle` | 桌面可执行文件 | 产出 `src-tauri/target/release/adkm.exe` |
 | `cargo build --release` | 仅 Rust 侧（在 `src-tauri/`） | 退出码 0 |
 
 `verify` 当前只含类型检查与构建。Lint、样式检查、测试三道通道尚未接入，见 `TASKS.md` T-003 至 T-006。

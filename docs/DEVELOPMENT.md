@@ -1,4 +1,4 @@
-# Geode 开发引导
+# ADKM 开发引导
 
 > 给未来的开发轮次（人类或 AI agent）的最短上手路径。核心使命见 [ROADMAP.md](ROADMAP.md)。
 
@@ -12,7 +12,7 @@ npm run typecheck    # TS strict，必须 0 错误
 npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 ```
 
-桌面端调试技巧：`geode.exe <文件夹>` 直接打开该文件夹为 vault（跳过选择对话框）。
+桌面端调试技巧：`adkm.exe <文件夹>` 直接打开该文件夹为 vault（跳过选择对话框）。
 
 ## 阅读顺序
 
@@ -41,7 +41,7 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
   不污染正常 workspace）；`window.__geodePerf` 暴露各环节耗时，口径见 docs/PERFORMANCE.md
 - 核心 API 断言：浏览器里 `window.geode.registerPlugin({id,name,onload(app){window.__app=app}})`
   拿 AppHandle，直接驱动 workspace/vault 验证 core 行为（R3 回归即此法）
-- 桌面：`geode.exe demo-vault` + 截图；外部改 `demo-vault/*.md` 验证 watcher；
+- 桌面：`adkm.exe demo-vault` + 截图；外部改 `demo-vault/*.md` 验证 watcher；
   `demo-vault/.geode/plugins/hello-status.js` 验证外部插件
 - i18n（R8）：UI 字符串一律 `t()/useI18n()`（core/i18n.ts，键放对应命名空间的
   core/i18n/dict.*.ts 片段）；验证用设置页 `settings-language` 下拉 + localStorage
@@ -54,7 +54,7 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 - demo vault 是回归夹具，测试痕迹要清理后再提交
 
 ## macOS 环境口径（R20 起，开发机迁移；R23 起再迁新机
-`/Users/cutealexander/Code/active/geode/geode`）
+`<工作目录>`）
 
 - 浏览器 E2E：Playwright 装在 **`.calibration/`**（gitignore，独立 package.json
   ——**别在仓库根 npm i**，会污染主 package.json；R23 实测变体：`.calibration`
@@ -71,9 +71,9 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 - **cargo 不在非交互 shell 的默认 PATH**：跑 `cargo check`/`npm run tauri build`
   前缀 `PATH="$HOME/.cargo/bin:$PATH"`——漏掉时 tauri build 报 "failed to run
   cargo metadata" 但管道下游可能呈现 exit 0 假象（R21 踩坑）。
-- 桌面验证：`npm run tauri build` 产出裸二进制 `src-tauri/target/release/geode`
+- 桌面验证：`npm run tauri build` 产出裸二进制 `src-tauri/target/release/adkm`
   （bundle targets 是 Windows NSIS 配置，macOS 下无 .app/.dmg——验证用裸二进制
-  `./geode <vault绝对路径>` 直开即可）。**WKWebView 无 CDP**——桌面 E2E 改用
+  `./adkm <vault绝对路径>` 直开即可）。**WKWebView 无 CDP**——桌面 E2E 改用
   probe 插件方案：`<vault>/.geode/plugins/*.js` 探针拿 `window.geode.app` 做
   断言、结果写回 vault 文件，外部读文件判定（r20-probe.js / r20-suite-probe.js
   先例，在 .calibration/theme-vault 与 compat-vault）。`screencapture` 需要

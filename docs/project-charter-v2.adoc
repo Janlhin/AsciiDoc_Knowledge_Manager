@@ -24,7 +24,7 @@
 
 核心定位：以 Markdown 与 AsciiDoc 双一等公民为格式基础、以统一引用图为产品核心的本地优先知识库。
 
-本版相对 v1.x 的实质变更：交付形态由 VS Code 扩展改为桌面应用；实现策略由"从零构建"改为"以 Geode 为底座增量扩展"；产品价值由"关系图谱可视化"调整为"跨格式引用完整性校验"。
+本版相对 v1.x 的实质变更：交付形态由 VS Code 扩展改为桌面应用；实现策略由"从零构建"改为"以 ADKM 为底座增量扩展"；产品价值由"关系图谱可视化"调整为"跨格式引用完整性校验"。
 --
 
 == 0. 本版说明
@@ -41,11 +41,11 @@
 
 |实现策略
 |从零构建核心引擎
-|以 Geode 为底座（fork），增量扩展 AsciiDoc 支持
+|以 ADKM 为底座（fork），增量扩展 AsciiDoc 支持
 
 |技术栈
 |TypeScript 核心 + 未来迁移 Tauri
-|Tauri 2 + React 18 + TypeScript + CodeMirror 6 + Vite（跟随 Geode）
+|Tauri 2 + React 18 + TypeScript + CodeMirror 6 + Vite（跟随 ADKM）
 
 |格式定位
 |AsciiDoc 为核心格式，MD/TXT 附带支持
@@ -65,8 +65,8 @@
 以下决策已依据实测或既有项目事实固定，不再作为开放选项：
 
 . **交付形态为桌面应用。** 放弃 VS Code 扩展形态，理由见 ADR-0003。
-. **技术栈跟随 Geode。** Tauri 2 + React 18 + TypeScript + CodeMirror 6 + Vite + Zustand。
-. **以 Geode 为底座。** 保留其 UI 骨架与索引抽象，增量新增 AsciiDoc 解析器，不替换 Markdown 引擎。
+. **技术栈跟随 ADKM。** Tauri 2 + React 18 + TypeScript + CodeMirror 6 + Vite + Zustand。
+. **以 ADKM 为底座。** 保留其 UI 骨架与索引抽象，增量新增 AsciiDoc 解析器，不替换 Markdown 引擎。
 . **AsciiDoc 解析采用 Asciidoctor.js 4.x。** 能力边界与分层策略见 ADR-0001。
 . **解析上下文模型按 ADR-0002 执行。** include 归属、属性优先级、条件块求值均已固定。
 . **首期不做 AsciiDoc 实时预览（L4）。** 理由见 4.2。
@@ -90,7 +90,7 @@
 |双链、反链、图谱、插件生态
 |闭源；不识别 AsciiDoc；不支持属性化交叉引用
 
-|Geode
+|ADKM
 |Markdown
 |开源（Apache-2.0）；Tauri 桌面；Obsidian 插件兼容层
 |不识别 AsciiDoc
@@ -484,7 +484,7 @@ interface LinkRef {
 
 === 6.1 底座策略
 
-采用 fork Geode 的方式建立基础，而非从零构建。选择理由与被放弃的方案见 ADR-0003。
+采用 fork ADKM 的方式建立基础，而非从零构建。选择理由与被放弃的方案见 ADR-0003。
 
 保留：
 
@@ -771,7 +771,7 @@ ADKM/
 
 |底座验证
 |0.2.0
-|fork Geode；AsciiDoc L1 预览跑通；技术栈锁定
+|fork ADKM；AsciiDoc L1 预览跑通；技术栈锁定
 |能打开 adoc 并正确渲染
 
 |索引统一
@@ -843,7 +843,7 @@ ADKM/
 
 === 12.2 上游义务
 
-fork Geode 产生的义务：
+fork ADKM 产生的义务：
 
 * 保留原 Apache-2.0 许可证文本。
 * 在 `NOTICE` 中声明源自 Geode 及其版权信息。
@@ -861,7 +861,7 @@ Asciidoctor.js、CodeMirror、d3-force 等关键依赖须记录许可证、维�
 |风险 |影响 |应对
 
 |上游合并成本
-|Geode 为 active alpha，迭代快；改动其核心文件会持续产生冲突
+|ADKM 为 active alpha，迭代快；改动其核心文件会持续产生冲突
 |把改动集中在上游较少触及的文件；每次合并后记录冲突清单；必要时冻结上游
 
 |AsciiDoc 行内解析误判
@@ -932,7 +932,7 @@ ADR 存放于 `docs/technical-decisions/`，命名格式 `ADR-NNNN-<主题>.adoc
 
 * ADR-0001：Asciidoctor.js 4.x 能力边界与解析分层策略。
 * ADR-0002：解析上下文模型。
-* ADR-0003：以 Geode 为底座的决策与边界。
+* ADR-0003：以 ADKM 为底座的决策与边界。
 
 === 15.4 AI Agent 约束
 
@@ -951,7 +951,7 @@ ADR 存放于 `docs/technical-decisions/`，命名格式 `ADR-NNNN-<主题>.adoc
 
 [IMPORTANT]
 --
-以 Tauri 桌面应用为唯一交付形态，以 Geode 为底座增量扩展 AsciiDoc 支持，以跨格式引用校验为产品首要价值。
+以 Tauri 桌面应用为唯一交付形态，以 ADKM 为底座增量扩展 AsciiDoc 支持，以跨格式引用校验为产品首要价值。
 
 AsciiDoc 支持交付 L1–L3，不包含实时内联预览。
 
@@ -978,5 +978,5 @@ AsciiDoc 支持交付 L1–L3，不包含实时内联预览。
 
 [NOTE]
 ====
-本文档中的技术结论依据 2026-11-12 的实测：Asciidoctor.js 4.2.1 的块级 AST 与源码行号可用、行内节点不可遍历；Geode 的 compat 层与第一方模块基本隔离；底座规模与分层按实际代码统计。尚未实测的部分已在风险与未决事项中标注。
+本文档中的技术结论依据 2026-11-12 的实测：Asciidoctor.js 4.2.1 的块级 AST 与源码行号可用、行内节点不可遍历；ADKM 的 compat 层与第一方模块基本隔离；底座规模与分层按实际代码统计。尚未实测的部分已在风险与未决事项中标注。
 ====

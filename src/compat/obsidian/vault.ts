@@ -34,7 +34,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
  */
 export class FileSystemAdapter {
   getBasePath(): string {
-    throw new Error("FileSystemAdapter is not available in Geode (sandboxed vault adapter)");
+    throw new Error("FileSystemAdapter is not available in ADKM (sandboxed vault adapter)");
   }
   getFullPath(normalizedPath: string): string {
     return normalizedPath;
@@ -167,7 +167,7 @@ export class CompatDataAdapter {
   /* gaps — keep the surface honest instead of silently lying */
   async appendBinary(_p: string, _d: ArrayBuffer): Promise<void> {
     reportGap("DataAdapter", "appendBinary");
-    throw new Error("DataAdapter.appendBinary is not available in Geode");
+    throw new Error("DataAdapter.appendBinary is not available in ADKM");
   }
   async stat(_p: string): Promise<null> {
     reportGap("DataAdapter", "stat", "returns null");
@@ -354,7 +354,7 @@ export class Vault extends Events {
         this._registry.ensureFile(newPath, true)) as unknown as T;
     }
     reportGap("Vault", "copy(TFolder)", "only file copies are supported");
-    throw new Error("Vault.copy of folders is not available in Geode");
+    throw new Error("Vault.copy of folders is not available in ADKM");
   }
 
   getResourcePath(file: TFile): string {

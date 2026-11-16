@@ -1,4 +1,4 @@
-# ADKM 分发与自动更新（R9 起；构建产物名仍为 geode）
+# ADKM 分发与自动更新（R9 起；构建产物名已改为 adkm）
 
 > 商业分发的两条签名是不同的东西，别混：
 > 1. **更新签名（minisign）**——tauri-plugin-updater 校验更新包用，本地生成密钥，**已落地**。
@@ -23,14 +23,14 @@
 
    ```powershell
    # 变量要的是私钥【内容】（或改用 TAURI_SIGNING_PRIVATE_KEY_PATH 传绝对路径）
-   $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keys\geode.key -Raw)
+   $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keysdkm.key -Raw)
    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<密钥密码>"
    npm run tauri build
    ```
 
 3. 产物在 `src-tauri/target/release/bundle/nsis/`：
-   - `Geode_<version>_x64-setup.exe` —— 安装包（同时就是更新包）
-   - `Geode_<version>_x64-setup.exe.sig` —— minisign 签名（`createUpdaterArtifacts: true` 生成）
+   - `ADKM_<version>_x64-setup.exe` —— 安装包（同时就是更新包）
+   - `ADKM_<version>_x64-setup.exe.sig` —— minisign 签名（`createUpdaterArtifacts: true` 生成）
 4. 编写/更新 `latest.json`（官方静态 manifest 格式）：
 
    ```json
@@ -41,14 +41,14 @@
      "platforms": {
        "windows-x86_64": {
          "signature": "<.sig 文件的完整内容>",
-         "url": "https://github.com/geode-app/geode/releases/download/v0.9.0/Geode_0.9.0_x64-setup.exe"
+         "url": "https://github.com/Janlhin/AsciiDoc_Knowledge_Manager/releases/download/v0.9.0/ADKM_0.9.0_x64-setup.exe"
        }
      }
    }
    ```
 
 5. 把 setup.exe + latest.json 上传到发布渠道。当前 `tauri.conf.json` 的 endpoint 指向
-   `https://github.com/geode-app/geode/releases/latest/download/latest.json`（**占位**——
+   `https://github.com/Janlhin/AsciiDoc_Knowledge_Manager/releases/latest/download/latest.json`（**占位**——
    正式渠道定下来后改这一行并重新构建）。
 
 ## 客户端更新链路（已实现）
@@ -68,7 +68,7 @@
 {
   "bundle": {
     "windows": {
-      "signCommand": "trusted-signing-cli -e https://wus2.codesigning.azure.net -a <Account> -c <Profile> -d Geode %1"
+      "signCommand": "trusted-signing-cli -e https://wus2.codesigning.azure.net -a <Account> -c <Profile> -d ADKM %1"
     }
   }
 }

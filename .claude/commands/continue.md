@@ -1,12 +1,12 @@
 ---
-description: 自主开发一整轮 Geode（定位→契约→并行实现→集成验证→对抗评审→双端实测→提交收尾）。用户只需敲此命令或说「继续开发」。
+description: 自主开发一整轮 ADKM（定位→契约→并行实现→集成验证→对抗评审→双端实测→提交收尾）。用户只需敲此命令或说「继续开发」。
 argument-hint: [可选：指定项 / "连做N项" / "做到候选池清空"]
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebFetch
 ---
 
-# /continue — Geode 自主开发轮
+# /continue — ADKM 自主开发轮
 
-自主完成**一整轮** Geode 开发，全程**不向用户索取决策**（仅 CLAUDE.md §自主开发契约的 5 条硬边界例外）。
+自主完成**一整轮** ADKM 开发，全程**不向用户索取决策**（仅 CLAUDE.md §自主开发契约的 5 条硬边界例外）。
 `$ARGUMENTS` 若指定了具体项或「连做 N 项 / 做到候选池清空」则照它；否则取候选池下一项。
 
 ## Step 0 · 定位
@@ -57,7 +57,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, WebFetch
 - 本轮改了 editor/vault/markdown → 已被 Step 3.4 强制为逻辑档 → **data-safety skill** 自动触发，跑数据安全竞态清单 + 历轮根因 checklist。
 
 ## Step 5 · 双端实测
-- 浏览器 E2E 全绿；桌面裸二进制 `./src-tauri/target/release/geode <vault>` + probe 插件自检（遵守 App Nap 时序纪律，见 data-safety skill §D）。
+- 浏览器 E2E 全绿；桌面裸二进制 `./src-tauri/target/release/adkm <vault>` + probe 插件自检（遵守 App Nap 时序纪律，见 data-safety skill §D）。
 - OBSIDIAN-COMPAT 套件矩阵**不回退**。
 
 ## Step 6 · 收尾（写文档 = 循环闭合，不可省）

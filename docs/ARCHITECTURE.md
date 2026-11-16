@@ -1,6 +1,6 @@
-# Geode Architecture Contract
+# ADKM Architecture Contract
 
-Geode is an Obsidian-style local-first markdown knowledge base.
+ADKM is an Obsidian-style local-first markdown knowledge base.
 Stack: **Tauri 2 (Rust shell) + React 18 + TypeScript (strict) + Vite + CodeMirror 6**.
 
 ## Layering — who may import what
@@ -12,7 +12,7 @@ src/app/       shell: App.tsx layout, AppContext, icons. Imports core + feature 
                + compat (bootstrap wiring only).
 src/features/  one folder per feature. Imports core + app/AppContext + app/icons ONLY.
                NEVER import from another feature folder. NEVER import compat.
-src/plugins/   built-in plugins (GeodePlugin[]). Imports core only.
+src/plugins/   built-in plugins (ADKMPlugin[]). Imports core only.
 src/compat/    Obsidian plugin compatibility layer (R4+). Imports core ONLY.
                Self-contained: own CSS, own DOM helpers. Never imported by features.
 ```
@@ -28,7 +28,7 @@ Path aliases: `@core/*`, `@features/*`, `@app/*`, `@compat/*` (see tsconfig).
 - `core/metadata.ts` — `MetadataIndex`: `revision` store (subscribe via `useStore` to re-render on index change), `getMetadata(path)`, `resolveLink(target, fromPath)`, `getBacklinks(path)`, `getOutgoingLinks(path)`, `getTagMap()`, `getGraph()`, plus `parseNote()` pure parser.
 - `core/workspace.ts` — `Workspace`: `state` store (`WorkspaceState`), `openFile(path, {newTab})`, `openGraph()`, `closeTab/setActiveTab/setTabMode/toggleActiveTabMode`, `setLeftPanel/toggle*Sidebar`, `openModal/closeModal`, `setTheme/toggleTheme/setFontSize`, `getActiveTab()/getActiveFile()`.
 - `core/commands.ts` — `CommandRegistry`: `register({id, name, hotkey?, callback})` → disposer, `execute(id)`, `list()`, `revision` store. Hotkeys handled globally by App shell. Hotkey grammar (R32): `Mod` = Cmd on macOS / Ctrl elsewhere (distinct from physical `Ctrl`/`Meta`); exports `isMacPlatform`, `parseHotkey`/`matchHotkey`/`normalizeHotkey`/`hotkeyFromEvent`, `formatHotkey(hotkey, isMac?)` (display: ⌘P on mac, Ctrl+P elsewhere), `matchParsedHotkey(p, e, isMac)` + `KeyEventLike`.
-- `core/plugins.ts` — `GeodePlugin { id, name, onload(app: AppHandle), onunload? }`, `PluginManager` (`list()`, `enable/disable`, `statusBarItems` store). `AppHandle.ui.setStatusBarItem(id, text)`.
+- `core/plugins.ts` — `ADKMPlugin { id, name, onload(app: AppHandle), onunload? }`, `PluginManager` (`list()`, `enable/disable`, `statusBarItems` store). `AppHandle.ui.setStatusBarItem(id, text)`.
 
 ## Using app context in feature components
 
@@ -67,13 +67,13 @@ To navigate: `app.workspace.openFile(path)`. To create-from-unresolved-link:
 | `features/palette/CommandPalette.tsx` | `CommandPalette` | none, renders own `.modal-overlay`; close via `app.workspace.closeModal()` |
 | `features/palette/QuickSwitcher.tsx` | `QuickSwitcher` | none, same modal rules |
 | `features/settings/SettingsModal.tsx` | `SettingsModal` | none, same modal rules |
-| `plugins/index.ts` | `BUILTIN_PLUGINS: GeodePlugin[]` | — |
+| `plugins/index.ts` | `BUILTIN_PLUGINS: ADKMPlugin[]` | — |
 
 Escape key closing is handled globally by the shell; modals must ALSO close on overlay click.
 
 ## Round 276 additions — 图谱 Obsidian-style 圆形力导向布局·逻辑档·非数据安全·零新依赖【As-built·v0.269】
 
-> **状态：As-built（已交付·v0.269）。本轮按用户 2026-07-03 指令单开 loop：参考 Obsidian 全局关系图截图，解决 Geode 当前 force layout 容易摊成长条/偏团块、整体不像 Obsidian 那样形成近似圆形知识星云的问题。** R276 与 R275 URI toggle 分离；不要复用 R275 编号或改动 R275 的源码范围。
+> **状态：As-built（已交付·v0.269）。本轮按用户 2026-07-03 指令单开 loop：参考 Obsidian 全局关系图截图，解决 ADKM 当前 force layout 容易摊成长条/偏团块、整体不像 Obsidian 那样形成近似圆形知识星云的问题。** R276 与 R275 URI toggle 分离；不要复用 R275 编号或改动 R275 的源码范围。
 
 **目标观感**：全局图谱默认应形成近似圆形的整体包络：高连接度节点/星型中心更靠内，低度节点和叶子节点自然散在外圈；孤立或小组件仍围绕整体分布，而不是把画布拉成横向/纵向长带。保留现有 Obsidian-like hover 高亮、拖拽、缩放、Fit、3k sampling、标签/附件/过滤/分组着色行为。
 
@@ -115,10 +115,10 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 275 additions — Files & Links「启用 URI 链接」toggle·逻辑档·非数据安全·零新依赖【As-built·v0.268】
 
-> **状态：As-built（已交付·v0.268）。R275 fresh scout 后从 reference `02-文件与链接.md` advanced 组取最小 bounded 项。** 表面复刻 tail 剩余候选中，「默认打开文件」dropdown 涉及启动/空 tab 语义且 Obsidian 选项不完全明确（本机 asar 版本无此 key），而「启用 URI 链接」是 reference 中明确的 toggle（开关·默认关·允许 `obsidian://` URI），行为可闭环：Geode 自 R46 已在 EditorPane 阅读视图拦截 `obsidian://` 链接并 in-app 执行，但缺少设置开关。
+> **状态：As-built（已交付·v0.268）。R275 fresh scout 后从 reference `02-文件与链接.md` advanced 组取最小 bounded 项。** 表面复刻 tail 剩余候选中，「默认打开文件」dropdown 涉及启动/空 tab 语义且 Obsidian 选项不完全明确（本机 asar 版本无此 key），而「启用 URI 链接」是 reference 中明确的 toggle（开关·默认关·允许 `obsidian://` URI），行为可闭环：ADKM 自 R46 已在 EditorPane 阅读视图拦截 `obsidian://` 链接并 in-app 执行，但缺少设置开关。
 >
 > **契约**：
-> 1. `core/obsidianUri.ts` 新增 `uriLinksEnabled: Store<boolean>`（持久化 key `geode.uriLinksEnabled`）。**默认值取 `true` 以保留 Geode 既有行为**（Obsidian 官方默认 OFF，此为显式 deviation；收尾报告须记一句）。
+> 1. `core/obsidianUri.ts` 新增 `uriLinksEnabled: Store<boolean>`（持久化 key `geode.uriLinksEnabled`）。**默认值取 `true` 以保留 ADKM 既有行为**（Obsidian 官方默认 OFF，此为显式 deviation；收尾报告须记一句）。
 > 2. `src/features/settings/SettingsModal.tsx` 的 `FilesAndLinksSection` advanced 组在「排除文件」与「重建仓库缓存」之间插入该 toggle：控件用 `.settings-toggle`，testid `settings-uri-links-enabled`，i18n 键 `settings.uriLinksEnabled` / `settings.uriLinksEnabledDesc`。
 > 3. `src/features/editor/EditorPane.tsx` 阅读视图 link router（`href` 匹配 `/^obsidian:/i` 处）加 gate：仅当 `uriLinksEnabled.get()` 为 true 时调用 `handleObsidianUri(app, href)` 并阻止默认导航；为 false 时按非 HTTP 链接处理——`preventDefault()` 后 no-op，不触发任何 vault/导航动作。
 > 4. `window.__geodeUri.handle` probe 不 gate（它测 parser + executor 的直接调用，不是用户点击路由）。
@@ -140,7 +140,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 273 additions — 附件默认位置 text input → Obsidian 4-mode dropdown · 逻辑档 · 非数据安全 · 零新依赖【As-built·v0.266】
 
-> **状态：As-built（已交付·v0.266）。表面复刻收尾项。** Obsidian 的 Files & Links「Default location for new attachments / 新附件默认位置」（reference `02-文件与链接-01`）是原生下拉，而 Geode 旧 UI 是一个让用户手写 `assets` / `/` / `./` / `./name` 的 text input。R273 把 UI 改为 Obsidian-style **4-mode dropdown + 条件路径输入**，但底层仍只存一个 `attachmentFolder` 字符串，**不改 Store shape / importer / `resolveAttachmentDir` 冻结语义**。
+> **状态：As-built（已交付·v0.266）。表面复刻收尾项。** Obsidian 的 Files & Links「Default location for new attachments / 新附件默认位置」（reference `02-文件与链接-01`）是原生下拉，而 ADKM 旧 UI 是一个让用户手写 `assets` / `/` / `./` / `./name` 的 text input。R273 把 UI 改为 Obsidian-style **4-mode dropdown + 条件路径输入**，但底层仍只存一个 `attachmentFolder` 字符串，**不改 Store shape / importer / `resolveAttachmentDir` 冻结语义**。
 >
 > **单串语法（保持 R17 消费者不变）**：`root → "/"`（vault root）· `specified → "<path>"`（固定 vault 文件夹）· `current → "./"`（当前笔记所在文件夹）· `subfolder → "./<path>"`（当前笔记文件夹下子文件夹）。`core/attachments.ts` 新增 `AttachmentMode` + `decodeAttachmentMode(setting)` + `encodeAttachmentMode(mode,path)` + `coerceAttachmentMode(value)`，三者均是纯字符串 view transform；`resolveAttachmentDir(notePath, setting)`、`importAttachment`、`setAttachmentFolder(string)` 均未改。既有默认 `DEFAULT_FOLDER="assets"` 继续保留（首开 decode 为 `specified` + path=`assets`，避免存量行为跳到 vault root）。Explorer 右键「Set as attachment folder」仍写裸 folder path（如 `myassets`），reload 后 decode 为 `specified/myassets`。
 >
@@ -152,7 +152,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 272 additions — defaultNewTabMode 3-way segmented → 2 个正交下拉（视图模式 × 编辑模式）·逻辑档·非数据安全·零新依赖【As-built·v0.265】
 
-> **状态：As-built（已交付·v0.265）。表面复刻续第 4 项 — 完成 R271 控件原生化弧**（3 个旧 segmented 现全用 Obsidian 真实控件型：tab-indent=slider·new-note-location=dropdown·new-tab-mode=2 dropdowns）。Obsidian 把 new-tab-mode 拆成两个独立设置（reference `01-编辑器-01`）：「默认视图模式」编辑视图/阅读视图 × 「默认编辑模式」实时预览/源码 —— 不是 Geode 原来的单个 3-way segmented(reading/live/source)。
+> **状态：As-built（已交付·v0.265）。表面复刻续第 4 项 — 完成 R271 控件原生化弧**（3 个旧 segmented 现全用 Obsidian 真实控件型：tab-indent=slider·new-note-location=dropdown·new-tab-mode=2 dropdowns）。Obsidian 把 new-tab-mode 拆成两个独立设置（reference `01-编辑器-01`）：「默认视图模式」编辑视图/阅读视图 × 「默认编辑模式」实时预览/源码 —— 不是 ADKM 原来的单个 3-way segmented(reading/live/source)。
 >
 > **设计要点 = combined 仍是单一真源·消费者零改**：
 > - `defaultNewTabMode`（`NewTabMode = "live"|"source"|"preview"`）保持不变 = `workspace.openFile`（`core/workspace.ts:455` `mode: defaultNewTabMode.get()`）消费的单一真源；`App.tsx:352` 的 `app:toggle-default-new-tab-view` cycle 命令也不改。**两个消费者字节级未动**。
@@ -165,7 +165,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 271 additions — 设置控件原生化（segmented → Obsidian 真实控件型）·机械档·零新依赖【As-built·v0.264】
 
-> **状态：As-built（已交付·v0.264）。表面复刻续第 3 项。** Geode 自造 3-way `.settings-segmented` 与 Obsidian 控件形态不符。**Step 0 verify-first 逐控件（关键纪律——segmented 不统一 →dropdown）**：对照 reference 截图实测 3 个 segmented 的 Obsidian 真实控件型：① **`tabIndentSize`[2,4,8] → SLIDER**（reference `01-编辑器-02` 制表符宽度 = 1–8 滑块·**不是下拉**·盲目 →dropdown 就是 faithfulness miss）；② **`newNoteLocation`(root/current/folder) → DROPDOWN**（reference `02-文件与链接-01` 新建笔记存放位置 = 下拉）；③ **`defaultNewTabMode`(reading/live/source) → 2 个下拉**（Obsidian「新标签页默认视图模式」编辑/阅读 × 「默认编辑模式」实时预览/源码·`01-编辑器-01`）·拆分需 store 拆 + tab-open 接线 = **逻辑档 → 留 R272**。
+> **状态：As-built（已交付·v0.264）。表面复刻续第 3 项。** ADKM 自造 3-way `.settings-segmented` 与 Obsidian 控件形态不符。**Step 0 verify-first 逐控件（关键纪律——segmented 不统一 →dropdown）**：对照 reference 截图实测 3 个 segmented 的 Obsidian 真实控件型：① **`tabIndentSize`[2,4,8] → SLIDER**（reference `01-编辑器-02` 制表符宽度 = 1–8 滑块·**不是下拉**·盲目 →dropdown 就是 faithfulness miss）；② **`newNoteLocation`(root/current/folder) → DROPDOWN**（reference `02-文件与链接-01` 新建笔记存放位置 = 下拉）；③ **`defaultNewTabMode`(reading/live/source) → 2 个下拉**（Obsidian「新标签页默认视图模式」编辑/阅读 × 「默认编辑模式」实时预览/源码·`01-编辑器-01`）·拆分需 store 拆 + tab-open 接线 = **逻辑档 → 留 R272**。
 >
 > **修（纯控件 form swap·`SettingsModal.tsx` 一文件·复用既有控件/setter·零 editor/store 改）**：
 > - **tabIndentSize**：segmented 三按钮 → `.settings-slider`（`<input type=range min=1 max=8 step=1>` + value label·镜像字体大小 slider）。`setTabIndentSize` 本就 `clampTabSize(n)=min(8,max(1,round(n)))`（core/appearance.ts），slider range 与 clamp 完全一致；editor 端 `indentUnitString(size)=" ".repeat(size)`（cmExtensions.ts）本就接受任意整数 → 新可达宽度 1/3/5/6/7 被既有 `indentCompartment` reconfigure 安全吸收（**本轮未碰 editor 文件**）。
@@ -175,7 +175,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 270 additions — 设置页 settings-card 圆角卡 → 扁平行（表面复刻续）·机械档·纯 CSS·零新依赖【As-built·v0.263】
 
-> **状态：As-built（已交付·v0.263）。表面复刻续第 2 项（R269 scout 的次高值偏差）。** **偏差**：Obsidian 设置是**扁平整宽行 + 细分隔线**（reference 00 §四）·无卡片盒；Geode 把 Appearance(4)/CorePlugins(1)/Hotkeys(2) 的行装进圆角 `--bg-input`/`--bg-modal` 卡 + 20px 横向内缩 —— 而 Geode **自己的 Editor/Files 页**早是裸 `.setting-item` 扁平行 → **内部不一致**（同 app 一半卡片一半扁平）。
+> **状态：As-built（已交付·v0.263）。表面复刻续第 2 项（R269 scout 的次高值偏差）。** **偏差**：Obsidian 设置是**扁平整宽行 + 细分隔线**（reference 00 §四）·无卡片盒；ADKM 把 Appearance(4)/CorePlugins(1)/Hotkeys(2) 的行装进圆角 `--bg-input`/`--bg-modal` 卡 + 20px 横向内缩 —— 而 ADKM **自己的 Editor/Files 页**早是裸 `.setting-item` 扁平行 → **内部不一致**（同 app 一半卡片一半扁平）。
 >
 > **修（纯 CSS·`src/features/settings/settings.css` 一文件 5 处规则·零 JSX/逻辑）**：
 > - `.settings-card`（4 个纯 Appearance 卡）：删 `background: var(--bg-input)` + `border-radius: 12px` + `padding: 0 20px`·`margin-bottom: 18px→0` → 透明零内缩 passthrough（class 仍留在 6 个 JSX wrapper 上·只去视觉盒）。
@@ -191,9 +191,9 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 269 additions — 编辑器右键菜单补图标（表面复刻最后一公里首项）·机械档·零新依赖【As-built·v0.262】
 
-> **状态：As-built（已交付·v0.262）。用户拍板转向「Surface-replica last-mile」后首轮。** Step 0 = 截图 diff scout（Geode 实际 UI 截图 vs `reference/_截图` PNG ground truth）→ explorer value-ranked 出两高值偏差：① 右键菜单空图标槽（高频操作面）② settings-card 圆角卡 vs 扁平行。取 ①——对齐用户「高频操作」优先 + compat 自包含 + **目标确定**（空槽→填图标）胜过推断目标（设置扁平化触面广 + 哪个 inset 的判断）。
+> **状态：As-built（已交付·v0.262）。用户拍板转向「Surface-replica last-mile」后首轮。** Step 0 = 截图 diff scout（ADKM 实际 UI 截图 vs `reference/_截图` PNG ground truth）→ explorer value-ranked 出两高值偏差：① 右键菜单空图标槽（高频操作面）② settings-card 圆角卡 vs 扁平行。取 ①——对齐用户「高频操作」优先 + compat 自包含 + **目标确定**（空槽→填图标）胜过推断目标（设置扁平化触面广 + 哪个 inset 的判断）。
 >
-> **真偏差**：Obsidian 编辑器右键菜单每项左侧带 lucide 图标；Geode 的 compat `Menu`（`ui.ts` MenuItem）每项**总有 16px `.menu-item-icon` 列**（`compat.css:155` `width:16px`），仅当显式 `menu.setNoIcon()`（`ui.ts:722`，给 `.geode-compat-menu` 加 `.no-icon`→`display:none`）才折叠。`editorMenu.ts` 从不调 `setNoIcon` 也从不调 `setIcon` → **每项是 16px 空图标槽（空白缩进）= 看着半成品**。
+> **真偏差**：Obsidian 编辑器右键菜单每项左侧带 lucide 图标；ADKM 的 compat `Menu`（`ui.ts` MenuItem）每项**总有 16px `.menu-item-icon` 列**（`compat.css:155` `width:16px`），仅当显式 `menu.setNoIcon()`（`ui.ts:722`，给 `.geode-compat-menu` 加 `.no-icon`→`display:none`）才折叠。`editorMenu.ts` 从不调 `setNoIcon` 也从不调 `setIcon` → **每项是 16px 空图标槽（空白缩进）= 看着半成品**。
 >
 > **修（纯展示·compat 自包含·零 features 改）**：
 > - **`icons.ts` BUILTIN +8 图标**：`scissors`/`copy`/`clipboard`/`bookmark`/`file-output`/`link`/`folder`/`external-link`——**本地手绘 24×24 stroke**（与既有 dice/pencil/trash 同 lucide-ish 风格·**非拷库**·icons.ts 注释明示「drawn here, NOT copied」）。`getIconSvg` 对未知名返 null → `setIcon` 落 `.geode-icon-missing` 空占位（永不崩）；新增名都真解析。
@@ -204,9 +204,9 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 268 additions — 第四个真插件 Tasks 8.2.2（查询引擎）+ `app.metadataTypeManager` shim + init-before-plugins 序修·逻辑档·零新依赖【As-built·v0.261】
 
-> **状态：As-built（已交付·v0.261）。商业主轴 breadth 第四大件。** `r266-probe` 深探确认 Dataview/Templater/Calendar 深用已稳 → 取第四个真插件。**Tasks 8.2.2**（obsidian-tasks-group·GPL·882KB·仅 `require("obsidian")` + `require("@codemirror/view")`·零外部 require[rrule/date 全 bundle]·零新依赖·minAppVersion 1.8.7 > Geode 1.8.0 = 仅警告非 block·gitignored 不 commit）= **status=enabled + ```tasks「not done」查询渲染 `.plugin-tasks-query-result`（4 项·经 R132 code-block processor）+ 7+ 命令**（toggle-done/edit-task/set-status-symbol…）。**新表面 = 任务查询引擎 + 状态命令**。
+> **状态：As-built（已交付·v0.261）。商业主轴 breadth 第四大件。** `r266-probe` 深探确认 Dataview/Templater/Calendar 深用已稳 → 取第四个真插件。**Tasks 8.2.2**（obsidian-tasks-group·GPL·882KB·仅 `require("obsidian")` + `require("@codemirror/view")`·零外部 require[rrule/date 全 bundle]·零新依赖·minAppVersion 1.8.7 > ADKM 1.8.0 = 仅警告非 block·gitignored 不 commit）= **status=enabled + ```tasks「not done」查询渲染 `.plugin-tasks-query-result`（4 项·经 R132 code-block processor）+ 7+ 命令**（toggle-done/edit-task/set-status-symbol…）。**新表面 = 任务查询引擎 + 状态命令**。
 >
-> **真 gap + 修**：Tasks 的 `setObsidianPropertiesTypes()` 读 `this.app.metadataTypeManager.getAllProperties()` 然后对其 KNOWN 属性 `setType(name, type)`。Geode app shim **缺 `metadataTypeManager`** → `undefined.getAllProperties()` 抛（Tasks try/catch 捕 = 非致命·但 console.error 日志）。**修两处**：① `core/properties.ts`：`PropertyTypeRegistry.getAll(): Map<string,string>`（返 `new Map(regMap)` 副本）。② `compat/obsidian/plugin.ts`：App 加 `get metadataTypeManager`（reportGap-记档·partial）→ `metadataTypeManagerStub`：`getAllProperties()` 投影 R22 property-type 注册表为 `{[name]:{name,type,count:0}}`（小写键·Obsidian-faithful）·`setType(name,type)` → `void propertyTypes.assign(name, type as PropertyType)`（vetted R22 序列化 RMW 写 .obsidian/types.json·未知类型 verbatim 透传）。
+> **真 gap + 修**：Tasks 的 `setObsidianPropertiesTypes()` 读 `this.app.metadataTypeManager.getAllProperties()` 然后对其 KNOWN 属性 `setType(name, type)`。ADKM app shim **缺 `metadataTypeManager`** → `undefined.getAllProperties()` 抛（Tasks try/catch 捕 = 非致命·但 console.error 日志）。**修两处**：① `core/properties.ts`：`PropertyTypeRegistry.getAll(): Map<string,string>`（返 `new Map(regMap)` 副本）。② `compat/obsidian/plugin.ts`：App 加 `get metadataTypeManager`（reportGap-记档·partial）→ `metadataTypeManagerStub`：`getAllProperties()` 投影 R22 property-type 注册表为 `{[name]:{name,type,count:0}}`（小写键·Obsidian-faithful）·`setType(name,type)` → `void propertyTypes.assign(name, type as PropertyType)`（vetted R22 序列化 RMW 写 .obsidian/types.json·未知类型 verbatim 透传）。
 >
 > **⚠️ 评审纠误（「never overclaim」铁律·minor finding 已修）**：Tasks 实际经 setType 注册的是它**自己的 22 个 `TQ_*` 查询-layout widget 属性**（21 个 `type:"checkbox"` 开关 + 1 个 `type:"text"`·bundle 实证 0 个 date）——**非** date 属性（due/scheduled 等）。故价值是**消那个被捕的 getAllProperties 错误 + 注册其 widget 属性类型**，不是「属性 UI 显日期选择器」。
 >
@@ -218,9 +218,9 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 267 additions — 静态 `.app-container` wrapper 包裹 #root → 彻底消 R266 onload-portal 瞬态·机械档·零新依赖【As-built·v0.260】
 
-> **状态：As-built（已交付·v0.260）。** R266 留 1 个 onload 瞬态：Geode 在 `main.tsx:1540` 先 `loadObsidianPlugins`、再 `createRoot().render()`（1580）——plugins 载于 React commit `.app-container` 之前，Calendar 的 **eager onload Svelte `<Portal target=".app-container">`** 抢挂一次失败。
+> **状态：As-built（已交付·v0.260）。** R266 留 1 个 onload 瞬态：ADKM 在 `main.tsx:1540` 先 `loadObsidianPlugins`、再 `createRoot().render()`（1580）——plugins 载于 React commit `.app-container` 之前，Calendar 的 **eager onload Svelte `<Portal target=".app-container">`** 抢挂一次失败。
 >
-> **Step 0 取向纠误（弃两条·选第三）**：① **A plugin load 序修（render-then-load）实有真风险** → plugins 故意载于 render 前，是为了 App.tsx 工作区恢复 effect 跑时插件视图类型已注册；重排会让保存布局里的插件贡献视图（如 calendar leaf）先于插件 register 而恢复失败 → 弃。② **B Calendar daily-note 深用** → 实测点击日期不建笔记但**无错**（daily-notes 配置完好：folder「Daily Notes」/format「YYYY-MM-DD」/template/autorun），疑测试事件模拟问题或 Calendar 2.0 Beta 行为，**非明确 Geode gap → 防 phantom（R160）弃**。③ 取**彻底修 R266 瞬态**（concrete·消真 error + 惠及所有 onload-portal 插件）。
+> **Step 0 取向纠误（弃两条·选第三）**：① **A plugin load 序修（render-then-load）实有真风险** → plugins 故意载于 render 前，是为了 App.tsx 工作区恢复 effect 跑时插件视图类型已注册；重排会让保存布局里的插件贡献视图（如 calendar leaf）先于插件 register 而恢复失败 → 弃。② **B Calendar daily-note 深用** → 实测点击日期不建笔记但**无错**（daily-notes 配置完好：folder「Daily Notes」/format「YYYY-MM-DD」/template/autorun），疑测试事件模拟问题或 Calendar 2.0 Beta 行为，**非明确 ADKM gap → 防 phantom（R160）弃**。③ 取**彻底修 R266 瞬态**（concrete·消真 error + 惠及所有 onload-portal 插件）。
 >
 > **修（机械档·DOM 结构 + CSS）**：
 > - **`index.html`**：`<div id="root">` → `<div class="app-container"><div id="root"></div></div>`。`.app-container`（Obsidian 最外层根类）是**静态元素·页面加载即在 DOM·早于 plugins 载入** → Calendar 的 eager onload portal `querySelector(".app-container")` 找得到。**wrapper 在 #root 外** → 挂进它的 portal/popover 是 #root 的 SIBLING，永不撞 React 树（`createRoot` 只管 #root）。
@@ -237,11 +237,11 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 >
 > **Calendar 2.0**（liamcain·GPL·489KB·`isDesktopOnly:false`·minAppVersion 0.9.11·零外部 require[Svelte bundled]·gitignored 不 commit）= **status=enabled + 月历 `<table class="calendar">` Svelte 视图经 `registerView("calendar")` + setViewState 渲染 + 3 命令**（show-calendar-view / reveal-active-note / toggle-week-numbers）。**新表面 = 自定义 VIEW + Svelte 渲染**（vs Dataview 查询 / Templater 模板 / Sort&Permute 命令 / read-time 状态栏）。
 >
-> **真 gap + 修**：Calendar 的 `PopoverMenu.svelte` 用 Svelte `<Portal target=".app-container">`（日期 hover 弹层挂进 Obsidian 标准根容器类）。Geode 根是 `<div className="app">`（App.tsx），缺 `.app-container` → Svelte Portal `querySelector` 抛「No element found」。**修 = App.tsx 两处根 div className `"app"` → `"app app-container"`**（Obsidian 标准根类·R20「镜像 Obsidian DOM 类供主题 CSS targeting」先例的延伸·**additive**：`.app` + `data-testid="app-root"` 全保留·惠及任何用 `.app-container` 的 portal/popover/主题的插件）。
+> **真 gap + 修**：Calendar 的 `PopoverMenu.svelte` 用 Svelte `<Portal target=".app-container">`（日期 hover 弹层挂进 Obsidian 标准根容器类）。ADKM 根是 `<div className="app">`（App.tsx），缺 `.app-container` → Svelte Portal `querySelector` 抛「No element found」。**修 = App.tsx 两处根 div className `"app"` → `"app app-container"`**（Obsidian 标准根类·R20「镜像 Obsidian DOM 类供主题 CSS targeting」先例的延伸·**additive**：`.app` + `data-testid="app-root"` 全保留·惠及任何用 `.app-container` 的 portal/popover/主题的插件）。
 >
-> **记档·1 onload 瞬态（载序·非本轮引入·搁置）**：Geode 在 `main.tsx:1540` 先 `loadObsidianPlugins`，再 `createRoot().render()`（1580）——**plugins 载于 React commit `.app-container` 之前**。Calendar 的 **eager onload 弹层 portal** 抢在 `.app-container` 入 DOM 前挂一次 → 1 个 `.app-container` not-found（load-only 复现·`.app-container` 1s 后在 DOM）。**非致命**（视图 + 命令工作·视图自身 post-render portal 找得到 `.app-container`）。**重排 boot（render-then-load）有真风险**（工作区恢复插件贡献的视图会先于插件载入 → 失败）→ 不在机械档 scope·R267 候选 A 谨慎评估。
+> **记档·1 onload 瞬态（载序·非本轮引入·搁置）**：ADKM 在 `main.tsx:1540` 先 `loadObsidianPlugins`，再 `createRoot().render()`（1580）——**plugins 载于 React commit `.app-container` 之前**。Calendar 的 **eager onload 弹层 portal** 抢在 `.app-container` 入 DOM 前挂一次 → 1 个 `.app-container` not-found（load-only 复现·`.app-container` 1s 后在 DOM）。**非致命**（视图 + 命令工作·视图自身 post-render portal 找得到 `.app-container`）。**重排 boot（render-then-load）有真风险**（工作区恢复插件贡献的视图会先于插件载入 → 失败）→ 不在机械档 scope·R267 候选 A 谨慎评估。
 >
-> **分档·评审**：机械档（纯 additive DOM 类 + 第三方插件 load 验证·无新逻辑/控制流/数据安全面）→ 跳简化门 + **scoped review**（testid 保留 / `.app` 保留 / additive 类不破 CSS[Geode 自身 CSS target `.app`·`.app-container` 仅供主题]/ 插件仍载）·**无对抗 Workflow**。r266-e2e **7/7**（Calendar enabled · `.app-container` 在 DOM · 3 命令 · setViewState 开 calendar 视图 · 月历 `<table.calendar>` 渲染 + 周行 · **除记档 onload 瞬态外 0 其它 error**）·回归 r23 22/r245 7/r100 15/r24/r261/r263/r33 全绿·typecheck 0·build。**🏁 真插件迁移三大件 = Dataview（深用+类型化）+ Templater（载入+模板）+ Calendar（VIEW+Svelte）。**
+> **分档·评审**：机械档（纯 additive DOM 类 + 第三方插件 load 验证·无新逻辑/控制流/数据安全面）→ 跳简化门 + **scoped review**（testid 保留 / `.app` 保留 / additive 类不破 CSS[ADKM 自身 CSS target `.app`·`.app-container` 仅供主题]/ 插件仍载）·**无对抗 Workflow**。r266-e2e **7/7**（Calendar enabled · `.app-container` 在 DOM · 3 命令 · setViewState 开 calendar 视图 · 月历 `<table.calendar>` 渲染 + 周行 · **除记档 onload 瞬态外 0 其它 error**）·回归 r23 22/r245 7/r100 15/r24/r261/r263/r33 全绿·typecheck 0·build。**🏁 真插件迁移三大件 = Dataview（深用+类型化）+ Templater（载入+模板）+ Calendar（VIEW+Svelte）。**
 
 ## Round 265 additions — TFile.stat 真 ctime/mtime/size：FS metadata → core tree → compat TFile·跨 Rust+core+compat·逻辑档·零新依赖·只读元数据【As-built·v0.258】
 
@@ -266,7 +266,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 >
 > **修（2 文件·全只读·零写路径）**：
 > - **`compat/obsidian/editorFields.ts`**：`editorInfoField.create()` 现**返非空** `MarkdownFileInfo`。因字段是 MODULE-LEVEL（插件 import 同一实例）但 app/registry 是 per-compat-context → 新 MODULE-LEVEL `editorInfoHostFacet`（携 `{app, registry}`·由 `editorFieldsExtension` 提供）。create(state) 读 host facet + `editorPathFacet` 建 info（`editor` **省略**——create 期无 view·`MarkdownFileInfo.editor` 可选）。ViewPlugin 仍在 microtask reseed **含 editor（`new Editor(view)`）的全 info**（effect-only·R260 不变）。抽 `makeFileInfo(host, getPath, view)` 二处共用（create view=null / ViewPlugin view 有值）。**`editorEditorField` 留 null**（create 期无 EditorView·**无法**同步非空·与 editorInfoField 的纯 getter `.file` 不同；且 Dataview 根本不读它[grep 0 处]）——**遗留 latent gap 记档**：未来某插件若在构造期无守卫读 `editorEditorField.<method>()` 会崩（d.ts 类型为非空 `StateField<EditorView>`），当前目标插件不触。
-> - **`compat/obsidian/loader.ts`**：桥接 `@codemirror/language` 为 `{...cmLanguage, tokenClassNodeProp: cmLanguage.tokenClassNodeProp ?? new NodeProp()}`。`NodeProp` 取自 **`@lezer/common`**（@codemirror/* 的 transitive dep·**已 bundle**·`features/editor/formatCommands.ts` 已直接 type-import 先例·**零新依赖·零 bundle 增量·未动 package.json**——守依赖硬边界#5）。spread namespace 保留 class 引用 → `instanceof`（StreamLanguage 等）跨插件/host 不破（r261/r263 绿坐实）。stub NodeProp Geode 节点从不 set → `type.prop(它)` 返 undefined → Dataview `?.split` 优雅（**编辑器 inline 查询不经此路径渲染·但 reading-view BLOCK 查询照常**）。
+> - **`compat/obsidian/loader.ts`**：桥接 `@codemirror/language` 为 `{...cmLanguage, tokenClassNodeProp: cmLanguage.tokenClassNodeProp ?? new NodeProp()}`。`NodeProp` 取自 **`@lezer/common`**（@codemirror/* 的 transitive dep·**已 bundle**·`features/editor/formatCommands.ts` 已直接 type-import 先例·**零新依赖·零 bundle 增量·未动 package.json**——守依赖硬边界#5）。spread namespace 保留 class 引用 → `instanceof`（StreamLanguage 等）跨插件/host 不破（r261/r263 绿坐实）。stub NodeProp ADKM 节点从不 set → `type.prop(它)` 返 undefined → Dataview `?.split` 优雅（**编辑器 inline 查询不经此路径渲染·但 reading-view BLOCK 查询照常**）。
 >
 > **分档·data-safety**：逻辑档（碰 editor 字段路径）。**data-safety 4-lens 维 0 confirmed 零新写路径**：create() 建只读 info（`file` 是 getter 读 registry·无 dispatch——它是字段初值非事务）；ViewPlugin microtask 仍 effect-only（`setEditorView`/`setEditorInfo`·无 doc change → 无 docChanged → 无 autosave·R260 不变）；tokenClassNodeProp 纯读；markdown.ts/vault/documents 未碰。**非空 editorInfoField 不致插件改写**（Dataview/Templater 不因它非空而写编辑器）。
 >
@@ -274,16 +274,16 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 263 additions — 真 Templater 2.23（Obsidian 第二大插件）载入并执行模板：compat shim 补 newer-app（~1.13）API 面 + CM5 null-mode·逻辑档·零新依赖【As-built·v0.256】
 
-> **状态：As-built（已交付·v0.256）。商业主轴 breadth 第二大件：真·未改 Templater 2.23（GPL·`isDesktopOnly:false`）在 Geode 载入 + `tp.date.now`/`tp.file.title`/`tp.frontmatter` 模板展开并 PERSIST 落盘。** Step 0 probe 决定性纠误：候选 A「dataviewjs 启用面」实为 **faithful 非 gap**——以 `__geodeObsidianConfig` seed `plugins/dataview/data.json{enableDataviewJs:true}` 后 dataviewjs JS 执行**真工作**（`dv.list`/`dv.table(dv.pages())` 渲染）；Dataview JS 默认 off 是 Obsidian faithful 行为，桌面读真 `data.json` 即生效，浏览器逐插件 `dataJson` 注入字段未接 `configFiles`（vault.ts 仅 `__geodeObsidianConfig` seed 该 store）= **测试基建限制非产品 gap**。故转商业主轴 breadth = 载真 Templater。
+> **状态：As-built（已交付·v0.256）。商业主轴 breadth 第二大件：真·未改 Templater 2.23（GPL·`isDesktopOnly:false`）在 ADKM 载入 + `tp.date.now`/`tp.file.title`/`tp.frontmatter` 模板展开并 PERSIST 落盘。** Step 0 probe 决定性纠误：候选 A「dataviewjs 启用面」实为 **faithful 非 gap**——以 `__geodeObsidianConfig` seed `plugins/dataview/data.json{enableDataviewJs:true}` 后 dataviewjs JS 执行**真工作**（`dv.list`/`dv.table(dv.pages())` 渲染）；Dataview JS 默认 off 是 Obsidian faithful 行为，桌面读真 `data.json` 即生效，浏览器逐插件 `dataJson` 注入字段未接 `configFiles`（vault.ts 仅 `__geodeObsidianConfig` seed 该 store）= **测试基建限制非产品 gap**。故转商业主轴 breadth = 载真 Templater。
 >
 > **方法论（先界定 gap 有界·防 cascade 恐慌）**：static-diff Templater bundle 的 `require("obsidian").<member>` + `extends X.Y` 用法 vs shim 出口 → 缺 3 类（`SettingPage`/`SettingGroup`/`FileSystemAdapter`）+ 2 函数（`getFrontMatterInfo`/`resolveSubpath`）+ `ConfirmationModal`，**有界非 cascade**。类在 eval/load 时 `extends` 即崩；函数在 runtime 调用时崩。
 >
 > **崩哪补哪（9 blocker 逐次 surface·全加性·全 compat/obsidian/ 自包含）**：
-> - **`ui.ts`**：`ConfirmationModal`（Modal 子类·`addButton`/`addCheckbox`/`addCancelButton` over ButtonComponent·newer ~1.13·Templater 危险设置确认框用）；`SettingPage`（newer settings 子页基类·`containerEl` + `display`/`update`/`hide` no-op）；`SettingGroup`（`setHeading`/`addClass`/`addSetting` over Setting）。**设置 UI render 延后记档**：Geode 暂未把 SettingPage 的 `containerEl` 挂进 live 设置弹窗 → 插件设置渲染进 detached 节点（settings UI stubbed·载入与非设置功能不受影响）。
-> - **`vault.ts`**：`FileSystemAdapter`（Obsidian 桌面 FS adapter·marker class·Geode 用 CompatDataAdapter→`adapter instanceof FileSystemAdapter` **正确 false**→Templater 对绝对路径/系统功能优雅 throw·`getBasePath` 抛错·`getFullPath` identity）。
+> - **`ui.ts`**：`ConfirmationModal`（Modal 子类·`addButton`/`addCheckbox`/`addCancelButton` over ButtonComponent·newer ~1.13·Templater 危险设置确认框用）；`SettingPage`（newer settings 子页基类·`containerEl` + `display`/`update`/`hide` no-op）；`SettingGroup`（`setHeading`/`addClass`/`addSetting` over Setting）。**设置 UI render 延后记档**：ADKM 暂未把 SettingPage 的 `containerEl` 挂进 live 设置弹窗 → 插件设置渲染进 detached 节点（settings UI stubbed·载入与非设置功能不受影响）。
+> - **`vault.ts`**：`FileSystemAdapter`（Obsidian 桌面 FS adapter·marker class·ADKM 用 CompatDataAdapter→`adapter instanceof FileSystemAdapter` **正确 false**→Templater 对绝对路径/系统功能优雅 throw·`getBasePath` 抛错·`getFullPath` identity）。
 > - **`util.ts`**：`getFrontMatterInfo(content)→{exists,frontmatter,from,to,contentStart}`（fence 解析·镜像 core parseFrontmatter；评审 nit 修 `to=close` 排除收尾换行→byte-faithful 真 Obsidian contents-only 边界·Templater parseYaml-tolerant 零影响）。
 > - **`metadata.ts`**：`resolveSubpath(cache, subpath)→heading/block 子路径 span`（heading 大小写不敏感文本匹配·section 到下一同/高级 heading·block `^id` 查 cache.blocks·Templater file.include 用 `slice(start.offset,end?.offset)`）。
-> - **`plugin.ts`**：`Plugin.registerCliHandler`（no-op·Geode 无 CLI 面·记 gap）；`SettingTab.update()`（newer ~1.13 重渲染钩·Templater 在 vault create/delete/rename 防抖调→**正常使用即触发非仅设置打开时**·守 `typeof this.display==="function"` 否则 no-op·避免 abstract-display 未覆盖时抛）。
+> - **`plugin.ts`**：`Plugin.registerCliHandler`（no-op·ADKM 无 CLI 面·记 gap）；`SettingTab.update()`（newer ~1.13 重渲染钩·Templater 在 vault create/delete/rename 防抖调→**正常使用即触发非仅设置打开时**·守 `typeof this.display==="function"` 否则 no-op·避免 abstract-display 未覆盖时抛）。
 > - **`loader.ts` CM5 stub 关键扩**：旧 R261 stub 仅 `defineMode`/`getMode`。Templater 自带 CM5 JavaScript mode（eval 时经 `CodeMirror.defineMode`+`registerHelper`+`defineMIME` 自注册→补这三）。**致命点 = `getMode` 返 CM5「mode not found」哨兵 `{name:"null", startState, copyState, token(advances)}`**：Templater `registerCodeMirrorMode` 查 `getMode({},"javascript").name==="null"` → **优雅 return 跳过**建 CM6 StreamLanguage；旧 stub 返无 `name` 对象 → 检查失败 → Templater 从 stub mode 建 StreamLanguage·token 不前进 → 「Stream parser failed to advance stream」**崩整个 CM6 编辑器**（React error boundary·R261 已记此边界「真依赖 CM5 的插件仍崩」）。null-mode 让 Templater/Dataview 等 CM5-mode 插件优雅退化。简化门删 8 个 null-mode 后不可达死成员（StringStream/Pos/Pass/modes/mimeModes/commands/defineSimpleMode/registerGlobalHelper·0 caller）。
 > - **`index.ts`**：导出全部新符号（loader `import * as obsidianModule` spread 自动接入 `obsidianForPlugins`）。
 >
@@ -311,12 +311,12 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 261 additions — 真插件迁移商业主轴 milestone：🔓 js-yaml parseYaml/stringifyYaml + **真 Dataview 0.5.70 载入并渲染查询**（updateOptions + 旧 CM5 stub 解锁）·逻辑档·data-safety【As-built·v0.254】
 
-> **状态：As-built（已交付·v0.254）。🎉 商业主轴 milestone：真·未改 Dataview（MIT·2.4M）在 Geode 载入 + `dataview LIST` 查询渲染出 vault 笔记列表。** 用户 R260 拐点拍板「授权 js-yaml·试载 Dataview」→ **🔓 硬边界#5 对 `js-yaml@^4.1.0` 解除（仅此一 runtime dep·仅为 parseYaml/stringifyYaml·`npm i` 实装 4.3.0·+1 包·零 transitive·CM6 不重复·argparse 早存在）**。
+> **状态：As-built（已交付·v0.254）。🎉 商业主轴 milestone：真·未改 Dataview（MIT·2.4M）在 ADKM 载入 + `dataview LIST` 查询渲染出 vault 笔记列表。** 用户 R260 拐点拍板「授权 js-yaml·试载 Dataview」→ **🔓 硬边界#5 对 `js-yaml@^4.1.0` 解除（仅此一 runtime dep·仅为 parseYaml/stringifyYaml·`npm i` 实装 4.3.0·+1 包·零 transitive·CM6 不重复·argparse 早存在）**。
 > **三块改动（全加性·崩哪补哪 against 真 Dataview·R258 硬化逐次 surface 真错误）**：
 > - **`compat/obsidian/yaml.ts`（新）**：`parseYaml(s)=js-yaml.load`/`stringifyYaml(o)=js-yaml.dump`（薄 wrapper·Obsidian 同用 js-yaml·index.ts export·`global.d.ts` 加最小 `declare module "js-yaml"`[load/dump]·避 @types/js-yaml 守"仅此一依赖"）。Dataview/Templater/Tasks 读 inline-fields/任意 frontmatter 用它（`core/properties.ts` 是 frontmatter-子集·不能当 parseYaml）。**评审证 faithful**：load 对 malformed/multi-doc THROW=Obsidian 同行为·dump 默认 lineWidth:80=Obsidian 同 quirk。
 > - **`compat/obsidian/workspace.ts` `Workspace.updateOptions()`**（Dataview 第一 onload 阻断）：bump `editorExtensionsRevision`（每 EditorPane re-snapshot getEditorExtensions + reconfigure compat compartment）。Dataview 注册 stable 数组 ref→mutate→`updateOptions()` re-apply 的模式·经此生效（评审对真 bundle 验证机制）。
-> - **`compat/obsidian/loader.ts` 旧 CodeMirror-5 stub**（Dataview 第二阻断）：`window.CodeMirror ??= {defineMode:()=>undefined, getMode:()=>({})}`（eval 前装）。Dataview `registerDataviewjsCodeHighlighting` 调 `window.CodeMirror.defineMode/getMode`（CM5 模式注册·dataviewjs 高亮）·Geode 纯 CM6 无 legacy editor→该模式永不用→no-op stub 让其载入。**⚠️ 已知 compat 边界**：真依赖 CM5（调 defineMIME/Pos 等）的插件仍崩（崩哪补哪 增量·当前仅 defineMode/getMode）。
-> **data-safety（底线①·逻辑档·满跑·零丢失）**：**R261 不加任何 Geode 写路径**——parseYaml/stringifyYaml 是导出给插件的读/序列化工具（Geode core 不经它 round-trip 用户 .md·grep 证）·updateOptions 仅 bump revision（既有 R115 reconfigure·无 doc 改/autosave）·CM5 stub no-op·**markdown.ts 未碰**（Dataview 渲染走阅读视图 post-processor R132·非字节管线）·r18-diff N/A。插件若经 API 写走 vetted vault.modify。**桌面 probe N/A-by-equivalence**（compat-frontend·Dataview 经共享 loader 载入·跨端同）。**简化门 clean**（4 处小加性）·**ultracode 4-lens 对抗评审（21 agents）= 0 confirmed + 17 refuted**（data-safety 全 clear·parseYaml throw/dump-lineWidth faithful·js-yaml schema v1.2 与 Obsidian 同版·updateOptions+R115 机制对真 bundle 验证·CM5 stub 边界=doc 建议非缺陷）。**测试**：`.calibration/r261-e2e.mjs` **13/13**（Part A parseYaml nested-map/list/scalar/bool/round-trip·Part B **真 Dataview status=enabled + window.DataviewAPI set + `dataview LIST` 渲染 `.dataview.list-view-ul` >0 li 结果[真 query engine over metadataCache] + raw code block 被消费**）·回归 r115/r258/r259/r260/r221/r171/r33/r24 全绿·生产构建 ✓·cargo ✓。**Dataview 2.4M bundle 未 committed（太大·gitignored `.calibration/dataview/`·e2e header 载明 fetch 命令）**。**下一片（崩哪补哪续）**：Dataview 深用面（TABLE/TASK 查询·dataviewjs·inline fields 写回·index 增量）会 surface 更多 gap；或 Templater（也用 parseYaml）；或无依赖余 gap（adapter.stat[Rust]/getResourcePath[Tauri]/CM5 stub 扩/suggest-modal ES5）。**授权边界**：js-yaml 仅此一个·Dataview/其它若需第二个新依赖须**再单独授权**。
+> - **`compat/obsidian/loader.ts` 旧 CodeMirror-5 stub**（Dataview 第二阻断）：`window.CodeMirror ??= {defineMode:()=>undefined, getMode:()=>({})}`（eval 前装）。Dataview `registerDataviewjsCodeHighlighting` 调 `window.CodeMirror.defineMode/getMode`（CM5 模式注册·dataviewjs 高亮）·ADKM 纯 CM6 无 legacy editor→该模式永不用→no-op stub 让其载入。**⚠️ 已知 compat 边界**：真依赖 CM5（调 defineMIME/Pos 等）的插件仍崩（崩哪补哪 增量·当前仅 defineMode/getMode）。
+> **data-safety（底线①·逻辑档·满跑·零丢失）**：**R261 不加任何 ADKM 写路径**——parseYaml/stringifyYaml 是导出给插件的读/序列化工具（ADKM core 不经它 round-trip 用户 .md·grep 证）·updateOptions 仅 bump revision（既有 R115 reconfigure·无 doc 改/autosave）·CM5 stub no-op·**markdown.ts 未碰**（Dataview 渲染走阅读视图 post-processor R132·非字节管线）·r18-diff N/A。插件若经 API 写走 vetted vault.modify。**桌面 probe N/A-by-equivalence**（compat-frontend·Dataview 经共享 loader 载入·跨端同）。**简化门 clean**（4 处小加性）·**ultracode 4-lens 对抗评审（21 agents）= 0 confirmed + 17 refuted**（data-safety 全 clear·parseYaml throw/dump-lineWidth faithful·js-yaml schema v1.2 与 Obsidian 同版·updateOptions+R115 机制对真 bundle 验证·CM5 stub 边界=doc 建议非缺陷）。**测试**：`.calibration/r261-e2e.mjs` **13/13**（Part A parseYaml nested-map/list/scalar/bool/round-trip·Part B **真 Dataview status=enabled + window.DataviewAPI set + `dataview LIST` 渲染 `.dataview.list-view-ul` >0 li 结果[真 query engine over metadataCache] + raw code block 被消费**）·回归 r115/r258/r259/r260/r221/r171/r33/r24 全绿·生产构建 ✓·cargo ✓。**Dataview 2.4M bundle 未 committed（太大·gitignored `.calibration/dataview/`·e2e header 载明 fetch 命令）**。**下一片（崩哪补哪续）**：Dataview 深用面（TABLE/TASK 查询·dataviewjs·inline fields 写回·index 增量）会 surface 更多 gap；或 Templater（也用 parseYaml）；或无依赖余 gap（adapter.stat[Rust]/getResourcePath[Tauri]/CM5 stub 扩/suggest-modal ES5）。**授权边界**：js-yaml 仅此一个·Dataview/其它若需第二个新依赖须**再单独授权**。
 
 ## Round 260 additions — 真插件迁移 pre-Dataview gap：obsidian CM6 editor StateFields（editorInfoField / editorEditorField / editorLivePreviewField + editorViewField 别名）·逻辑档·data-safety·零新依赖【As-built·v0.253】
 
@@ -331,7 +331,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 259 additions — 真插件迁移：第二 committed 真插件证明（read-time「Words to Read Time」1.0.0·MIT·ES6·零新依赖·零 src 改动）·validation/fixture 轮【As-built·v0.252】
 
-> **状态：As-built（已交付·v0.252）。** R258 后续·**零 src 代码改动**（read-time 是 ES6 esbuild bundle·走既有 loader·不需 ES5 fix）= validation/fixture 轮（vendor + e2e·验 harness 泛化到第二真插件 + 拓宽 API 覆盖面）。**vendor**：`compat-fixtures/obsidian-read-time-plugin/`（main.js+manifest.json 1.0.0 release 原物[sha 校验逐字节同上游]+LICENSE[MIT © ryanschiang]+README 归属）。**互补覆盖面（vs R258 Sort&Permute 的 commands+editor）**：read-time **无命令**·exercises `addStatusBarItem` + `registerInterval`(500ms) + `registerDomEvent(document,"click")` + `getActiveViewOfType(MarkdownView)` + 真 `PluginSettingTab`(wpm 设置)·读 active note 词数→写状态栏 `"<m>m <s>s read time"`(默认 130wpm)。`isDesktopOnly:true` 但 loader 不 gate（浏览器 E2E 是 desktop app 的 dev surface·非 mobile·正确不 gate）。**data-safety 非 scope**（read-only 插件·只读 editor 词数+写状态栏 DOM+saveData 持 wpm 到 data.json·**零 vault 写**·grep 证无 vault.create/modify/delete）。**分档=validation 轮**（零 src·非数据安全）→ 跳简化门 → focused review（e2e 假阳性 + fixture 完整性 + 数据安全 sanity）= **CLEAN + 1 nit[e2e 注释误称 click 触发 recompute·实为 interval·已校]**·review 坐实 e2e 真绑插件执行（status=enabled 仅 onload 不抛才达·状态栏文字是插件 setText 非 Geode·非零值仅能来自插件读 live 词数·dynamic recompute 真切 note）。**测试**：`.calibration/r259-e2e.mjs` **7/7**（真 MIT 插件 enabled·状态栏初始 "0m 0s read time"·**260 词→~2 min[260/130]·字节级**·**13 词→0 min·dynamic recompute 真按 active note**·无 page error）·回归 r258 12/12[共享 loader/harness]·typecheck 0·桌面 N/A-by-equivalence。**下一片**：R260 = pre-Dataview 无依赖 gap（adapter.stat[Rust fs::metadata]/CM6 editorInfoField·LivePreviewField·EditorField + Editor.getDoc StateFields/getResourcePath URI 桥）→ **R261 STOP-POINT**（js-yaml@^4.1.0 授权 + faithful parseYaml + 试载 Dataview）；或 suggest/modal 族 ES5 支持（延迟 ctor listener 注册）。
+> **状态：As-built（已交付·v0.252）。** R258 后续·**零 src 代码改动**（read-time 是 ES6 esbuild bundle·走既有 loader·不需 ES5 fix）= validation/fixture 轮（vendor + e2e·验 harness 泛化到第二真插件 + 拓宽 API 覆盖面）。**vendor**：`compat-fixtures/obsidian-read-time-plugin/`（main.js+manifest.json 1.0.0 release 原物[sha 校验逐字节同上游]+LICENSE[MIT © ryanschiang]+README 归属）。**互补覆盖面（vs R258 Sort&Permute 的 commands+editor）**：read-time **无命令**·exercises `addStatusBarItem` + `registerInterval`(500ms) + `registerDomEvent(document,"click")` + `getActiveViewOfType(MarkdownView)` + 真 `PluginSettingTab`(wpm 设置)·读 active note 词数→写状态栏 `"<m>m <s>s read time"`(默认 130wpm)。`isDesktopOnly:true` 但 loader 不 gate（浏览器 E2E 是 desktop app 的 dev surface·非 mobile·正确不 gate）。**data-safety 非 scope**（read-only 插件·只读 editor 词数+写状态栏 DOM+saveData 持 wpm 到 data.json·**零 vault 写**·grep 证无 vault.create/modify/delete）。**分档=validation 轮**（零 src·非数据安全）→ 跳简化门 → focused review（e2e 假阳性 + fixture 完整性 + 数据安全 sanity）= **CLEAN + 1 nit[e2e 注释误称 click 触发 recompute·实为 interval·已校]**·review 坐实 e2e 真绑插件执行（status=enabled 仅 onload 不抛才达·状态栏文字是插件 setText 非 ADKM·非零值仅能来自插件读 live 词数·dynamic recompute 真切 note）。**测试**：`.calibration/r259-e2e.mjs` **7/7**（真 MIT 插件 enabled·状态栏初始 "0m 0s read time"·**260 词→~2 min[260/130]·字节级**·**13 词→0 min·dynamic recompute 真按 active note**·无 page error）·回归 r258 12/12[共享 loader/harness]·typecheck 0·桌面 N/A-by-equivalence。**下一片**：R260 = pre-Dataview 无依赖 gap（adapter.stat[Rust fs::metadata]/CM6 editorInfoField·LivePreviewField·EditorField + Editor.getDoc StateFields/getResourcePath URI 桥）→ **R261 STOP-POINT**（js-yaml@^4.1.0 授权 + faithful parseYaml + 试载 Dataview）；或 suggest/modal 族 ES5 支持（延迟 ctor listener 注册）。
 
 ## Round 258 additions — 真插件迁移：首 committed 真插件证明 + ES5/tslib base-class 修复 + loader 硬化（Sort & Permute lines 0.7.0·MIT·零新依赖）·逻辑档·data-safety【As-built·v0.251】
 
@@ -343,7 +343,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 257 additions — 真插件迁移闭环【🔒 立项·docs-only·零依赖路线·实现 R258 起】（用户拍板「选项1 商业主轴」·ultracode 3-scout read-only 立项）
 
-> **状态：立项（plan frozen·实现未落地）。** 用户 R256 收尾拐点拍板「真插件迁移闭环（商业主轴）」。**🔑 立项决定性发现（read-only scout 纠误）**：**Geode 早已加载真·Obsidian-格式社区插件**——`compat/obsidian/loader.ts` 是完整 host（列 `<vault>/.obsidian/plugins/*`·验 manifest·`new Function("require","module","exports", mainJs)` 评 CJS·`require("obsidian")`→shim·`require("@codemirror/*")`→共享 host 实例[instanceof 跨 plugin/host 成立]·注册同 community-plugins.json）；**5 个真插件今天就在跑**（nldates 1.3M / calendar 140K / recent-files 56K / url-into-selection 8K / better-word-count 2.5M·gitignored `compat-vault/`·desktop probe 验）。**故「真插件迁移」非从零——T0-T2 闭环已成**。剩两块：① **committed/自动化证明 + loader 硬化**（现 5 插件仅手动 desktop probe·自动化测用 synthetic fixture `compat/obsidian/fixture.ts`·非真 bundle）；② **重型生态 tier 的 breadth gaps**（Dataview/Templater/Excalidraw 卡在 named gaps：**parseYaml/stringifyYaml**[唯一真·依赖-gated 阻断=js-yaml]·getResourcePath URI 桥[Tauri asset-protocol·非 npm dep]·Lucide setIcon[已优雅降级·非阻断]·adapter.stat[Rust]·CM6 editorInfoField StateFields）。
+> **状态：立项（plan frozen·实现未落地）。** 用户 R256 收尾拐点拍板「真插件迁移闭环（商业主轴）」。**🔑 立项决定性发现（read-only scout 纠误）**：**ADKM 早已加载真·Obsidian-格式社区插件**——`compat/obsidian/loader.ts` 是完整 host（列 `<vault>/.obsidian/plugins/*`·验 manifest·`new Function("require","module","exports", mainJs)` 评 CJS·`require("obsidian")`→shim·`require("@codemirror/*")`→共享 host 实例[instanceof 跨 plugin/host 成立]·注册同 community-plugins.json）；**5 个真插件今天就在跑**（nldates 1.3M / calendar 140K / recent-files 56K / url-into-selection 8K / better-word-count 2.5M·gitignored `compat-vault/`·desktop probe 验）。**故「真插件迁移」非从零——T0-T2 闭环已成**。剩两块：① **committed/自动化证明 + loader 硬化**（现 5 插件仅手动 desktop probe·自动化测用 synthetic fixture `compat/obsidian/fixture.ts`·非真 bundle）；② **重型生态 tier 的 breadth gaps**（Dataview/Templater/Excalidraw 卡在 named gaps：**parseYaml/stringifyYaml**[唯一真·依赖-gated 阻断=js-yaml]·getResourcePath URI 桥[Tauri asset-protocol·非 npm dep]·Lucide setIcon[已优雅降级·非阻断]·adapter.stat[Rust]·CM6 editorInfoField StateFields）。
 >
 > **🎯 首目标 = Sort & Permute lines**（Vinzent03/obsidian-sort-and-permute-lines·**MIT·0 runtime dep·~350 LOC**）：exercises addCommand×10 + 全 Editor API(getValue/setValue/replaceRange/getCursor/getLine/lastLine) + metadataCache.getFileCache(ListItemCache) + workspace.getActiveViewOfType(MarkdownView)·import 仅 `{ListItemCache,MarkdownView,Plugin}`·**不调 parseYaml**→现零依赖码即可证。胜过 toggle-case(deprecated·仅 smoke)与 read-time(无 addCommand)。
 >
@@ -358,16 +358,16 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > **状态：As-built（已交付·v0.250）。** 用户 R255 拐点拍板「收尾最后 bounded 小件」→ 取本项（autonomous-safe 池最后一件）。**verify-first（ultracode 3-scout workflow·web-native + codebase + reference）= native-confirmed**：Obsidian 每个 view/tab 顶部右缘的「…」more-options 按钮是真 vanilla-core（官方 Tabs help + 版本特定 forum bug 实证·Appearance「Native menus」影响其渲染），由 leaf 的 pane-menu 构建 = tab 右键菜单(pin/split/close) ∪ 文件操作 ∪ 视图模式 toggle。**🔑 pointer 纠误**：HANDOFF/ROADMAP 指的「reference 08:35」其实是**编辑器右键菜单**（reference 08 grep 全树无「更多选项/view-header/聚合菜单」字样·spec 从未截过「…」按钮）→ 但 web 证实功能真 native → **非 R253-A3 式 phantom·是 mislabeled pointer·BUILD**（faithfulness 使命 > reference 覆盖缺口·R222/R223 先例）。
 > **设计（机械档·镜像 tab-context-menu / R252 editor 菜单·App.tsx shell 不 import compat）**：
 > - **`app/App.tsx` TabBar**：menu state 加 `kind:"tab"|"viewopts"` 判别（右键=tab·「…」按钮=viewopts·共用 dismiss/runMenu 机制·一次只渲一个）；`.tab-bar` 右缘加「…」按钮（`data-testid="view-header-more-<leafId>"`·`more-vertical` 图标[icons.tsx:121 既有]·`margin-left:auto` 推到右缘·无 activeTabId 时 disabled·onClick 从 `getBoundingClientRect` 锚定菜单·按钮在 `.pane` section 内→其 mousedown-capture 先 `setActivePane(leaf)`→wired 命令 target 该 leaf active file）；`cmdMenuItem(id,testid,danger?)` helper（`app.commands.list().find(id)`·missing 或 `available?.()===false` 则 return null[桌面 reveal/open 浏览器隐藏]·label `getCommandName(cmd)`·onClick `runMenu(()=>commands.execute(id))`）；viewopts 菜单块（branch `menu.kind==="viewopts"`·testid `view-options-menu`）。
-> - **菜单项**（active tab·gating：markdown-only items on `viewType==="markdown"`·file items on `filePath!==null`·非空组间分隔线）：视图模式 `app:toggle-mode`(md)｜文件 `bookmarks:bookmark-file`·`editor:add-property`(md)·`app:export-pdf`(md)·`file-explorer:copy-path`·`workspace:copy-url`·**`file-explorer:reveal-active-file`(跨端·评审补)**·`file-explorer:reveal-in-system`(桌面)·`file-explorer:open-in-default-app`(桌面)·`workspace:edit-file-title`(重命名)·`app:delete-file`(删除·is-danger)｜tab/pane 直调 workspace `toggleTabPin`·`splitActivePane`(fileless 禁用)·`closeTab`·`closeOtherTabs`。**DEFER**：「Open linked view」子菜单（id 全在·但 Geode 菜单是 flat·子菜单基建是独立轮·drop 不假扁平）。
+> - **菜单项**（active tab·gating：markdown-only items on `viewType==="markdown"`·file items on `filePath!==null`·非空组间分隔线）：视图模式 `app:toggle-mode`(md)｜文件 `bookmarks:bookmark-file`·`editor:add-property`(md)·`app:export-pdf`(md)·`file-explorer:copy-path`·`workspace:copy-url`·**`file-explorer:reveal-active-file`(跨端·评审补)**·`file-explorer:reveal-in-system`(桌面)·`file-explorer:open-in-default-app`(桌面)·`workspace:edit-file-title`(重命名)·`app:delete-file`(删除·is-danger)｜tab/pane 直调 workspace `toggleTabPin`·`splitActivePane`(fileless 禁用)·`closeTab`·`closeOtherTabs`。**DEFER**：「Open linked view」子菜单（id 全在·但 ADKM 菜单是 flat·子菜单基建是独立轮·drop 不假扁平）。
 > - **`core/i18n/dict.app.ts`**：`app.moreOptions`（EN「More options」/ZH「更多选项」·按钮 aria-label·其余项 label 走 `getCommandName` 命令名·tab/pane 项复用既有 app.tabPin/tabUnpin/tabSplitRight/tabSplitDown/tabClose/tabCloseOthers）。
 > - **`styles/app.css`**：`.tab-more-options`（镜像 `.tab-new`·`margin-left:auto`）+ `.tab-context-menu button.is-danger { color: var(--danger) }`。
 > **分档=机械档（菜单 wiring 既有 vetted 命令·零新写路径·未碰 editor/vault/markdown）→ 跳简化门 → scoped review（ultracode 3-lens：mechanical/faithfulness/regression × 逐 finding 对抗证伪·17 agents）= 1 confirmed + 13 refuted**。confirmed=「Reveal file in navigation」(`file-explorer:reveal-active-file`·跨端·已注册) 遗漏（**浏览器下两个桌面 reveal 经 available() 隐藏→零 reveal 选项**·跨端 reveal-active-file 补上即解）→**已修**(+1 行 + e2e 断言)。13 refuted（all-clear 确认 + 正确降级 nit：pin 排序/toggle-mode 静态名/点按钮重开/version-bump 在收尾·均可接受 flat-menu/机械档 行为)。**测试**：`.calibration/r256-e2e.mjs` **30/30**（按钮在场·菜单开/含全项·**桌面项 reveal-in-system/open-default 浏览器隐藏[available() gate]**·delete is-danger·label 走命令名非裸 key·pin/toggle-mode 真执行+pin label 翻转·与 tab-context-menu 判别·Escape dismiss）·回归 r81 14/14·r131 8/8·r252 20/20·r33 37/37·r229 9/9·typecheck 0·生产构建 ✓·cargo ✓·**桌面 N/A-by-equivalence**（纯前端菜单·所 wire 命令 R218/R252 已桌面验证）。**收尾后 autonomous-safe bounded 池真清空 → 盘点交用户**（剩 boundary-gated：删除去向 parked / Canvas·Bases·真插件迁移 须拍板立项或批依赖）。
 
 ## Round 254 additions — Stacked tabs（堆叠标签页·一个 tab 组内同时渲染全部 tab 为横向 cascade·Obsidian native「Stack tabs / Unstack tabs」·原 Andy Matuschak Mode 内化为核心）·逻辑档·data-safety【As-built·R255 实现交付·v0.249】
 
-> **状态：As-built（已交付·v0.249·立项 R254 冻结契约 + 实现 R255）。** 用户 R253 收尾拐点拍板「Stacked tabs 立项(推荐)」（R250 已表态想优先·零新依赖·boundary-gated 集里最适合自主推进者）。**Obsidian 行为（WebSearch 实证）**：Stacked tabs 是 tab 组（=Geode `PaneLeaf`）内的替代视图——组内**全部 tab 同时渲染**为横向并排的列（像桌上扇开的纸张），active tab 展开、其余折叠成窄竖标题条；点条或横向滚动切焦点。每组独立 toggle（tab 组「⌄」菜单「Stack tabs/Unstack tabs」+ 命令 `workspace:toggle-stacked-tabs`）。
+> **状态：As-built（已交付·v0.249·立项 R254 冻结契约 + 实现 R255）。** 用户 R253 收尾拐点拍板「Stacked tabs 立项(推荐)」（R250 已表态想优先·零新依赖·boundary-gated 集里最适合自主推进者）。**Obsidian 行为（WebSearch 实证）**：Stacked tabs 是 tab 组（=ADKM `PaneLeaf`）内的替代视图——组内**全部 tab 同时渲染**为横向并排的列（像桌上扇开的纸张），active tab 展开、其余折叠成窄竖标题条；点条或横向滚动切焦点。每组独立 toggle（tab 组「⌄」菜单「Stack tabs/Unstack tabs」+ 命令 `workspace:toggle-stacked-tabs`）。
 >
-> **关键判断（Step 0 explorer 实查·决定难度）**：**Geode 已支持 split**（`PaneSplitView` 递归渲染 pane 树·每 leaf 各挂一个 EditorPane·**多 EditorPane 同屏共存早是既成事实**）→ **多挂载的 data-safety 早被 split 解决**：autosave/dirty/flush 全 **per-DocumentHandle（per-file）非 per-EditorPane**（`documents.ts:54`「one dirty flag + one debounced save per FILE, regardless of pane count」）·`flushAll()` 遍历所有 handle·同文档跨 view 编辑 sync 转发（`documents.ts:85`）·refcount acquire/release（`EditorPane.tsx:460`）。**故 Stacked tabs 本质 = 把 `PaneLeafView` 的「只渲 activeTab」改成「stacked 时渲全部 tab」·复用同一套已验证机制·非新建数据安全面**。R23 active-view 闩锁陈旧教训此处不复发（focusin 驱动·unmount 仅当闩锁==自己才清·split 多 view 已验证）。
+> **关键判断（Step 0 explorer 实查·决定难度）**：**ADKM 已支持 split**（`PaneSplitView` 递归渲染 pane 树·每 leaf 各挂一个 EditorPane·**多 EditorPane 同屏共存早是既成事实**）→ **多挂载的 data-safety 早被 split 解决**：autosave/dirty/flush 全 **per-DocumentHandle（per-file）非 per-EditorPane**（`documents.ts:54`「one dirty flag + one debounced save per FILE, regardless of pane count」）·`flushAll()` 遍历所有 handle·同文档跨 view 编辑 sync 转发（`documents.ts:85`）·refcount acquire/release（`EditorPane.tsx:460`）。**故 Stacked tabs 本质 = 把 `PaneLeafView` 的「只渲 activeTab」改成「stacked 时渲全部 tab」·复用同一套已验证机制·非新建数据安全面**。R23 active-view 闩锁陈旧教训此处不复发（focusin 驱动·unmount 仅当闩锁==自己才清·split 多 view 已验证）。
 >
 > **冻结契约（加性·不动现有字段）**：
 > - **`core/types.ts`**：`PaneLeaf` 加 `stacked?: boolean`（缺省=false=今日单挂载行为·**加性可选字段·不破坏既有持久化 JSON**）。`PaneSplit`/`PaneNode`/`WorkspaceState` 不动。
@@ -399,7 +399,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 >
 > **As-built 修订（实测/评审后·偏离冻结契约处·根因记录）**：
 > 1. **Escape 困死 insert 模式 — 根因修复（实测发现·底线① 边缘）**：`vimExtension(on) = on ? **Prec.high(vim())** : []`（非裸 `vim()`）。裸 `vim()` 时 defaultKeymap 的 `Escape→simplifySelection`（R63 多光标）**抢过** vim 的 insert→normal Escape，把用户困在 insert 模式（编辑可继续但退不出·伪正常）。r253-e2e 调试探针确认（i/Z/Esc 后仍 "insert"）。`Prec.high` 让 vim keymap 压过 defaultKeymap；**仍在 R33 `Prec.highest` 命令拦截之下**（Cmd+P 等热键仍赢）。**教训**：往既有 keymap 栈插新 keymap，必实测 Escape/Enter 等被 defaultKeymap 占用的裸键，Prec 不显式抬高即被既有绑定 shadow。
-> 2. **`:w` 降级 autosave 兜底（契约「记一句」已授权·未接 defineEx）**：codemirror-vim 6.3.0 的 `write` handler 需 `CM.commands.save`/`cm.save`（Geode 二者均 `undefined`）→ 裸 `:w`/`:wq` 静默 no-op（**不抛错·不破坏编辑器**）。**数据安全无损**：vim 编辑走标准 CM dispatch→docChanged→autosave updateListener（documents.ts·无 userEvent/composing 门控），r253 实测 i+Esc 编辑落盘。Obsidian 本身亦持续 autosave，:w 无独立保存反馈不算缺失。
+> 2. **`:w` 降级 autosave 兜底（契约「记一句」已授权·未接 defineEx）**：codemirror-vim 6.3.0 的 `write` handler 需 `CM.commands.save`/`cm.save`（ADKM 二者均 `undefined`）→ 裸 `:w`/`:wq` 静默 no-op（**不抛错·不破坏编辑器**）。**数据安全无损**：vim 编辑走标准 CM dispatch→docChanged→autosave updateListener（documents.ts·无 userEvent/composing 门控），r253 实测 i+Esc 编辑落盘。Obsidian 本身亦持续 autosave，:w 无独立保存反馈不算缺失。
 > 3. **toggle 放置修正（对抗评审 1 confirmed·faithfulness minor）**：冻结契约写「行为组·Vim 属行为」**有误** → `reference/01-编辑器.md:42-47` 明确 Vim 模式属 Editor**「高级（Advanced）」**（行为组列智能列表·不含 Vim）。EditorSection 原无 Advanced subheader（既有 `settings-subheader-advanced` 在 **FilesAndLinksSection**·非 Editor·评审误判可复用）→ **新增 Editor 专属** `<h3 data-testid="settings-subheader-editor-advanced">`（复用 `settings.subheaderAdvanced` i18n 键[标签同「高级」]·testid 与 FilesAndLinks 区分免重复），Vim toggle 移入其下。**教训**：保真放置须核 reference 的**具体 section/subsection 归属**，不能凭「某处已有同名 subheader」就放——它可能在另一个设置页（[[geode-visual-polish-verify-and-per-role]]）。
 > 4. **ZH 标签对齐官方（评审 surface·obsidian-translations 权威源）**：「Vim 键位」→**「Vim 模式」**、desc「在编辑器中使用 Vim 键位绑定。」→**「允许在编辑器中使用 Vim 模式。」**（obsidianmd/obsidian-translations `zh.txt` key `setting.editor.option-vim-key-bindings`）。EN「Vim key bindings」保持（官方原文）。
 > 5. **对抗评审（ultracode 4-lens·13 agents）**：data-safety/faithfulness/edge-cases/regression × 逐 finding 对抗证伪 = **1 confirmed**（toggle 放置·已修[#3]）+ **8 refuted**（data-safety all-clear·R33 precedence faithful-by-design[Obsidian 同样 app 热键压 vim]·`:w` autosave-fallback 契约已授权·static-import bundle nit·无视图指示器=Obsidian native 默认亦无·均正确驳回）。**CM6 单份 deduped**（`@codemirror/state@6.6.0`·`@codemirror/view@6.43.1`·vim peer 全 `^6`·无 instanceof 破坏）。
@@ -417,7 +417,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 251 additions — A1 热键页保真：命令名加来源前缀（插件命令「书签: xxx」·核心命令无前缀·扁平非分组·对齐 Obsidian reference 04 热键-01）·逻辑档·零新依赖【契约冻结 v0.246】
 
-> **状态：As-built（已交付·v0.246）。** **背景（用户 R250 拍板续 bounded）+ verify-first 纠误**：Obsidian 热键页是**扁平列表**（**非分组 section**·热键-01 截图实证），命令名带**来源前缀**——核心插件命令显示「源: 命令名」（如「书签: 收藏当前搜索」「白板: 导出图片」），核心 app/editor/workspace 命令无前缀。Geode `HotkeysSection`(`SettingsModal.tsx:1949`) 现扁平**无来源前缀**。**绝不造分组 section（phantom·防 R145/R242 教训复发）**——只加名字前缀。Geode `Command`(`types.ts`) 无 `source` 字段 → 按 **id 前缀**派生来源（核心前缀 `editor`/`app`/`workspace`/`file-explorer` 无前缀·9 个插件前缀 `bookmarks`/`daily-note`/`backlink`/`unique-note`/`slides`/`random-note`/`outline`/`outgoing-links`/`graph` 加本地化「源: 」）。**已知局限（记一句）**：Geode 把笔记重组等部分核心插件命令注册在 `editor:`/`app:` 前缀下（非 `note-composer:`）→ 那些命令保持无前缀（少数·宁缺勿错·不误前缀）。
+> **状态：As-built（已交付·v0.246）。** **背景（用户 R250 拍板续 bounded）+ verify-first 纠误**：Obsidian 热键页是**扁平列表**（**非分组 section**·热键-01 截图实证），命令名带**来源前缀**——核心插件命令显示「源: 命令名」（如「书签: 收藏当前搜索」「白板: 导出图片」），核心 app/editor/workspace 命令无前缀。ADKM `HotkeysSection`(`SettingsModal.tsx:1949`) 现扁平**无来源前缀**。**绝不造分组 section（phantom·防 R145/R242 教训复发）**——只加名字前缀。ADKM `Command`(`types.ts`) 无 `source` 字段 → 按 **id 前缀**派生来源（核心前缀 `editor`/`app`/`workspace`/`file-explorer` 无前缀·9 个插件前缀 `bookmarks`/`daily-note`/`backlink`/`unique-note`/`slides`/`random-note`/`outline`/`outgoing-links`/`graph` 加本地化「源: 」）。**已知局限（记一句）**：ADKM 把笔记重组等部分核心插件命令注册在 `editor:`/`app:` 前缀下（非 `note-composer:`）→ 那些命令保持无前缀（少数·宁缺勿错·不误前缀）。
 > **设计（hotkeys 页局部前缀·非改 getCommandName[避免波及命令面板/搜索]·逻辑档[新映射+控制流]·非数据安全[纯设置 UI·零 .md 写]）**：
 > - **`features/settings/SettingsModal.tsx`**：模块级 `CMD_SOURCE_KEYS: Record<string, I18nKey>`（9 插件前缀→i18n 键·核心前缀不在表内→无前缀）。HotkeysSection 内 `cmdLabel(cmd)`：取 `name = getCommandName(cmd)`·核心/未知前缀返 name 原样·否则 `label = t(key)`·**幂等守卫**：`name.startsWith(label+":") || name.startsWith(label+"：")`（ASCII + 全角冒号）则返 name 原样[防双前缀]·否则 `label+": "+name`。用于 **行名显示 + 冲突名 + reset aria-label + 过滤匹配**（过滤含前缀→可按「书签」搜）。
 > **As-built（v0.246·根因记录·ultracode 多维评审）**：**简化门 clean**（来源前缀机制单一·无可简化面）。**Step 4 用 Workflow 4-lens 并行对抗评审（faithfulness/i18n/edgecases/regression·每 finding 对抗验证）**——i18n/regression lens 0 缺陷·**揪出 1 confirmed major（faithfulness + edgecases 两 lens 独立发现·runtime 实证）**：`backlink:`/`outline:`/`outgoing-links:` 的 4 个命令注册名**已含来源标签**（R211/R212/R219 为命令面板加的「Backlinks: …」·ZH 全角「反向链接：…」），其 id 前缀又在 CMD_SOURCE_KEYS → 初版 `commandSourcePrefix(id,t)+getCommandName` **双前缀**（「Backlinks: Backlinks: …」·ZH 混合冒号更糟）·我的初版 r251-e2e 只测干净命令[bookmarks:/graph:] 漏掉这族。**修=幂等守卫**（折叠 commandSourcePrefix 进 cmdLabel·名字已以来源标签开头则不再加·**净删一个 helper = 顺带简化**）·r251-e2e +4 断言锁 backlink:/outline:/outgoing-links: 单前缀。**colon-width nit 被对抗验证证伪**（ASCII「: 」是忠实选择·reference 04 半角·全角是既有 deviation）。r251-e2e **14/14**·回归 r145 15/15[热键]·r142 18/18[命令面板]·r23 22/22[设置]·typecheck 0·桌面 N/A。**教训**：加【派生前缀/变换】前必查【已存在的 baked-in 版本】做幂等·测【碰撞用例】（id 前缀在表 ∧ 名字已前缀）而非只测干净用例——多维 lens 评审揪出单 lens/单 e2e 会漏的此类。
@@ -432,7 +432,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 248 additions — G2-b 续 slice：文件与链接页分组 section 子标题（默认位置/链接/回收站/高级 四组·对齐 Obsidian reference 02）·复用 R246 `.settings-subheader`·JSX 块搬迁 + 子标题 + i18n·零新依赖【契约冻结 v0.244·机械档】
 
-> **状态：As-built（已交付·v0.244）。** **背景**：续 R246/R247 分组模式·推广到文件与链接页。reference 02 分组 = **顶部(默认位置) → 链接(Links) → 回收站(Trash) → 高级(Advanced)**（四组·比外观/编辑器多一组）。Geode 文件与链接页当前 11 项扁平且组间交错（链接项在顶部项之前·回收站/高级交错）→ 重排进 四组 + 加 链接/回收站/高级 子标题（**顶部=首组 headerless**；Geode 无 Obsidian 的「默认打开文件/切换设置文件夹/启用 URI」项→各组只放 Geode 已有项·不造空项）。
+> **状态：As-built（已交付·v0.244）。** **背景**：续 R246/R247 分组模式·推广到文件与链接页。reference 02 分组 = **顶部(默认位置) → 链接(Links) → 回收站(Trash) → 高级(Advanced)**（四组·比外观/编辑器多一组）。ADKM 文件与链接页当前 11 项扁平且组间交错（链接项在顶部项之前·回收站/高级交错）→ 重排进 四组 + 加 链接/回收站/高级 子标题（**顶部=首组 headerless**；ADKM 无 Obsidian 的「默认打开文件/切换设置文件夹/启用 URI」项→各组只放 ADKM 已有项·不造空项）。
 > **设计（纯 IA 重排 + i18n·复用 R246 `.settings-subheader` CSS·无新逻辑/无 store/无数据安全面）**：
 > - **`features/settings/SettingsModal.tsx` `FilesAndLinksSection`**：**仅重排既有 11 个 setting-item 块 + 插 3 个 `<h3 className="settings-subheader">`**（每块逐字保留 testid/绑定/默认值·只移位置；**newnote segmented 块 + 其后的 `{newNoteLoc==="folder" && (...)}` 条件 path 块必须一起搬·保持相邻**）。新顺序：**顶部组**(newnote segmented[root/current/folder] + 条件 newnote-folder-path · attachment-folder) → `链接` 子标题 → **链接组**(link-path-format · auto-update-links · link-use-markdown · detect-extensions) → `回收站` 子标题 → **回收站组**(delete-confirm-toggle · attachment-delete-mode) → `高级` 子标题 → **高级组**(excluded-files · rebuild-cache)。
 > - **`core/i18n/dict.views.ts`**：`settings.subheaderLinks`（EN「Links」/ZH「链接」）+ `settings.subheaderTrash`（EN「Trash」/ZH「回收站」）+ `settings.subheaderAdvanced`（EN「Advanced」/ZH「高级」）×中英。
@@ -440,16 +440,16 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 247 additions — G2-b 续 slice：编辑器页分组 section 子标题（顶部/显示/行为·对齐 Obsidian reference 01）·复用 R246 `.settings-subheader`·JSX 块搬迁 + 子标题 + i18n·零新依赖【契约冻结 v0.243·机械档】
 
-> **状态：As-built（已交付·v0.243）。** **背景**：R246 给外观页建了 `.settings-subheader` 分组模式·R247 推广到编辑器页。reference 01 编辑器页分组 = **顶部(无分组) → 显示(Display) → 行为(Behavior) → 高级(Advanced)**。Geode 编辑器页当前 17 项扁平且顺序非忠实（显示/行为项交错）→ 重排进 顶部/显示/行为 三组 + 加 显示/行为 子标题（**顶部=首组 headerless**；Geode 无 Obsidian 高级项[自动转换 HTML / Vim 模式·Vim 待批依赖]→不造空高级组）。
+> **状态：As-built（已交付·v0.243）。** **背景**：R246 给外观页建了 `.settings-subheader` 分组模式·R247 推广到编辑器页。reference 01 编辑器页分组 = **顶部(无分组) → 显示(Display) → 行为(Behavior) → 高级(Advanced)**。ADKM 编辑器页当前 17 项扁平且顺序非忠实（显示/行为项交错）→ 重排进 顶部/显示/行为 三组 + 加 显示/行为 子标题（**顶部=首组 headerless**；ADKM 无 Obsidian 高级项[自动转换 HTML / Vim 模式·Vim 待批依赖]→不造空高级组）。
 > **设计（纯 IA 重排 + i18n·复用 R246 `.settings-subheader` CSS·无新逻辑/无 store/无数据安全面）**：
 > - **`features/settings/SettingsModal.tsx` `EditorSection`**：**仅重排既有 17 个 setting-item 块 + 插 2 个 `<h3 className="settings-subheader">`**（每块逐字保留 testid/绑定/默认值·只移位置）。新顺序：**顶部组**(focus-new-tab-toggle·newtab segmented[default-new-tab-mode]·view-mode-toggle) → `显示` 子标题 → **显示组**(readable-toggle·strict-linebreaks·properties-display·fold-heading·line-numbers·hide-reference-marks·rtl·**backlinks-indoc**) → `行为` 子标题 → **行为组**(spellcheck·autopair·autopair-markdown·smart-lists·indent-tabs·tabsize)。
-> - **deviation（记一句）**：`backlinks-indoc`（在文档中显示反向链接）是 Obsidian **Backlinks 核心插件**设置（非 Editor），Geode 历轮放在 Editor 页——本片不挪动其所属页（超范围）·仅就近归入「显示」组（它控制文档内一个显示元素·最贴近）。
+> - **deviation（记一句）**：`backlinks-indoc`（在文档中显示反向链接）是 Obsidian **Backlinks 核心插件**设置（非 Editor），ADKM 历轮放在 Editor 页——本片不挪动其所属页（超范围）·仅就近归入「显示」组（它控制文档内一个显示元素·最贴近）。
 > - **`core/i18n/dict.views.ts`**：`settings.subheaderDisplay`（EN「Display」/ZH「显示」）+ `settings.subheaderBehavior`（EN「Behavior」/ZH「行为」）×中英。
 > **分档=机械档（diff = SettingsModal EditorSection 块搬迁 + 2 子标题 + i18n 2 键·纯 IA 重排/文案·无新逻辑/无新契约/未碰数据安全面·复用既有 CSS 类）→ 简化门机械档跳过 → scoped review（窄域：① 17 个 setting-item testid/绑定搬迁后逐一保留[byte 级 set-diff]·② 子标题 i18n 键真实·③ 无重复/遗漏·④ 顺序符 reference）**。**测试**：`.calibration/r247-e2e.mjs`（编辑器页 17 原 testid 全在·显示/行为 子标题存在·DOM 顺序 顶部组 → 显示子标题 → 显示组 → 行为子标题 → 行为组）+ 回归 r23 设置模态不退。**桌面 probe N/A**（纯前端 IA·跨端同）。**下一片 G2-b backlog**：文件与链接等其余设置页分组子标题·逐页推进。
 
 ## Round 246 additions — G2-b 续 slice：设置内容区分组 section 子标题（外观页·主题/界面/字体 三组·对齐 Obsidian 页内分组 reference 03 §三/§五）·JSX 块搬迁 + 子标题 + CSS·零新依赖【契约冻结 v0.242·机械档】
 
-> **状态：As-built（已交付·v0.242）。** **背景**：R245 起 G2-b 设置页视觉打磨。reference 03 外观页分组 = **主题 → 界面 → 字体 →（高级）**，每组前有灰色 section 子标题（外观-02 截图实证「高级」子标题：较大较粗·正常色·上方留白·无下划线）。Geode 外观页当前**扁平无分组**且顺序非忠实（theme→字体→界面→obsidian-css）。本片把外观页重排进 主题/界面/字体 三组 + 加 界面/字体 子标题（**主题=首组 headerless·对齐 Obsidian 首组隐式**；Geode 无 Obsidian 的「高级」桌面设置[缩放/原生菜单/窗口边框/半透明/硬件加速]→不造空高级组）。
+> **状态：As-built（已交付·v0.242）。** **背景**：R245 起 G2-b 设置页视觉打磨。reference 03 外观页分组 = **主题 → 界面 → 字体 →（高级）**，每组前有灰色 section 子标题（外观-02 截图实证「高级」子标题：较大较粗·正常色·上方留白·无下划线）。ADKM 外观页当前**扁平无分组**且顺序非忠实（theme→字体→界面→obsidian-css）。本片把外观页重排进 主题/界面/字体 三组 + 加 界面/字体 子标题（**主题=首组 headerless·对齐 Obsidian 首组隐式**；ADKM 无 Obsidian 的「高级」桌面设置[缩放/原生菜单/窗口边框/半透明/硬件加速]→不造空高级组）。
 > **设计（纯 IA 重排 + 样式 + i18n·无新逻辑/无 store/无数据安全面）**：
 > - **`features/settings/settings.css`**：新 `.settings-subheader`（页内组子标题·`font-size:16px`[< 页标题 17px]·`font-weight:600`·`color:var(--text-normal)`·`margin:22px 0 2px` 上方留白分隔上一组·**无下划线**[页标题 `.settings-heading` 才有]）。
 > - **`features/settings/SettingsModal.tsx` `AppearanceSection`**：**仅重排既有 setting-item 块 + 插 2 个 `<h3 className="settings-subheader">`**（每个 setting-item 块**逐字保留** testid/绑定/默认值·只移动位置）。新顺序：**主题组**(theme-select·accent-color·obsidian-css·obsidian-theme·snippets) → `界面` 子标题 → **界面组**(inline-title·tab-title-bar·ribbon·status-bar·对齐 reference 界面序 inline→tabbar→ribbon) → `字体` 子标题 → **字体组**(font-interface·font-text·font-monospace·font-size·quick-font-zoom)。
@@ -460,7 +460,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 > **状态：As-built（已交付·v0.241）。** **背景（用户 R244 拍板转设置页视觉打磨·R245 删除去向 parked）**：G2-b = 对照 reference 截图逐像素校准设置模态视觉。Step 0 实测纠误：`settings.css` **零硬编码颜色**（全走 CSS 变量·R178/G2-a 已立好）→「硬编码→变量」无活；真·偏差 = **左导航选中项用了 accent 紫高亮**（`rgba(139,124,246,.18)` bg + accent 紫文字/图标），而 **Obsidian 设置左导航选中项是【中性灰】高亮**（reference 03/§三「选中项有灰底高亮」·§四 accent 仅用于 开关 ON / 主按钮 / 链接·**不含 nav 选中**·截图实证 nav 内无紫）。
 > **设计（1 CSS 规则改 2 属性·纯视觉·非数据安全[不碰 .md/vault/editor]）**：`features/settings/settings.css` `.settings-nav-item.is-active`：`background: var(--accent-muted)` → `var(--bg-active)`（= `--background-modifier-active-hover`·Obsidian 设置 nav 选中所用同名变量·浅 `rgba(0,0,0,.09)`/深 `rgba(255,255,255,.1)`）·`color: var(--accent)` → `var(--text-normal)`（图标走 currentColor 一并转中性）。**审计 settings.css 全部 `--accent` 用处**：toggle ON / slider thumb / 主按钮(update-install) / focus 边框 / 控件 active 态(funnel filter·capturing·segmented) 均**正确保留 accent**（= §四 accent 语义）·**唯独 nav 选中项是 nav 选择态该中性** → 仅改此一处。
-> **分档=机械档（diff = 单文件 settings.css 2 属性·纯样式·无新逻辑/无新契约/未碰数据安全面）→ 简化门机械档跳过 → scoped review（窄域：CSS 变量真实存在[`--text-normal` 在 app.css 双主题·`--bg-active` 在 app.css + theme-bridge.css:125 映射 Obsidian `--background-modifier-active-hover`]·选中态 vs hover 态层叠正确[同特异性源序后者胜]·无其他 accent 误伤）**。**测试**：`.calibration/r245-e2e.mjs`（computed-style：active nav 文字 === `--text-normal` 且 !== `--accent`·active nav bg === `--bg-active`[中性] 且非 accent-tinted·探针元素解析变量为 rgb 精确比对）+ 截图留证。**桌面 probe N/A**（纯 CSS·跨端同样式·浏览器全覆盖）。**下一片 G2-b backlog**：内容区分组 section 子标题（界面/字体 等·reference §三「分组 section header 灰色小标题」·Obsidian 页内分组·Geode 当前扁平）= 结构档[需 SettingsModal JSX 改]·单独排。
+> **分档=机械档（diff = 单文件 settings.css 2 属性·纯样式·无新逻辑/无新契约/未碰数据安全面）→ 简化门机械档跳过 → scoped review（窄域：CSS 变量真实存在[`--text-normal` 在 app.css 双主题·`--bg-active` 在 app.css + theme-bridge.css:125 映射 Obsidian `--background-modifier-active-hover`]·选中态 vs hover 态层叠正确[同特异性源序后者胜]·无其他 accent 误伤）**。**测试**：`.calibration/r245-e2e.mjs`（computed-style：active nav 文字 === `--text-normal` 且 !== `--accent`·active nav bg === `--bg-active`[中性] 且非 accent-tinted·探针元素解析变量为 rgb 精确比对）+ 截图留证。**桌面 probe N/A**（纯 CSS·跨端同样式·浏览器全覆盖）。**下一片 G2-b backlog**：内容区分组 section 子标题（界面/字体 等·reference §三「分组 section header 灰色小标题」·Obsidian 页内分组·ADKM 当前扁平）= 结构档[需 SettingsModal JSX 改]·单独排。
 
 ## Round 244 additions — 回收站组余 slice 2a「删除附件处理」下拉（Obsidian native Files&Links·删除文件时删除附件·reference 02:30·默认「每次都询问」）·删笔记时按设置 询问/一并删/保留 其【独占引用】的附件·走 recoverable `vault.trash`·**绝不自动永久删**·零新依赖【契约冻结 v0.240·data-safety 最高危轮·底线①】
 
@@ -496,7 +496,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > **状态：As-built（已交付·v0.238）。** **Step 0 全表面 scout 纠误（R228 纪律·近枯竭拐点）**：① 文件/文件夹右键菜单基本补齐（reference 08·剩 多窗口 oos / 打开历史 community）；② 热键页早有搜索+筛选(assignedOnly)+改键+**冲突检测 badge**（R145）——**WebSearch 纠误：Obsidian「冲突筛选」是 community feature-request 非 native**（reference 04「冲突」实指冲突 badge·非筛选）→ **不加冲突筛选**（防造非 native）；③ 命令 missing 多撞边界（release-notes 内容 / help open_url / trash·multi-window）。**剩唯一 native 功能缺口 = Files&Links 回收站组三设置**（reference 02:29-31：删除文件时确认[开关·默认关] / 删除附件处理[下拉] / 删除文件去向[下拉·系统回收站/.trash/永久]）= 用户预留 data-safety 重轮。**R242 取最安全 slice = 删除文件时确认 toggle**（仅 gate confirm UX·**不碰 vetted `.trash` 写路径**；附件处理 + 去向三档[含永久删除·系统回收站需 Rust]留后续 slice）。
 > **设计（1 bool Store + gate 3 confirm 点·data-safety careful·镜像 R235 merge-confirm）**：
 > - **`core/appearance.ts`**：`deleteConfirm` Store（默认 **true**·`geode.deleteConfirm`·镜像 mergeConfirm idiom）+ `setDeleteConfirm`。
-> - **🛑 default 决策（deviation·记一句）**：Obsidian native 默认 **关(OFF)**；Geode **默认 ON**（= 现状始终确认·**零回归** r140/r161·守意外删除防护）——**用户明确 flag「忠实默认 OFF 会放松防护」→ 按其顾虑取安全默认**，toggle 关闭即得 Obsidian 忠实无确认行为（删除仍走 recoverable `.trash`·关确认也安全可恢复）。
+> - **🛑 default 决策（deviation·记一句）**：Obsidian native 默认 **关(OFF)**；ADKM **默认 ON**（= 现状始终确认·**零回归** r140/r161·守意外删除防护）——**用户明确 flag「忠实默认 OFF 会放松防护」→ 按其顾虑取安全默认**，toggle 关闭即得 Obsidian 忠实无确认行为（删除仍走 recoverable `.trash`·关确认也安全可恢复）。
 > - **gate 3 个 confirm 点**（镜像 R235：`if (deleteConfirm.get() && !(await confirmAction(...))) return;`·仅设置 ON 才确认）：`features/explorer/Explorer.tsx` 单删(deleteNode)+批删(bulkDelete) + `app/App.tsx` `app:delete-file` 命令。**confirmAction + vault.trash 写路径逐字不变**（仅前置确认门控）。
 > - **`features/settings/SettingsModal.tsx`**：FilesAndLinksSection += toggle（回收站组·testid `settings-delete-confirm-toggle`·镜像 merge-confirm toggle）。
 > - **`core/i18n/dict.views.ts`**：`settings.deleteConfirm`/`Desc` × 中英。
@@ -546,7 +546,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 236 additions — 笔记重组设置 Tab 补完（slice 3·收官 3/3）：「模板文件位置」（Obsidian native「Note composer」·Template file location·提取选区→新笔记时套模板）·零新依赖【契约冻结 v0.232】
 
-> **状态：As-built（已交付·v0.232）。** R234 下拉 + R235 合并提示后，本轮补最后一格「模板文件位置」→ Note composer Tab **3/3 收官**。**Step 0 scout**：WebFetch `obsidian.md/help/Plugins/Note+composer` 实证模板变量 `{{content}}`(提取的文本)`{{fromTitle}}`(源笔记名)`{{newTitle}}`(新笔记名)`{{date:FORMAT}}`·**{{content}} 缺省时内容追加到底部**·无模板=仅内容；explorer 坐实 Geode `extractedContent` 当前 verbatim 无模板·`expandTemplate`(core/templates.ts) 仅支持 `{{title}}/{{date}}/{{time}}`（**单趟 String.replace·替换值不重扫**=对抗输入安全·CLAUDE.md「单趟替换绝不重扫」）。
+> **状态：As-built（已交付·v0.232）。** R234 下拉 + R235 合并提示后，本轮补最后一格「模板文件位置」→ Note composer Tab **3/3 收官**。**Step 0 scout**：WebFetch `obsidian.md/help/Plugins/Note+composer` 实证模板变量 `{{content}}`(提取的文本)`{{fromTitle}}`(源笔记名)`{{newTitle}}`(新笔记名)`{{date:FORMAT}}`·**{{content}} 缺省时内容追加到底部**·无模板=仅内容；explorer 坐实 ADKM `extractedContent` 当前 verbatim 无模板·`expandTemplate`(core/templates.ts) 仅支持 `{{title}}/{{date}}/{{time}}`（**单趟 String.replace·替换值不重扫**=对抗输入安全·CLAUDE.md「单趟替换绝不重扫」）。
 > **设计（新 composer 模板展开 + 1 string Store + extract 套模板·改 extract 字节）**：
 > - **`core/templates.ts`**：新 `expandExtractTemplate(template, ctx:{content,fromTitle,newTitle,now})` —— **逐字镜像 `expandTemplate` 的单趟 regex-callback**（replacement 值永不重扫·提取内容含字面 `{{newTitle}}` 不会被二次展开）。regex `/\{\{(content|fromTitle|newTitle|date)(?::([^}]*))?\}\}/gi`：content/fromTitle/newTitle 字面替换（带 `:fmt` 则非变量·返回原文同 expandTemplate `{{title:x}}` 处理）；date → `moment(now).format(fmt || templateDateFormat || YYYY-MM-DD)`（复用既有 date 设置）。**不扩 `expandTemplate`**（templates feature 零触碰·composer 变量集 {content/fromTitle/newTitle/date} 与之不同）。
 > - **`core/appearance.ts`**：`extractTemplatePath` string Store（默认 **""**·`geode.extractTemplatePath`·镜像 accentColor `readString` idiom）+ `setExtractTemplatePath`。默认 "" = R236 前 verbatim = **零回归**。
@@ -557,10 +557,10 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 235 additions — 笔记重组设置 Tab 补完（slice 2）：「合并提示」toggle（Obsidian native 核心插件「Note composer」·Ask to confirm before merging·默认 ON）·零新依赖【契约冻结 v0.231】
 
-> **状态：As-built（已交付·v0.231）。** R234 建了 Note composer 设置 Tab（1/3 设置）；R235 补「合并提示」（→ 2/3·模板文件位置留 R236）。**Step 0 scout**：WebFetch `obsidian.md/help/Plugins/Note+composer` 实证「By default, Note composer asks you to confirm when merging notes」·默认 **ON**；explorer 坐实 ① Geode 合并**无 confirm**（`QuickSwitcher.tsx:200` 选目标后直接 `void mergeNotes(...)`）② **已有可复用 confirm**：`core/confirm.ts` `confirmDelete(message,title)`（Tauri `ask` / browser `window.confirm`·泛型但命名 delete-specific·4 调用点）。
+> **状态：As-built（已交付·v0.231）。** R234 建了 Note composer 设置 Tab（1/3 设置）；R235 补「合并提示」（→ 2/3·模板文件位置留 R236）。**Step 0 scout**：WebFetch `obsidian.md/help/Plugins/Note+composer` 实证「By default, Note composer asks you to confirm when merging notes」·默认 **ON**；explorer 坐实 ① ADKM 合并**无 confirm**（`QuickSwitcher.tsx:200` 选目标后直接 `void mergeNotes(...)`）② **已有可复用 confirm**：`core/confirm.ts` `confirmDelete(message,title)`（Tauri `ask` / browser `window.confirm`·泛型但命名 delete-specific·4 调用点）。
 > **设计（generalize confirm + 1 bool Store + gate merge + 设置 toggle）**：
 > - **`core/confirm.ts`**：`confirmDelete` → **`confirmAction`**（泛型重命名·body 逐字节不变·JSDoc 改为通用「确认对话框 idiom·delete + merge 共用」）。纯重命名·typecheck 校全 4 调用点（App.tsx delete-file / SettingsModal / Explorer×2）→ 零行为变。
-> - **`core/appearance.ts`**：`mergeConfirm` Store（默认 **true**·`geode.mergeConfirm`·镜像 readBool idiom）+ `setMergeConfirm`。默认 ON = Obsidian 默认（**注意：这改变 Geode 现状**——此前无 confirm 直接合并·现默认询问·= 更忠实）。
+> - **`core/appearance.ts`**：`mergeConfirm` Store（默认 **true**·`geode.mergeConfirm`·镜像 readBool idiom）+ `setMergeConfirm`。默认 ON = Obsidian 默认（**注意：这改变 ADKM 现状**——此前无 confirm 直接合并·现默认询问·= 更忠实）。
 > - **`features/palette/QuickSwitcher.tsx`**（merge activate :197-218）：选目标后 `app.workspace.closeModal()`（同步·先关 switcher）→ `void (async () => { if (mergeConfirm.get() && !(await confirmAction(t("switcher.mergeConfirm",{source,target}), t("switcher.mergeConfirmTitle")))) return; mergeNotes(...).then(...).catch(...) })()`。**confirm 是 vetted `mergeNotes` 前的 gate·不改 mergeNotes 写路径**（append-before-trash + live-buffer 读 + R16 link rewrite 全不动）。OFF → 直接 merge（= R235 前行为·零回归）。cancel → return·source 不动（零丢失）。confirm 消息用 `stripExtension(basename(...))` from `@core/vault` 取 source/target 名（去 `.md`·与 switcher 列表 FileNode.basename 及 Obsidian 一致·评审 minor 驱动）。
 > - **`features/settings/SettingsModal.tsx`**：NoteComposerSection += toggle 行（testid `settings-merge-confirm-toggle`·镜像 R233 focusNewTab toggle）。
 > - **`core/i18n/dict.views.ts`**：`settings.mergeConfirm`/`Desc` × 中英（设置标签）。**`core/i18n/dict.panels.ts`**：`switcher.mergeConfirm`（对话框消息·`{source}`→`{target}`）/`switcher.mergeConfirmTitle` × 中英（与既有 switcher.merge* 同处）。
@@ -570,7 +570,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 234 additions — 选项2 bounded backlog 续：笔记重组设置 Tab + 「替代原文的方式」下拉（Obsidian native 核心插件「Note composer / 笔记重组」·Replace selection with: Link/Embed/None）·零新依赖【契约冻结 v0.230】
 
-> **状态：As-built（已交付·v0.230）。** 从「选项2 bounded backlog」取（ROADMAP 把笔记重组拆两项：本轮 = **link/embed/none 下拉**[清爽]；**合并提示+模板位置**[data-safety 邻接·谨慎]留 R235）。**Step 0 三 scout**：① reference `05-核心插件.md:41` ground truth = 笔记重组三设置「替代原文的方式(下拉) · 模板文件位置(输入) · 合并提示(开)」；② WebFetch `obsidian.md/help/Plugins/Note+composer` 实证「Replace selection with」下拉 = **Link(默认)/Embed/None**·合并提示默认 ON；③ explorer 坐实 Geode `core/noteComposer.ts:76` `extractReplacement(name, mode)` **embed 路径已建**但 `noteComposerCommands.ts:51` 调用方**写死 `"link"`**·`ExtractMode` 缺 `"none"`。
+> **状态：As-built（已交付·v0.230）。** 从「选项2 bounded backlog」取（ROADMAP 把笔记重组拆两项：本轮 = **link/embed/none 下拉**[清爽]；**合并提示+模板位置**[data-safety 邻接·谨慎]留 R235）。**Step 0 三 scout**：① reference `05-核心插件.md:41` ground truth = 笔记重组三设置「替代原文的方式(下拉) · 模板文件位置(输入) · 合并提示(开)」；② WebFetch `obsidian.md/help/Plugins/Note+composer` 实证「Replace selection with」下拉 = **Link(默认)/Embed/None**·合并提示默认 ON；③ explorer 坐实 ADKM `core/noteComposer.ts:76` `extractReplacement(name, mode)` **embed 路径已建**但 `noteComposerCommands.ts:51` 调用方**写死 `"link"`**·`ExtractMode` 缺 `"none"`。
 > **设计（1 enum Store + ExtractMode 加 none + 注入 + 新设置 Tab）**：
 > - **`core/noteComposer.ts`**：`ExtractMode` 加 `"none"` → `extractReplacement` 命中 `"none"` 返回 `""`（提取后原文删选区·不留引用·= Obsidian「None」）。embed/link 两分支字节不变。
 > - **`core/appearance.ts`**：`ExtractReplaceMode = "link"|"embed"|"none"` + `extractReplaceMode` Store（默认 **"link"**·`geode.extractReplaceMode` localStorage·镜像 `defaultNewTabMode` enum idiom）+ `setExtractReplaceMode`。**命名避撞**：core 已有同名纯函数 `extractReplacement`(noteComposer.ts) → Store 命名 `extractReplaceMode`。默认 "link" = R234 前硬编码行为 = **零回归**。
@@ -587,7 +587,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > **设计（1 Store + openFile 加性 opt 门控 + 2 个显式命令豁免 + 设置 toggle）**：
 > - **`core/appearance.ts`**：`focusNewTab` Store（默认 **true**·`geode.focusNewTab` localStorage）+ `setFocusNewTab`（镜像 `showViewModeToggle` R229 idiom）。默认 true = R233 前「恒抢焦」逐状态同 = **零回归**。
 > - **`core/workspace.ts`**：openFile 签名**加性扩展** `opts.focus?: boolean`（冻结契约·~20 调用点默认值不变）。新 tab 分支 `shouldFocus = opts.focus ?? focusNewTab.get()`；`shouldFocus` 时维持原 `{ ...l, tabs:[...], activeTabId: tab.id }` + `activePaneId: target.id`（原行为）；否则**后台分支** = `{ ...l, tabs:[...l.tabs, tab] }`（不改 `activeTabId`）+ 返回 `{ ...s, root, modal: null }`（**不改** `activePaneId`/不改 leaf active）。`let openedInBackground` 旗标（reducer 内置·deterministic·幂等）→ 仅后台分支跳过 `emitActiveFile()`（active file 未变·避免对当前文件重发 active-file:changed）；**其余所有分支 `emitActiveFile()` firing 与 R233 前完全一致 = 零回归**。`modal: null` 两分支都保留（Ctrl+Enter 后台打开仍关 quick switcher）。
-> - **两个显式命令强制 `focus: true`（correct·非 deviation）**：① **`app:new-tab` Cmd+T**（App.tsx）= 显式新建工作 tab（Geode 实现为 create Untitled.md·后台会遗留隐形空文件·Obsidian 空 new-tab 亦 focus）；② **`reopenClosedTab` workspace.ts:864**（R39）= 重开关闭 tab 后**立即读 `getActiveTab()`** 还原 mode/pin，依赖重开 tab 为 active（后台会静默丢失还原）。这是 `focus` opt 的两个真实调用点（满足 simplify ≥2 调用点·非投机参数）。
+> - **两个显式命令强制 `focus: true`（correct·非 deviation）**：① **`app:new-tab` Cmd+T**（App.tsx）= 显式新建工作 tab（ADKM 实现为 create Untitled.md·后台会遗留隐形空文件·Obsidian 空 new-tab 亦 focus）；② **`reopenClosedTab` workspace.ts:864**（R39）= 重开关闭 tab 后**立即读 `getActiveTab()`** 还原 mode/pin，依赖重开 tab 为 active（后台会静默丢失还原）。这是 `focus` opt 的两个真实调用点（满足 simplify ≥2 调用点·非投机参数）。
 > - **所有 link/explorer「在新标签页打开」/ wikilink Mod-click / open-link-in-new-leaf / obsidian:// URI 等文件打开路径**：不传 `focus` → 尊重 `focusNewTab` 设置（OFF 后台打开·= native「Always focus new tabs」标准目标）。**compat 插件 getLeaf/openLinkText 亦继承设置**（faithful·插件开新 tab 尊重用户 pref）。
 > - **`features/settings/SettingsModal.tsx`**：EditorSection +1 toggle 行（testid `settings-focus-new-tab-toggle`·镜像 view-mode/smart-lists 行）。
 > - **`core/i18n/dict.views.ts`**：`settings.focusNewTab`/`settings.focusNewTabDesc` × 中英（官方串「Always focus new tabs」/「始终聚焦新标签页」+ 描述「创建或打开文件时，立即切换至该标签页。」）。
@@ -595,7 +595,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 232 additions — 选项2 bounded backlog 续：编辑器「智能列表」toggle（Obsidian native Editor「Smart lists / 智能列表」）·gate markdownKeymap·零新依赖【契约冻结 v0.228】
 
-> **状态：As-built（已交付·v0.228）。** 从「选项2 bounded backlog」取（碰 editor 逻辑档·镜像 R225 compartment）。**Step 0 双 scout**：① reference `01-编辑器.md:38`（编辑器-03.png ground truth）+ Obsidian 官方翻译仓 `setting.editor.option-smart-indent-lists` = native 核心 Editor 设置·**默认 ON**·EN「Smart lists」/ ZH「智能列表」·官方描述「Automatically set indentation and place list items correctly.」；② 代码 scout 坐实 HANDOFF「partial·无门控」——Geode 的列表续行来自 `@codemirror/lang-markdown` 的 `markdownKeymap`，**bundled 在 `markdown()` 内**（`addKeymap` 默认 true），`cmExtensions.ts markdownSansHeaderFold()` 只滤掉 foldService、keymap 一直在跑、**无任何 toggle/compartment 门控**。
+> **状态：As-built（已交付·v0.228）。** 从「选项2 bounded backlog」取（碰 editor 逻辑档·镜像 R225 compartment）。**Step 0 双 scout**：① reference `01-编辑器.md:38`（编辑器-03.png ground truth）+ Obsidian 官方翻译仓 `setting.editor.option-smart-indent-lists` = native 核心 Editor 设置·**默认 ON**·EN「Smart lists」/ ZH「智能列表」·官方描述「Automatically set indentation and place list items correctly.」；② 代码 scout 坐实 HANDOFF「partial·无门控」——ADKM 的列表续行来自 `@codemirror/lang-markdown` 的 `markdownKeymap`，**bundled 在 `markdown()` 内**（`addKeymap` 默认 true），`cmExtensions.ts markdownSansHeaderFold()` 只滤掉 foldService、keymap 一直在跑、**无任何 toggle/compartment 门控**。
 > **关键洞察（gate 面比「列表」大·已记 deviation）**：`markdownKeymap` 绑定 Enter=`insertNewlineContinueMarkup`（列表续行/重编号/空项 outdent + **bundled 引用块续行**）+ Backspace=`deleteMarkupBackward`（markup 退格降级）。`@codemirror/lang-markdown` 把列表续行 + 引用块续行耦合进同一条 Enter 命令，**无免费的更细切分**（拆分须自写带上下文判定的命令包装·data-safety 红线高风险）。取舍：**gate 整条 markdownKeymap**（最干净的 R225 镜像·编辑器红线最低风险·默认 ON = 与 R232 前逐字节同），代价 = OFF 时引用块续行 + 退格降级一并停（仅用户主动关时显现·Obsidian 官方描述本身含糊「indentation + placement」·可辩护）。
 > **契约（1 Store + smartListExtension factory + 新 compartment + 设置 toggle）**：
 > - **`core/appearance.ts`**：`smartLists` Store（默认 **true**·`geode.smartLists` localStorage）+ `setSmartLists`（镜像 `autoPairMarkdown` R225 / `autoPairBrackets` R153 idiom）。
@@ -607,7 +607,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 231 additions — 选项2 bounded backlog 续：快速切换器 3 档设置（Obsidian native Quick switcher「显示附件 / 仅显示已创建的笔记 / 显示所有受类型文件」）·纯只读导航·零新依赖【契约冻结 v0.227】
 
-> **状态：As-built（已交付·v0.227）。** 从「选项2 bounded backlog」取（scout 评「★最干净」·实为中型：新设置 Tab + 文件列表逻辑）。**Step 0**：reference `05-核心插件.md:18+45`（核心插件-07.png ground truth）= native 3 设置：仅显示已创建的笔记(默认关) / 显示附件(默认开) / 显示所有受类型文件(默认关)。Geode QuickSwitcher（`QuickSwitcher.tsx:77 getMarkdownFiles()` 仅 .md·`:159 create 行恒显`）无此 3 设置（grep 零命中）·**无快切设置 Tab**（须新增）。底层就绪：`vault.getFiles()`（全量·vault.ts:230）+ `isAttachmentPath`（attachments.ts:266）+ openFile 已 R102 路由非-md 到只读 attachment 视图。**关键洞察**：显示附件默认 ON **既忠实又零回归**——只在 attachment 存在时才多列（既有 e2e[r38] fixture 全 .md·无 attachment → 行为字节同）。
+> **状态：As-built（已交付·v0.227）。** 从「选项2 bounded backlog」取（scout 评「★最干净」·实为中型：新设置 Tab + 文件列表逻辑）。**Step 0**：reference `05-核心插件.md:18+45`（核心插件-07.png ground truth）= native 3 设置：仅显示已创建的笔记(默认关) / 显示附件(默认开) / 显示所有受类型文件(默认关)。ADKM QuickSwitcher（`QuickSwitcher.tsx:77 getMarkdownFiles()` 仅 .md·`:159 create 行恒显`）无此 3 设置（grep 零命中）·**无快切设置 Tab**（须新增）。底层就绪：`vault.getFiles()`（全量·vault.ts:230）+ `isAttachmentPath`（attachments.ts:266）+ openFile 已 R102 路由非-md 到只读 attachment 视图。**关键洞察**：显示附件默认 ON **既忠实又零回归**——只在 attachment 存在时才多列（既有 e2e[r38] fixture 全 .md·无 attachment → 行为字节同）。
 > **契约（3 Store + QuickSwitcher 文件列表/create 门控 + 新设置 Tab）**：
 > - **`core/appearance.ts`**：`switcherShowExistingOnly`(默认 false) / `switcherShowAttachments`(默认 **true**·Obsidian 默认) / `switcherShowAllTypes`(默认 false) 3 Store + setter（镜像既有 bool Store）。
 > - **`QuickSwitcher.tsx`**：`files` memo 条件化——`showAllTypes ? getFiles() : showAttachments ? getFiles().filter(f => f.extension==="md" || isAttachmentPath(f.path)) : getMarkdownFiles()`（deps +3 flag）；create 行 `:159` 门控 `if (!exact && !showExistingOnly) out.unshift({kind:"create"})`；`useStore` 3 flag。
@@ -617,7 +617,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 230 additions — 选项2 bounded backlog 续：文件夹右键「设为附件文件夹」（Obsidian native folder context「Set as attachment folder」）·复用既有 setAttachmentFolder·零新依赖【契约冻结 v0.226】
 
-> **状态：As-built（已交付·v0.226）。** 从「选项2 bounded backlog」取最清爽单项（scout 评「★最干净单项」）。**Step 0**：reference `08-右键菜单.md:30`「文件夹对象菜单：新建笔记/新建文件夹/设为附件文件夹」= native。Geode 后端 `core/attachments.ts:27 setAttachmentFolder(value)`（写 localStorage 设置·attachment 导入消费）已 vetted·设置页输入框已用（SettingsModal:1099）·但**文件夹右键缺此项**（Explorer.tsx:1089-1113 folder 分支仅 new-note-here/new-folder-here·grep set-attachment 零命中）。
+> **状态：As-built（已交付·v0.226）。** 从「选项2 bounded backlog」取最清爽单项（scout 评「★最干净单项」）。**Step 0**：reference `08-右键菜单.md:30`「文件夹对象菜单：新建笔记/新建文件夹/设为附件文件夹」= native。ADKM 后端 `core/attachments.ts:27 setAttachmentFolder(value)`（写 localStorage 设置·attachment 导入消费）已 vetted·设置页输入框已用（SettingsModal:1099）·但**文件夹右键缺此项**（Explorer.tsx:1089-1113 folder 分支仅 new-note-here/new-folder-here·grep set-attachment 零命中）。
 > **契约（Explorer 文件夹右键 +1 菜单项·复用 vetted setter）**：
 > - **`Explorer.tsx`**：import `setAttachmentFolder` from `@core/attachments`；folder 分支（`node.kind === "folder"`·new-folder-here 后）+1 按钮 `data-testid="explorerctx-set-attachment-folder"`·`onClick = setMenu(null) + setAttachmentFolder(node.path) + showLinkUpdateNotice(t("explorer.setAttachmentFolderDone", { folder: node.path }))`（复用既有 explorer toast helper·镜像 new-note-here 按钮）。
 > - **i18n `dict.panels.ts` `explorer.*`**：+`setAttachmentFolder`（菜单标签）/`setAttachmentFolderDone`（toast·带 {folder}）·中英。
@@ -625,7 +625,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 229 additions — 选项2 bounded backlog 取首项：编辑器设置「视图状态切换」toggle（Obsidian native Editor 顶部组「Show view mode toggle」·默认开）·纯渲染门·零新依赖【契约冻结 v0.225】
 
-> **状态：As-built（已交付·v0.225）。** R228 拐点纠误后从 ROADMAP「选项2 bounded backlog」(scout 余 11 项) 取最清爽之一。**Step 0**：reference `01-编辑器.md:15`「视图状态切换 | 开关 | 开 | 在每个标签页显示『编辑/阅读视图』切换按钮」= native（Editor 顶部组·R226「Editor Display 组全清」未覆盖此顶部组·scout 找出漏检）。Geode `EditorPane.tsx:1200` 的 `.editor-mode-group`（live/source/preview 三按钮 + bookmark）**无条件渲染·无 setting 门控**（grep showViewModeToggle 零命中）。
+> **状态：As-built（已交付·v0.225）。** R228 拐点纠误后从 ROADMAP「选项2 bounded backlog」(scout 余 11 项) 取最清爽之一。**Step 0**：reference `01-编辑器.md:15`「视图状态切换 | 开关 | 开 | 在每个标签页显示『编辑/阅读视图』切换按钮」= native（Editor 顶部组·R226「Editor Display 组全清」未覆盖此顶部组·scout 找出漏检）。ADKM `EditorPane.tsx:1200` 的 `.editor-mode-group`（live/source/preview 三按钮 + bookmark）**无条件渲染·无 setting 门控**（grep showViewModeToggle 零命中）。
 > **契约（纯渲染门·逐点镜像 R94 showRibbon / R100 showTabTitleBar）**：
 > - **`core/appearance.ts`**：`showViewModeToggle = new Store<boolean>(readBool("geode.showViewModeToggle", true))` + `setShowViewModeToggle`（镜像 showRibbon·**默认 true = 当前行为·零回归**）。
 > - **`EditorPane.tsx`**：`useStore(showViewModeToggle)` → 条件渲染 `.editor-mode-group`（`{viewModeToggleVisible && (<div className="editor-mode-group">…)}`·OFF 时隐切换按钮·模式仍可经命令 Ctrl+E/Ctrl+Shift+E 切换·与 Obsidian 一致）。
@@ -634,7 +634,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 228 additions — 选项2 补深七轮：文件与链接设置「重建仓库缓存」（Obsidian native Files&Links 高级组「Rebuild vault cache」）·复用既有 rebuildAll·零新依赖【契约冻结 v0.224】
 
-> **状态：As-built（已交付·v0.224）。** **🔑 拐点纠误**：R227 收尾据 R226 explorer（仅扫 editor/appearance）误判「bounded 矿脉见底·交回大方向」——**Ultracode 6 表面并行穷举 scout（workflow `geode-bounded-work-scout`）纠误：实剩 13 个 bounded-autonomous 项**（跨 文件与链接/核心插件设置 Tab/右键菜单/Editor 顶部组等 R226 未扫表面）→ **矿脉远未枯竭·loop 继续**。R228 = scout 综合者首推（实现风险最低）。**Step 0**：reference `02-文件与链接.md:40` 高级组「重建仓库缓存 | 重建 | 重建元数据缓存」= native。Geode 重走引擎 `core/metadata.ts:410 rebuildAll()`（清 byPath/nameToPaths + 重 indexFiles(getMarkdownFiles) + bump）**已存在且经 vault-load 路径实测**·仅缺用户可达面（grep 无命令/设置）。
+> **状态：As-built（已交付·v0.224）。** **🔑 拐点纠误**：R227 收尾据 R226 explorer（仅扫 editor/appearance）误判「bounded 矿脉见底·交回大方向」——**Ultracode 6 表面并行穷举 scout（workflow `geode-bounded-work-scout`）纠误：实剩 13 个 bounded-autonomous 项**（跨 文件与链接/核心插件设置 Tab/右键菜单/Editor 顶部组等 R226 未扫表面）→ **矿脉远未枯竭·loop 继续**。R228 = scout 综合者首推（实现风险最低）。**Step 0**：reference `02-文件与链接.md:40` 高级组「重建仓库缓存 | 重建 | 重建元数据缓存」= native。ADKM 重走引擎 `core/metadata.ts:410 rebuildAll()`（清 byPath/nameToPaths + 重 indexFiles(getMarkdownFiles) + bump）**已存在且经 vault-load 路径实测**·仅缺用户可达面（grep 无命令/设置）。
 > **契约（命令 + 设置按钮·复用 vetted rebuildAll + showCommandNotice）**：
 > - **`app/App.tsx`**：注册命令 `app:rebuild-cache`（`callback: () => void app.metadata.rebuildAll().then(() => showCommandNotice(t("cmd.rebuildCacheDone")))`·镜像既有 app-level 命令 + R183 toast）。
 > - **`SettingsModal.tsx` FilesAndLinksSection（高级位·excluded files 后·`</section>` 前）**：action 按钮（`.settings-action-btn`·`onClick={() => void app.commands.execute("app:rebuild-cache")}`·镜像 reload-plugins 按钮 `:1442`）。**settings.css**：+`.settings-action-btn`（镜像 `.settings-accent-reset` 观感）。
@@ -643,7 +643,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 227 additions — 选项2 补深六轮（bounded 矿脉收尾）：外观设置「快速调整字体大小」（Obsidian native Appearance「Quick font size adjustment」·字体组·默认关·Ctrl/Cmd+滚轮调字号）·零新依赖【契约冻结 v0.223】
 
-> **状态：As-built（已交付·v0.223）。** 选项2 即取序 + Editor Display 组消化后**最后一个 trivial bounded 项**。**Step 0 verify-first**：reference `03-外观.md:34`「快速调整字体大小 | 开关 | 关 | 按住 Ctrl 滚轮快速调字号」（字体组·默认关）= native。Geode **已有字号基建**（`workspace.fontSize`[默认 16·workspace state] + `workspace.setFontSize(px)`[clamp [11,28] + 驱动 `--editor-font-size` CSS 变量]·R50·zoom 命令 app:zoom-in/out/reset 复用之）→ 缺口 = 一个 **toggle 门控的 Ctrl/Cmd+wheel 处理器**。
+> **状态：As-built（已交付·v0.223）。** 选项2 即取序 + Editor Display 组消化后**最后一个 trivial bounded 项**。**Step 0 verify-first**：reference `03-外观.md:34`「快速调整字体大小 | 开关 | 关 | 按住 Ctrl 滚轮快速调字号」（字体组·默认关）= native。ADKM **已有字号基建**（`workspace.fontSize`[默认 16·workspace state] + `workspace.setFontSize(px)`[clamp [11,28] + 驱动 `--editor-font-size` CSS 变量]·R50·zoom 命令 app:zoom-in/out/reset 复用之）→ 缺口 = 一个 **toggle 门控的 Ctrl/Cmd+wheel 处理器**。
 > **契约（新 Store + App 全局 wheel effect·复用 vetted setFontSize）**：
 > - **`core/appearance.ts`**：`quickFontZoom = new Store<boolean>(readBool("geode.quickFontZoom", false))` + `setQuickFontZoom`（**默认 false = 当前无此行为·零回归**）。
 > - **`app/App.tsx`（全局 wheel 监听·镜像既有 keydown effect line 1062）**：`useEffect` 加 `window.addEventListener("wheel", onWheel, { passive: false })`（**`passive:false` 必需·否则 preventDefault 无效**）；`onWheel` = 仅当 `quickFontZoom.get()`[读 live 值] 且 `(e.ctrlKey || e.metaKey)` 且 `e.deltaY !== 0` → `e.preventDefault()`（拦 webview 页缩放）+ `workspace.setFontSize(state.fontSize + (e.deltaY < 0 ? 1 : -1))`（复用 vetted clamp·scroll up=字号↑）。cleanup removeEventListener。
@@ -654,12 +654,12 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 226 additions — 选项2 补深五轮：G8 编辑器设置「从右到左 RTL」global toggle（Obsidian native Editor「Right-to-left」·显示组·默认关）·纯视觉·零新依赖【契约冻结 v0.222】
 
-> **状态：As-built（已交付·v0.222）。** 选项2 即取序消化后续 G8 Display 组**最后缺口·完成后 Display 组全清**。**Step 0 verify-first**：① reference 截图 `_截图/01-编辑器/编辑器-02.png`（R224 ground-truth 实图·行号与 RTL 之间）确认「从右到左」是 native core 设置（显示组·默认关·`reference/01:28`「文档默认从右往左书写」）；② WebSearch 辨明：**Obsidian core = 全局默认方向 toggle**（本轮目标）·per-note frontmatter `direction` 是 community 插件 esm7/obsidian-rtl 特性（不做·非 core）。Geode 全仓零 RTL/direction 实现（explorer grep 证）= missing。
+> **状态：As-built（已交付·v0.222）。** 选项2 即取序消化后续 G8 Display 组**最后缺口·完成后 Display 组全清**。**Step 0 verify-first**：① reference 截图 `_截图/01-编辑器/编辑器-02.png`（R224 ground-truth 实图·行号与 RTL 之间）确认「从右到左」是 native core 设置（显示组·默认关·`reference/01:28`「文档默认从右往左书写」）；② WebSearch 辨明：**Obsidian core = 全局默认方向 toggle**（本轮目标）·per-note frontmatter `direction` 是 community 插件 esm7/obsidian-rtl 特性（不做·非 core）。ADKM 全仓零 RTL/direction 实现（explorer grep 证）= missing。
 > **契约（镜像 R50 spellcheck contentDOM.setAttribute + R224 reactive effect·纯 DOM 属性）**：
 > - **`core/appearance.ts`**：`rightToLeft = new Store<boolean>(readBool("geode.rightToLeft", false))` + `setRightToLeft`（镜像 spellcheckEnabled·**默认 false = LTR = 当前行为·零回归**）。
 > - **`EditorPane.tsx`（编辑视图 + 阅读视图各一处·纯视觉）**：① 编辑视图——view 建时 seed `view.contentDOM.setAttribute("dir", rtl?"rtl":"ltr")`（镜像 R50 spellcheck seed）+ 反应式 effect `viewRef.current?.contentDOM.setAttribute("dir",...)` + `view.requestMeasure()`（CM6 原生 bidi 接管光标/选区/命中·**不碰任何编辑逻辑**·镜像 R50 spellcheck effect）；② 阅读视图——preview div（`markdown-preview-view`）加 `dir={rtl?"rtl":"ltr"}` prop（**不碰 `previewHtml` 串 → 绕开 markdown.ts/r18 字节管线**）。`useStore(rightToLeft)`。
 > - **`SettingsModal.tsx` 显示组**：toggle row 紧邻 hideReferenceMarks（RTL 在 reference Display 组紧随其后）·镜像之。**i18n `dict.views.ts`**：+`settings.rightToLeft`/`...Desc`（en+zh）。
-> - **分档：逻辑档（碰 editor 管线·底线①——但纯 contentDOM `dir` 属性 + 阅读 div prop·CM6 原生 bidi·零编辑逻辑改·零 .md 写·零字节）** → 简化门 **clean**（纯镜像 R50 spellcheck + 1 Store·seed+effect 对称必要实例非重复·requestMeasure 必需） → 多维对抗 + data-safety **deliverable·7 维全证伪·0 缺陷**（视觉-only[仅 contentDOM dir + preview div prop·零 dispatch/写路径·r226 末断言 doc bytes 不变]·CM6 bidi 接管光标/选区[livePreview decoration offset-based direction-agnostic 不动]·reactivity[effect 镜像 R50·requestMeasure 让 CM 重读方向·seed+effect 双覆盖]·阅读 div dir 不碰 previewHtml→r18 N/A·默认 false=LTR=prior·持久化·分层/i18n/testid·data-safety[无 dispatch/flush/activeElement·与 autosave/undo 零交互]）。**As-built 验证**：typecheck 0（全 src）+ **r226-e2e 9/9**（默认 OFF `.cm-content` dir=ltr·真 Settings UI toggle ON→编辑 dir=rtl + 阅读 preview div dir=rtl·持久化 reload 恢复·反向 OFF→ltr·**doc bytes 逐字节不变[RTL 视觉-only]**）+ 回归 **r33 37/37[字节锁]·r50 15/15[spellcheck]·r35 25/25·r24 12/12·r106 12/12 不退（默认 false 零变）** + 生产构建成功 + cargo check 通过（零 Rust）。**桌面 probe N/A**（纯 DOM 属性·浏览器全覆盖·R50/R88/R224 先例）·**r18-diff 字节套件 N/A**（不碰 markdown.ts·preview div dir prop 不碰 previewHtml 串）。**faithfulness 记（minor·非数据/契约）**：Obsidian RTL 在更高层挂 `dir`→整源码视图翻转（含行号 gutter 侧）；Geode 仅挂 contentDOM·**行号 gutter 可能仍居左**——纯像素级 nuance·在「纯视觉」冻结 scope 内·CM6 gutter 方向处理待视觉一瞥·不阻本轮。**完成后 Editor Display 组全清**（固定行宽/严格换行/属性/折叠标题·列表/行号/隐藏参考标记/从右到左 全 done）。
+> - **分档：逻辑档（碰 editor 管线·底线①——但纯 contentDOM `dir` 属性 + 阅读 div prop·CM6 原生 bidi·零编辑逻辑改·零 .md 写·零字节）** → 简化门 **clean**（纯镜像 R50 spellcheck + 1 Store·seed+effect 对称必要实例非重复·requestMeasure 必需） → 多维对抗 + data-safety **deliverable·7 维全证伪·0 缺陷**（视觉-only[仅 contentDOM dir + preview div prop·零 dispatch/写路径·r226 末断言 doc bytes 不变]·CM6 bidi 接管光标/选区[livePreview decoration offset-based direction-agnostic 不动]·reactivity[effect 镜像 R50·requestMeasure 让 CM 重读方向·seed+effect 双覆盖]·阅读 div dir 不碰 previewHtml→r18 N/A·默认 false=LTR=prior·持久化·分层/i18n/testid·data-safety[无 dispatch/flush/activeElement·与 autosave/undo 零交互]）。**As-built 验证**：typecheck 0（全 src）+ **r226-e2e 9/9**（默认 OFF `.cm-content` dir=ltr·真 Settings UI toggle ON→编辑 dir=rtl + 阅读 preview div dir=rtl·持久化 reload 恢复·反向 OFF→ltr·**doc bytes 逐字节不变[RTL 视觉-only]**）+ 回归 **r33 37/37[字节锁]·r50 15/15[spellcheck]·r35 25/25·r24 12/12·r106 12/12 不退（默认 false 零变）** + 生产构建成功 + cargo check 通过（零 Rust）。**桌面 probe N/A**（纯 DOM 属性·浏览器全覆盖·R50/R88/R224 先例）·**r18-diff 字节套件 N/A**（不碰 markdown.ts·preview div dir prop 不碰 previewHtml 串）。**faithfulness 记（minor·非数据/契约）**：Obsidian RTL 在更高层挂 `dir`→整源码视图翻转（含行号 gutter 侧）；ADKM 仅挂 contentDOM·**行号 gutter 可能仍居左**——纯像素级 nuance·在「纯视觉」冻结 scope 内·CM6 gutter 方向处理待视觉一瞥·不阻本轮。**完成后 Editor Display 组全清**（固定行宽/严格换行/属性/折叠标题·列表/行号/隐藏参考标记/从右到左 全 done）。
 
 ## Round 225 additions — 选项2 补深四轮：G8 编辑器设置「自动补全 Markdown 语法」toggle（Obsidian native Editor「Auto pair Markdown syntax」·行为组·默认开）·零新依赖【契约冻结 v0.221】
 
@@ -675,7 +675,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 > **状态：As-built（已交付·v0.220）。** 选项2 即取序 G8 首项。**Step 0 verify-first（R222/R223 纪律）**：① WebSearch native 设置名未确证（Obsidian online docs 稀疏）→ ② **读 reference 截图 `_截图/01-编辑器/编辑器-02.png` 确认 ground truth**：「隐藏参考标记」是真 native 设置（显示组·行号 与 从右到左 之间·默认 ON·toggle 实图可见）。语义：**ON（默认）= live preview 只在光标处显示 Markdown 语法分隔标记；OFF = 始终显示所有语法标记**（但 widget 渲染 + 样式标记保留·**不退化为 source mode**）。**不做 smart punctuation**（即取序 #4「自动补全英文标点」——data-safety 写字节 + R63 已出队「Smart typography」为 community 插件·native 的「自动补全英文标点」疑为 auto-pairing 非弯引号转换·须另轮 WebFetch 辨明）。
 > **契约（单一门控 + 标准设置接线·全有先例）**：
-> - **`core/appearance.ts`**：`hideReferenceMarks = new Store<boolean>(readBool("geode.hideReferenceMarks", true))` + `setHideReferenceMarks(on)`（镜像 R88 `showLineNumbers`·localStorage-backed·**默认 true = Obsidian 默认 ON = 当前 Geode 行为·零回归**）。
+> - **`core/appearance.ts`**：`hideReferenceMarks = new Store<boolean>(readBool("geode.hideReferenceMarks", true))` + `setHideReferenceMarks(on)`（镜像 R88 `showLineNumbers`·localStorage-backed·**默认 true = Obsidian 默认 ON = 当前 ADKM 行为·零回归**）。
 > - **`livePreview.ts`（核心·单一门控）**：`livePreview(app, getPath, hideMarks: boolean = true)` → `computeDecorations(view, app, getPath, hideMarks)`（line 685 签名加 param）→ **`hide()` helper（line 698）加首行 `if (!hideMarks) return;`**。这是整个 computeDecorations **唯一**的空-`Decoration.replace({})` 路径（13 个分隔符 hide 全经它：emphasis/strikethrough/inline-code/header/link/wikilink/highlight/callout/quote/block-id/comment/task），故单一门控即全量控制。**不动 `selectionTouches()`/widget replace/`.cm-live-*` 样式标记**（门控 hide() 本身·非揭示判定→OFF 时显示标记但保渲染）。
 > - **`cmExtensions.ts`**：`editorModeExtensions(app, getPath, mode, hideMarks: boolean = true)` → `livePreview(app, getPath, hideMarks)`；buildExtensions（line 619）传 `hideReferenceMarks.get()`（import from @core/appearance）。
 > - **`EditorPane.tsx`**：`useStore(hideReferenceMarks)`；2 个既有 `editorModeExtensions` 调用点（mode 切换 effect line 604·cbProcRev effect line 670）传 hideMarks；**新增 effect**（镜像 R88 showLineNumbers effect line 616-621 + cbProcRev modeCompartment.reconfigure line 664-671）：`hideRefMarks` 变更时 `modeCompartment.reconfigure(editorModeExtensions(app, ()=>handle.path, mode, hideRefMarks))`（livePreview ViewPlugin 仅在 doc/selection/viewport change 重建·Store 变更须 reconfigure 触发）。
@@ -685,7 +685,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 223 additions — 选项2 补深次轮：FootnotesPanel 内联编辑脚注文本（对齐 Obsidian 1.9 native「Footnotes view」核心插件「Click a footnote to edit its text」）· data-safety 逻辑档·零新依赖【契约冻结 v0.219】
 
-> **状态：As-built（已交付·v0.219）。** 选项2 即取序第 2 项 = Footnotes view。**Step 0 gate 实查 + WebFetch 双纠误**：① 独立 `FootnotesPanel` 早 R65 建、R213 增强（右侧栏·跟随 lastActiveFile·列 `[^id]: content`·click 跳定义·**纯读**）→ 面板早已存在；② 但 **WebSearch+WebFetch 实证 Obsidian 1.9.0（2025-05）新增 native「Footnotes view」核心插件**（`obsidian.md/help/Plugins/Footnotes+view`：「lists all footnotes in the active note. **Click a footnote to edit its text.** You can also navigate to the footnote's position」）——**explorer 初判「非 native」据 reference/05[1.9 前快照] + G3 矩阵[ID 列 `—`]，是 stale 误判**（R222 同族教训：reference 截图有时滞后 native 新增）。故 native 真缺口 = **面板内联编辑**（Geode 现只读·native 可改文本）。本轮补此缺口 = 把只读半成品做到 native 平价。**filter box/排序/分组等非 native 不加**（防造非 native 功能）。
+> **状态：As-built（已交付·v0.219）。** 选项2 即取序第 2 项 = Footnotes view。**Step 0 gate 实查 + WebFetch 双纠误**：① 独立 `FootnotesPanel` 早 R65 建、R213 增强（右侧栏·跟随 lastActiveFile·列 `[^id]: content`·click 跳定义·**纯读**）→ 面板早已存在；② 但 **WebSearch+WebFetch 实证 Obsidian 1.9.0（2025-05）新增 native「Footnotes view」核心插件**（`obsidian.md/help/Plugins/Footnotes+view`：「lists all footnotes in the active note. **Click a footnote to edit its text.** You can also navigate to the footnote's position」）——**explorer 初判「非 native」据 reference/05[1.9 前快照] + G3 矩阵[ID 列 `—`]，是 stale 误判**（R222 同族教训：reference 截图有时滞后 native 新增）。故 native 真缺口 = **面板内联编辑**（ADKM 现只读·native 可改文本）。本轮补此缺口 = 把只读半成品做到 native 平价。**filter box/排序/分组等非 native 不加**（防造非 native 功能）。
 > **契约（refactor core/metadata 抽共享解析器 + FootnotesPanel 改写为第二写者）**：
 > - **`core/metadata.ts` 抽共享脚注定义解析器（单一真源·防漂移）**：新增导出 `extractFootnoteDefs(content: string, masked: string): FootnoteRef[]`（= 现 parseNote 内联 def 循环·**逐字节不变**搬出）+ `parseFootnoteDefinitions(content: string): FootnoteRef[]`（薄包装：`parseFrontmatter`→offset-preserving blank→`maskCodeRegions`→`extractFootnoteDefs`）。`parseNote` 改调 `extractFootnoteDefs(content, masked)`（复用其已算 `masked`·**零双 mask·零行为变**）。FOOTNOTE_DEF_RE 仍 module-level。**FootnoteRef 类型不变**（types.ts:68·`{id;content;from;to}`）。
 > - **`FootnotesPanel.tsx` 改写为第二写者（镜像 R86 FilePropertiesPanel 范本）**：`app.documents.acquire(activePath)` 取 `DocumentHandle`（refcount·release-on-change·acquire-fail→empty）+ 订 `handle.revision` 重渲。**脚注从 `parseFootnoteDefinitions(handle.getText())`【LIVE 文本】解析**（非 metadata cache `getFootnotes`——cache 滞后 live 编辑→position 会 stale→写错位损坏；live parse 保 from/to 始终正确）。
@@ -699,7 +699,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > **状态：As-built（已交付·v0.218）。** 2026-06-25 用户拍板「新取用顺序」选项2 即取序首项 = 独立 tag pane。**Step 0 gate 实查纠误**：独立 `TagsPanel`（右侧栏·树形·4 档排序·全库重命名·click→search）**早在 R41 建、R69/R150/R151 增强 → 已存在·矩阵 `tag-pane:open`=`app:show-tags` 早 done**（HANDOFF/ROADMAP 表「部分/未做」系据实纠误对象）。故本轮非「抽面板」（已做），而是**对照 Obsidian native Tags view 补三处真·缺口**（WebFetch `obsidian.md/help/Plugins/Tags+view` 权威 + forum 实证「filter box」属 Feature-archive 未实现 → **不加 filter box**[非 native]）：
 > 1. **嵌套标签 树↔扁平 切换**（native 设置「nested tags as a tree or as a flat list」）→ 持久化 `localStorage["geode.tagsDisplay"]`（"tree"|"flat"·镜像 R151 `geode.tagsSort` raw-localStorage 先例）。flat = 仅真实标签（map keys·去 phantom 父）逐行展全路径名·按同 sortKey 排。
 > 2. **全部展开 / 全部折叠**（native「Expand all / Collapse all」hierarchy 控件）→ 批量改既有 per-session `collapsed: Set<fullPath>`（R150·不持久化·与 native session 态一致）。collapse-all = `new Set(所有 children.length>0 的 fullPath)`；expand-all = `new Set()`。仅 tree 模式可见。
-> 3. **Cmd/Ctrl-click 标签 → 切换到当前搜索词**（native「Holding Ctrl/Cmd toggles it within the search term rather than performing a direct search」）→ 普通 click 不变（`requestSearch('#'+path)`·Geode tag-browser 模式）；修饰键 click = 新 `app.workspace.toggleSearchTag(path)`。
+> 3. **Cmd/Ctrl-click 标签 → 切换到当前搜索词**（native「Holding Ctrl/Cmd toggles it within the search term rather than performing a direct search」）→ 普通 click 不变（`requestSearch('#'+path)`·ADKM tag-browser 模式）；修饰键 click = 新 `app.workspace.toggleSearchTag(path)`。
 >
 > **契约（新增·跨模块冻结）**：
 > - **`workspace.ts`**：`readonly searchTagToggle = new Store<string | null>(null)`（一次性·session-only·镜像 `searchRequest`）+ 方法 `toggleSearchTag(tag: string): void`（`setLeftPanel("search")` + `searchTagToggle.set(tag)`）。**不改 `requestSearch(query: string)` 签名**（5 caller：graph/tags/editor·uri·properties）→ 纯新增、零破坏。
@@ -715,12 +715,12 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 221 additions — F2 类型对齐续片：`Command` editorCallback ctx 字字对齐 obsidian.d.ts（`MarkdownView`→`MarkdownView | MarkdownFileInfo`）+ 新增 hover 链 `MarkdownFileInfo`/`HoverParent`/`HoverPopover`/`Point`/`PopoverState`（compat 自包含·零新依赖）【As-built v0.217】
 
-> **状态：As-built（已交付·v0.217）。** 商业主轴=插件迁移：让插件 `import type { X } from "obsidian"` 对 Geode compat shim 编译一致。续 R220 的 F2 类型对齐，本轮收 `Command`（plugin.ts）的 editorCallback/editorCheckCallback ctx 缺口 + 补 obsidian 顶层导出的 hover/MarkdownFileInfo 类型链。oracle = 仓库内 `.calibration/obsidian.d.ts`（≈v1.13）。**⚠️ 收尾发现 2026-06-25 用户拍板新顺序（ROADMAP「取用顺序总览」）= F2 降级、自 R222 转选项2「设置/核心插件补深」——R221 是 F2 末片（用户明示「不打断」）；下一项不再是 F2。**
+> **状态：As-built（已交付·v0.217）。** 商业主轴=插件迁移：让插件 `import type { X } from "obsidian"` 对 ADKM compat shim 编译一致。续 R220 的 F2 类型对齐，本轮收 `Command`（plugin.ts）的 editorCallback/editorCheckCallback ctx 缺口 + 补 obsidian 顶层导出的 hover/MarkdownFileInfo 类型链。oracle = 仓库内 `.calibration/obsidian.d.ts`（≈v1.13）。**⚠️ 收尾发现 2026-06-25 用户拍板新顺序（ROADMAP「取用顺序总览」）= F2 降级、自 R222 转选项2「设置/核心插件补深」——R221 是 F2 末片（用户明示「不打断」）；下一项不再是 F2。**
 > **契约（新文件 compat/obsidian/hover.ts + workspace.ts 加 MarkdownFileInfo + plugin.ts Command 修订 + index.ts barrel）**：
 > - **`Command.editorCallback` ctx `MarkdownView`→`MarkdownView | MarkdownFileInfo`**（d.ts:1794）+ **`editorCheckCallback` ctx 同 widen**（d.ts:1821）。内部唯一 provider（fixture.ts:222）`view` 参数未用 → 不破；唯一 caller（plugin.ts addCommand:715/726）传 `MarkdownView` 实参 → 仍 assignable 进 union → 不破（全仓 grep + typecheck 0 证）。
 > - **保留 `callback`/`editorCallback` 返回 `unknown`（不随 d.ts 改 `any`）**：文档化偏离——CLAUDE.md 硬律「不用 any」；返回型对插件**编写**用例零影响（`() => T` 恒 assignable 进 `() => unknown`），仅 differ 于「读回 callback 返回值」这一插件几乎不做的用例 → 取 `unknown`（strictly safer）。
-> - **新增 `MarkdownFileInfo extends HoverParent`**（d.ts:3954·`app: App` / `get file(): TFile | null` / `editor?: Editor`）→ 落 workspace.ts（紧邻 MarkdownView·已 import App/TFile/Editor）+ barrel 导出。**compat `MarkdownView` 改 `implements MarkdownFileInfo`**——既有 `View.app!: App` + `FileView.file: TFile|null` + `MarkdownView.editor: Editor` 已 3/4 满足，唯缺 `hoverPopover` → 补 `hoverPopover: HoverPopover | null = null` 字段（**唯一运行时改·恒 null·Geode 无 hover 预览**）。**这是 ctx widen 真正生效的关键**：插件注解 `editorCallback (editor, ctx: MarkdownFileInfo)` 须 compat MarkdownView **assignable 进** MarkdownFileInfo（union 两成员皆 assignable）才与 obsidian d.ts（`MarkdownView implements MarkdownFileInfo`）编译一致——否则 widen 仅装饰、annotated 用例仍 differ。
-> - **新增 hover 链（新文件 hover.ts·compat 自包含·只 import ./component）**：`Point { x; y }`（d.ts:5179）/ `enum PopoverState {}`（d.ts:5193·空枚举·faithful）/ `HoverParent { hoverPopover: HoverPopover | null }`（d.ts:3464）/ `class HoverPopover extends Component { hoverEl; state; constructor(parent, targetEl, waitTime?, staticPos?) }`（d.ts:3476）。**HoverPopover/PopoverState 为值导出（class/enum）→ 支持插件 `new`/`instanceof`/值 import**；但 **Geode 无 hover-preview 运行时**（已记 gap plugin.ts `registerHoverLinkSource`）→ HoverPopover 是**惰性 shim**（构造 inert·`hoverEl=createElement("div")`·不渲染预览）·文档化。
+> - **新增 `MarkdownFileInfo extends HoverParent`**（d.ts:3954·`app: App` / `get file(): TFile | null` / `editor?: Editor`）→ 落 workspace.ts（紧邻 MarkdownView·已 import App/TFile/Editor）+ barrel 导出。**compat `MarkdownView` 改 `implements MarkdownFileInfo`**——既有 `View.app!: App` + `FileView.file: TFile|null` + `MarkdownView.editor: Editor` 已 3/4 满足，唯缺 `hoverPopover` → 补 `hoverPopover: HoverPopover | null = null` 字段（**唯一运行时改·恒 null·ADKM 无 hover 预览**）。**这是 ctx widen 真正生效的关键**：插件注解 `editorCallback (editor, ctx: MarkdownFileInfo)` 须 compat MarkdownView **assignable 进** MarkdownFileInfo（union 两成员皆 assignable）才与 obsidian d.ts（`MarkdownView implements MarkdownFileInfo`）编译一致——否则 widen 仅装饰、annotated 用例仍 differ。
+> - **新增 hover 链（新文件 hover.ts·compat 自包含·只 import ./component）**：`Point { x; y }`（d.ts:5179）/ `enum PopoverState {}`（d.ts:5193·空枚举·faithful）/ `HoverParent { hoverPopover: HoverPopover | null }`（d.ts:3464）/ `class HoverPopover extends Component { hoverEl; state; constructor(parent, targetEl, waitTime?, staticPos?) }`（d.ts:3476）。**HoverPopover/PopoverState 为值导出（class/enum）→ 支持插件 `new`/`instanceof`/值 import**；但 **ADKM 无 hover-preview 运行时**（已记 gap plugin.ts `registerHoverLinkSource`）→ HoverPopover 是**惰性 shim**（构造 inert·`hoverEl=createElement("div")`·不渲染预览）·文档化。
 > - **v1 defer（非本轮）**：`Workspace.activeEditor` 返回型 `MarkdownView`→`MarkdownFileInfo`（d.ts·语义层 widen·插件读 activeEditor 拿窄面·属 Workspace 类型片·单独轮）；`WorkspaceLeaf` 等其它 HoverParent（本轮只补 MarkdownView 的 hoverPopover·Command ctx 只需它）。
 > - **R128/原 Command 契约修订留痕**：`Command` 接口此前于 plugin.ts 既定。本轮 editorCallback/editorCheckCallback ctx widen 为**字字对齐 d.ts 的契约修订**（向后兼容 widen·全仓 grep 证零内部 provider/caller 破坏 + typecheck 0）。
 > - **分档：逻辑档**（修订导出 `Command` 契约 + 新增导出类型/惰性 class·虽近零运行时）→ 简化门 + 多维对抗评审（验：ctx widen 不破内部 provider/caller·hover 链字字对齐 d.ts·HoverPopover shim inert 不渲染·MarkdownFileInfo 字段对齐·返回型 unknown 偏离正当）；**data-safety byte 套件 N/A**（零 .md 写·零 vault IO·零 editor 管线改动）。
@@ -728,7 +728,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 220 additions — F2 类型对齐：compat `Editor` 类型面字字对齐 obsidian.d.ts（纯类型面·无运行时/data-safety 风险·零新依赖）+ 5 个 metadata cache 接口补 barrel 再导出【As-built v0.216】
 
-> **状态：As-built（已交付）。** 商业主轴=插件迁移：让插件 `import type { X } from "obsidian"` 对 Geode compat shim 编译一致。F2 = **纯类型面**对齐（无运行时改动·不触 .md 写·data-safety byte 套件 N/A）。oracle = 仓库内 `.calibration/obsidian.d.ts`（≈v1.13）。
+> **状态：As-built（已交付）。** 商业主轴=插件迁移：让插件 `import type { X } from "obsidian"` 对 ADKM compat shim 编译一致。F2 = **纯类型面**对齐（无运行时改动·不触 .md 写·data-safety byte 套件 N/A）。oracle = 仓库内 `.calibration/obsidian.d.ts`（≈v1.13）。
 > **契约（compat/obsidian/editor.ts 类型面 + index.ts barrel·零运行时逻辑改动）**：
 > - **`EditorRange.to` `?`→必填**（d.ts:2626 `to: EditorPosition` 必填）。唯一生产者 `wordAt` 返 `{from,to}` 两全·唯一消费者 `scrollIntoView` 带 `range.to?` 守卫（冗余化但不破）·全仓零「仅 from」构造点 → 运行时安全。
 > - **新增 `EditorRangeOrCaret { from; to? }`**（d.ts:2637）+ barrel 导出——此前缺失，插件 `import type { EditorRangeOrCaret }` 失败。
@@ -744,7 +744,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 219 additions — G3 §8：backlink:toggle-backlinks-in-document（Obsidian「Backlinks: Toggle backlinks in document」·注册命令翻 R154 既有 showBacklinksInDocument 外观设置·机械档[非数据安全·复用 vetted setter]·零新依赖）+ 矩阵据实纠误（ui-only 真·全清）【As-built v0.215】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §8 末项 `ui-only`「在文档中显示反链（开关）」补全为命令。**web 实证**：Obsidian 命令「Backlinks: Toggle backlinks in document」翻「Backlink in document」设置（笔记底部显示链接提及）。Geode R154 已有该功能 + `showBacklinksInDocument` 外观 Store + 设置开关，仅缺命令。
+> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §8 末项 `ui-only`「在文档中显示反链（开关）」补全为命令。**web 实证**：Obsidian 命令「Backlinks: Toggle backlinks in document」翻「Backlink in document」设置（笔记底部显示链接提及）。ADKM R154 已有该功能 + `showBacklinksInDocument` 外观 Store + 设置开关，仅缺命令。
 > **契约（1 命令 + 1 i18n·零新逻辑·复用 R154 vetted setter）**：
 > - **`app/App.tsx`**：注册 `backlink:toggle-backlinks-in-document`（无默认键）·callback `setShowBacklinksInDocument(!showBacklinksInDocument.get())`——镜像 R185/R195 toggle 兄弟（toggle-ribbon/toggle-spellcheck）·复用 `@core/appearance` 既有 Store+setter（R154）。
 > - **`core/i18n/dict.app.ts`**：`cmd.toggleBacklinksInDocument`（en「Backlinks: Toggle backlinks in document」/ zh「反向链接：在文档中显示反链（开关）」）。
@@ -754,7 +754,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 218 additions — G3 §6：file-explorer:reveal-in-system + open-in-default-app（Obsidian「Show in system explorer」/「Open in default app」·命令面板＋文件右键两入口·薄 Rust 命令复用 safe_join·新依赖 tauri-plugin-opener[硬边界#5 用户授权解锁·仅此插件]·逻辑档[非数据安全·只读 OS 动作]）【As-built v0.214】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §6 两项 missing 补全。**硬边界#5（新运行时依赖）经用户 2026-06-25 显式授权解锁，仅对 Tauri 官方 `tauri-plugin-opener`**；用途上限＝**库内文件** reveal/open（**不含 `open_url`/任意 URL**）；其余四条硬边界不动。**web 实证**：Obsidian 命令面板名「Files: Show in system explorer」「Files: Open in default app」（macOS 右键菜单显「Reveal in Finder」·命令身份同名）。Geode 取跨平台中性命令名（不硬编码 Finder·免平台分支）。
+> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §6 两项 missing 补全。**硬边界#5（新运行时依赖）经用户 2026-06-25 显式授权解锁，仅对 Tauri 官方 `tauri-plugin-opener`**；用途上限＝**库内文件** reveal/open（**不含 `open_url`/任意 URL**）；其余四条硬边界不动。**web 实证**：Obsidian 命令面板名「Files: Show in system explorer」「Files: Open in default app」（macOS 右键菜单显「Reveal in Finder」·命令身份同名）。ADKM 取跨平台中性命令名（不硬编码 Finder·免平台分支）。
 > **设计取向（前端不碰绝对路径·安全边界在 Rust）**：前端只传**库内相对路径**；Rust 命令 `safe_join(vault, rel)` 把它合到 vault 根（堵 `..` 逃逸·与既有 15+ vault_* 命令同一 vetted confinement），再调 opener 的 Rust API。绝对路径永不出壳。
 > **契约（1 Cargo dep + 2 Rust 命令 + 1 新 core IPC 模块 + 2 命令 + 2 右键菜单项 + 2×2 i18n）**：
 > - **`src-tauri/Cargo.toml`**：+`tauri-plugin-opener = "2"`（唯一新依赖）。**`src-tauri/src/main.rs`**：`.plugin(tauri_plugin_opener::init())` + `use tauri_plugin_opener::OpenerExt` + 2 命令 `reveal_in_system(app, vault, path)` / `open_in_default_app(app, vault, path)`——皆 `safe_join` 后调 `app.opener().reveal_item_in_dir(&abs)` / `.open_path(abs, None::<&str>)`·注册进 generate_handler!。**capabilities/default.json 不改**（app 自有命令不受权限系统约束·且前端不调 opener 的 JS 命令→无需 `opener:default`）。
@@ -768,7 +768,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 217 additions — G3 §0：app:show-debug-info（Obsidian「Show debug info」·收集版本/平台/语言/插件→剪贴板+toast·新 core/debugInfo.ts 纯 builder·非数据安全·零新依赖）【As-built v0.213】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §0 missing「显示调试信息」(`app:show-debug-info`) 补全。**web 实证**：Obsidian「Show debug info」把 SYSTEM INFO（版本/OS/主题/插件数+列表）拷剪贴板供 bug 报告。Geode 取**忠实子集**（版本/平台/语言/插件 installed+enabled+列表）——base/community theme 在 compat 层（features 不可 import·且 Geode 无 light/dark base-theme 概念）故略。
+> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §0 missing「显示调试信息」(`app:show-debug-info`) 补全。**web 实证**：Obsidian「Show debug info」把 SYSTEM INFO（版本/OS/主题/插件数+列表）拷剪贴板供 bug 报告。ADKM 取**忠实子集**（版本/平台/语言/插件 installed+enabled+列表）——base/community theme 在 compat 层（features 不可 import·且 ADKM 无 light/dark base-theme 概念）故略。
 > **契约（新 pure core 1 文件 + 1 命令 + export 既有 APP_VERSION + 1 i18n + 1 probe·非数据安全·只读 + clipboard）**：
 > - **`core/debugInfo.ts`（新·纯）**：`buildDebugInfo({version,platform,locale,plugins:[{name,id,enabled}]}): string`——格式化文本块（Version/Platform/Locale/Plugins installed/enabled + enabled 编号列表）。纯函数·零 DOM/store 访问（命令层注入 live 值）·可 probe 测。
 > - **`app/App.tsx`**：`app:show-debug-info` 命令（无默认键）·收集 `APP_VERSION` + `navigator.platform||userAgent` + `locale.get()` + `plugins.list()`[name thunk 解析] → `buildDebugInfo` → `navigator.clipboard.writeText` → **复用 R183 `showCommandNotice`** toast。
@@ -776,18 +776,18 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **`core/i18n/dict.app.ts`**：`cmd.showDebugInfo` + `debugInfo.copied`（en/zh）。**`main.tsx`**：`__geodeDebugInfo = buildDebugInfo`（纯 probe）。
 > - **分档：逻辑档（新 core/debugInfo.ts builder 含 filter+map 控制流）·但非数据安全面**（只读 + clipboard·无 editor/vault/markdown 写）→ 聚焦 reviewer（非满跑 Workflow·风险面小）。
 > - **评审（聚焦 reviewer·7 维 确认/证伪 → 0 confirmed·deliverable）**：buildDebugInfo enabled-only 编号正确·命令 value-gathering 契约全匹配（name thunk 解析·plugins.list 形状·navigator 回退·locale 类型）·layering 合规·i18n en+zh 存在·命令 id 唯一·export APP_VERSION 不破既有用法。**1 nit 记不修**：clipboard `writeText(...).catch()` fire-and-forget 后无条件 toast「已复制」—失败时误导，但**字字沿用 R183 既有姊妹约定**（copy-path/copy-url）·Tauri/localhost 皆 secure context·无数据安全后果→不单独改避与姊妹不对称（要改应三命令统一）。
-> - **桌面 probe N/A·浏览器可验证 + pure-fn probe**。**v1 偏差**：略 theme（compat 层·Geode 无 light/dark base-theme）；插件无 version 字段（Geode 模型·列 id/name）。
+> - **桌面 probe N/A·浏览器可验证 + pure-fn probe**。**v1 偏差**：略 theme（compat 层·ADKM 无 light/dark base-theme）；插件无 version 字段（ADKM 模型·列 id/name）。
 
 ## Round 216 additions — G3 §12：editor:move-heading（Obsidian「Move current heading to…」·移动光标处章节到新笔记·复用 R44 extract 写路径·新 core/moveHeading.ts 算 section 范围·data-safety 逻辑档[byte 写两侧]·零新依赖）【As-built v0.212】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §12 末项 missing「移动当前章节」(`note-composer:move-heading`) 补全·**note-composer 组整组补完**。Obsidian「Move current heading to…」移动光标处标题的整个章节（标题行 + 正文，含子标题）到另一笔记、原处留链接。Geode 既有 `editor:extract-selection`(R44) 已是「auto-create 新笔记 + 留链接」语义（无 picker），move-heading 复用同机制·**仅 range 不同**（章节范围 vs 选区）。
+> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §12 末项 missing「移动当前章节」(`note-composer:move-heading`) 补全·**note-composer 组整组补完**。Obsidian「Move current heading to…」移动光标处标题的整个章节（标题行 + 正文，含子标题）到另一笔记、原处留链接。ADKM 既有 `editor:extract-selection`(R44) 已是「auto-create 新笔记 + 留链接」语义（无 picker），move-heading 复用同机制·**仅 range 不同**（章节范围 vs 选区）。
 > **契约（新 pure core 1 文件 + 重构 R44 命令复用 extractRange + 1 命令 + 1 i18n 键 + 1 probe 钩）**：
 > - **`core/moveHeading.ts`（新·纯）**：`headingSectionAt(text, pos): {from,to} | null`——`maskCodeRegions`（同长 blank·offset 字节对齐）扫 ATX 标题行 → 找 pos 所在章节（start ≤ pos 的最后一个标题）→ section end = 下一个 level ≤ 本级的标题 start，否则 EOF → **尾部 trim 空白**（`to = from + slice.replace(/\s+$/,"").length`·让原文保留章节后空行间距·避链接与下个标题贴死）。pos 在首标题前 → null。光标在深层子标题 → 移子章节（最内层·同 Obsidian）。
 > - **`features/editor/noteComposerCommands.ts`（重构）**：抽 `extractRange(app, view, from, to)`（R44 extractSelection 的 create-before-edit + stale-guard[`doc.sliceString(from,to)!==content` 跳过] + 链接 splice 全复用·零新写路径）；`extractSelection` 改为算选区 range 后委托；新 `moveHeading(app, view)` = headingSectionAt(doc, cursor) → extractRange。注册 `editor:move-heading`（available=getView!=null·callback no-op 当无章节·无默认键）。
 > - **`core/i18n/dict.app.ts`**：`cmd.moveHeading`（en "Move current heading to a new note…" / zh "移动当前章节到新笔记…"）。
 > - **`main.tsx`**：`__geodeComposer.headingSection = headingSectionAt`（纯函数 probe·同 derive/content/replacement）。
 > - **分档：逻辑档（byte 写源 splice + 新笔记 create·markdown 章节边界）**——data-safety：复用 R44 vetted create-before-edit（新笔记先落盘·失败源不动）+ stale-guard（异步 create 后重验范围内容未变·变则跳过保新笔记）；新增 = headingSectionAt 纯算 range（code-fence + **frontmatter** 感知·offset 字节对齐）。
-> - **对抗评审（Ultracode 3-lens[data-safety-bytes/adversarial-markdown/correctness-fidelity]+skeptic → 初判 needs-fixes → 修后 deliverable·1 major 修·4 minor/nit[1 修 3 记]·1 refuted）**：**1 major 修（底线①·正是 lens 意义）**＝headingSectionAt 原只 `maskCodeRegions(text)`（blank fence/inline-code）**漏 frontmatter** → frontmatter 内 column-0 `# comment`（YAML 注释）被当标题 → move 把链接 splice 跨过闭合 `---`→**掏空源笔记**（复现：`---\n# c\ntitle: x\n---\nbody` 光标在 body → source 变 `---\n[[LINK]]\n`）。**根因＝heading 扫描没对齐阅读视图管线**（parseNote/resolveSubpath 都先 blank frontmatter·我漏了）→ 修＝扫描前 `parseFrontmatter` offset-preserving blank frontmatter（非换行→空格·保字节对齐）+ 补 r216-e2e 三 frontmatter 断言锁定。**1 minor 修**＝cmd.moveHeading 去尾「…」（Geode auto-create 无 picker·对齐 sibling extractSelection）。**3 记不修**：auto-create 无目标 picker（fidelity gap·同 R44·矩阵注明）/ setext 不识别（同 R204·失败=错 range 非 corruption·可撤销）/ 无章节时静默 no-op（nit·available 改 O(n) 不值·可后补 Notice）。**1 refuted**：空标题 `## ` 当 body（非缺陷·HEADING_RE 要 `\S`·安全）。
+> - **对抗评审（Ultracode 3-lens[data-safety-bytes/adversarial-markdown/correctness-fidelity]+skeptic → 初判 needs-fixes → 修后 deliverable·1 major 修·4 minor/nit[1 修 3 记]·1 refuted）**：**1 major 修（底线①·正是 lens 意义）**＝headingSectionAt 原只 `maskCodeRegions(text)`（blank fence/inline-code）**漏 frontmatter** → frontmatter 内 column-0 `# comment`（YAML 注释）被当标题 → move 把链接 splice 跨过闭合 `---`→**掏空源笔记**（复现：`---\n# c\ntitle: x\n---\nbody` 光标在 body → source 变 `---\n[[LINK]]\n`）。**根因＝heading 扫描没对齐阅读视图管线**（parseNote/resolveSubpath 都先 blank frontmatter·我漏了）→ 修＝扫描前 `parseFrontmatter` offset-preserving blank frontmatter（非换行→空格·保字节对齐）+ 补 r216-e2e 三 frontmatter 断言锁定。**1 minor 修**＝cmd.moveHeading 去尾「…」（ADKM auto-create 无 picker·对齐 sibling extractSelection）。**3 记不修**：auto-create 无目标 picker（fidelity gap·同 R44·矩阵注明）/ setext 不识别（同 R204·失败=错 range 非 corruption·可撤销）/ 无章节时静默 no-op（nit·available 改 O(n) 不值·可后补 Notice）。**1 refuted**：空标题 `## ` 当 body（非缺陷·HEADING_RE 要 `\S`·安全）。
 > - **桌面 probe N/A·浏览器可验证 + pure-fn probe（__geodeComposer.headingSection）**。**v1 偏差/记**：ATX 标题（非 setext·同 R204）；auto-create 新笔记无目标 picker（同 R44 extract-selection 既有语义·矩阵标 gap）；无章节时静默 no-op。**frontmatter 已 blank**（评审 major 根因·已修）。
 
 ## Round 215 additions — G3 §7：file-explorer:new-file-in-new-pane（⌘⇧N 在右侧新建笔记·复用 vetted splitActivePane + R17 create·data-safety 逻辑档[vault create]·零新依赖）【As-built v0.211】
@@ -802,7 +802,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 214 additions — G3 §10：app:show-file-properties 命令（揭示 R86 FilePropertiesPanel·补 Obsidian「Show file properties」核心命令·机械档·零新依赖）【As-built v0.210】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §10 唯一 partial「显示当前笔记的属性列表」(`file-properties:open`) 收尾。**web 实证**：Obsidian Properties 核心插件有 **两个** 命令——「Show file properties」(当前笔记) + 「Show all properties」(全库)。Geode 有 `app:show-all-properties`（揭示 AllProperties 面板）但**缺**「Show file properties」——尽管 R86 早已建 FilePropertiesPanel（右侧栏 `fileproperties` tab，仅 right-tab 可达、无命令）。矩阵旧注「无当前笔记属性面板」**stale**（R86 已有面板）→ 真实 gap = 缺命令。
+> **状态：As-built（已交付）。** 表面复刻 G 系列——G3 矩阵 §10 唯一 partial「显示当前笔记的属性列表」(`file-properties:open`) 收尾。**web 实证**：Obsidian Properties 核心插件有 **两个** 命令——「Show file properties」(当前笔记) + 「Show all properties」(全库)。ADKM 有 `app:show-all-properties`（揭示 AllProperties 面板）但**缺**「Show file properties」——尽管 R86 早已建 FilePropertiesPanel（右侧栏 `fileproperties` tab，仅 right-tab 可达、无命令）。矩阵旧注「无当前笔记属性面板」**stale**（R86 已有面板）→ 真实 gap = 缺命令。
 > **契约（纯加 1 命令 + 1 i18n 键·镜像既有 5 个 app:show-* 兄弟·零逻辑·零写）**：
 > - **`app/App.tsx`**：`commands.register({ id: "app:show-file-properties", name: () => t("cmd.showFileProperties"), callback: () => workspace.setRightPanel("fileproperties") })`（逐字镜像 app:show-all-properties·复用 vetted setRightPanel·无默认键）。
 > - **`core/i18n/dict.app.ts`**：`cmd.showFileProperties`（en "Show file properties" / zh "显示当前笔记的属性列表"）。
@@ -845,7 +845,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **⚠️ 对抗评审结论（Ultracode 2-lens[serialization-workspace/correctness-fidelity] + skeptic synthesis · 初判 needs-fixes → 修后 deliverable · 1 critical + 2 major 全修 · 4 refuted）**：serialization lens **穷举全部 `viewType === "graph"` touch-point 查 backlinks 对等**·揪出 1 个漏。**1 critical 修（序列化完整性·正是本 lens 存在的意义）**：`sanitizeTab` 有**两处** viewType 处理——拒收门[1371·我已加 backlinks] + **viewType 重派生[1384·漏]**（原仅 `=== "graph" ? "graph" : ...`·持久化 backlinks tab[filePath null] 非 graph 且 filePath null → 重派生为 "markdown" → 重启后变幻影空 editor·graph 活 backlinks 死）→ 修=重派生分支保 graph **AND backlinks**。**1 major 修（测试假阳性）**：r211「round-trips」断言原 `JSON.parse(JSON.stringify(state))` 只验字段存活·**从不调 sanitizeTab**→把坏 restore 路径认证为绿 → 改=**真 persist→reload→restore round-trip**（写 localStorage geode.workspace.v1→reload→sanitizeTab→断言 backlinks tab 恢复为 backlinks view 非幻影 markdown·此测在 critical 修前会红）。**1 major 修（CSS flex 链断）**：`.main-backlinks-view` 无 CSS·wrapper div 缺 flex:1/height → `.backlinks-panel{height:100%}` 对无定高父解析为内容高·`.bl-scroll` 无界 viewport 不滚·长反链列表被 `.main-content overflow:hidden` 裁剪无滚动条（graph/editor 是直接 flex child 填高·额外 wrapper 断链）→ 修=`.main-backlinks-view{flex:1;min-height:0;padding:0 8px}`。**4 refuted**：侧栏 lastActiveFile 回退[有意·更忠实·r82 不退·delete 清 null→空]/lastActiveFile 指已关 tab 文件[数据仍对·同 local-graph 先例]/singleton+follow diverge[v1·同 graph 先例]/e2e 覆盖缺口[两要害已成 confirmed]。**根因教训（新通则·已记忆）**：**扩展序列化枚举（viewType）有多处处理点·须穷举**（拒收门 sanitizeTab[1371] AND viewType 重派生[1384]·漏一即静默降级 tab 布局）；测序列化 round-trip 必走真 persist→restore 路径·非 JSON clone（JSON clone 假阳性认证坏路径）。
 > - **r211-e2e 12/12**（注册无键 + 命令开主区 backlinks tab[viewType backlinks·跟随 lastActiveFile 显源笔记反链] + singleton + **backlinks tab active 时 lastActiveFile 回退仍显反链** + **D 真 persist→reload→restore round-trip[localStorage→sanitizeTab→恢复为 backlinks view 非幻影 markdown]**）+回归 **r81 14/14[tabs]·r82 27/27[backlinks 侧栏]·r36 47/47[tab 键盘/reopenClosedTab]**·typecheck 0/cargo/生产构建。
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §10 末项 `missing`「折叠/展开当前笔记属性」（Obsidian 内置「toggle properties folding」命令·web 实证真命令[Fold-Properties-By-Default 插件「calls the built-in command」]），**§10 整组补完**。**纯视图折叠·绝不改文档**（无 .md 写·底线①不在「丢数据」意义受威胁；唯一 wrinkle = live 模式属性面板是 CM block widget·折叠改高度需 CM 重测）。同轮**矩阵据实纠误**：§5「更换主题 theme:switch」web 实证 **Obsidian 核心无独立切换器命令**（仅设置内主题下拉·Geode 已匹配[R178]）→ partial=忠实对齐非缺口·改 done-as-Obsidian；§14「搜索默认键 Mod+Shift+F」已 R185 绑定·矩阵 stale→done。**契约（新 per-path fold Store + PropertiesPanel/EditorPane 加性 + 1 命令，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §10 末项 `missing`「折叠/展开当前笔记属性」（Obsidian 内置「toggle properties folding」命令·web 实证真命令[Fold-Properties-By-Default 插件「calls the built-in command」]），**§10 整组补完**。**纯视图折叠·绝不改文档**（无 .md 写·底线①不在「丢数据」意义受威胁；唯一 wrinkle = live 模式属性面板是 CM block widget·折叠改高度需 CM 重测）。同轮**矩阵据实纠误**：§5「更换主题 theme:switch」web 实证 **Obsidian 核心无独立切换器命令**（仅设置内主题下拉·ADKM 已匹配[R178]）→ partial=忠实对齐非缺口·改 done-as-Obsidian；§14「搜索默认键 Mod+Shift+F」已 R185 绑定·矩阵 stale→done。**契约（新 per-path fold Store + PropertiesPanel/EditorPane 加性 + 1 命令，无跨模块签名破坏）**：
 > - **`features/editor/foldProperties.ts`（新·纯前端）**：`foldedPropertiesPaths = new Store<ReadonlySet<string>>(new Set())`（**in-memory·per-path**·resets on restart=v1·Obsidian workspace 持久化 defer）+ `togglePropertiesFold(path)`（immutable Set copy→set·Store 通知）。
 > - **`features/editor/PropertiesPanel.tsx`**：`useStore(foldedPropertiesPaths)` → `collapsed = folded.has(props.path)`。根 `.properties-panel` 加 `is-collapsed` class + 一个 `.properties-fold-toggle` chevron 按钮（`data-testid="properties-fold-toggle"`·`aria-expanded`·点击 `togglePropertiesFold(path)`）。**entries 始终渲染**（CSS `is-collapsed` 时 `display:none`·保留既有 testid·折叠时高度塌缩）。新增可选 prop `onLayoutChange?: () => void` + `useLayoutEffect(() => onLayoutChange?.(), [collapsed])`（折叠后同步触发 CM 重测）。
 > - **`features/editor/EditorPane.tsx`**：live 模式 PropertiesPanel 传 `onLayoutChange={() => viewRef.current?.requestMeasure()}`（CM block widget 折叠改高度·requestMeasure 让 heightmap 重测·避布局空隙）；阅读视图 PropertiesPanel 不传（regular DOM·自然回流·无需重测）。
@@ -873,7 +873,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **`features/editor/formatCommands.ts`**：`FORMAT_COMMANDS` +1 spec `{ id:"editor:insert-embed", nameKey:"cmd.insertEmbed", op:"embed" }`（**无默认键**·同 insert-wikilink·Obsidian 未设置）。复用既有 registerFormatCommands→applyFormat 派发，零改。
 > - **`core/i18n/dict.app.ts`** +1 键 `cmd.insertEmbed`（en `Insert embed` / zh `嵌入内容`·矩阵官方名）。probe `__geodeFormat.apply` 通用覆盖，无需改。
 > - **分档：逻辑档（data-safety·碰 core/format.ts editor 写路径）**——insertEmbed 产 .md 字节。**字节安全**：纯字符串插入·**不读 syntaxTree/overlay**（非 Lezer 损坏族）·镜像 R189 vetted insertWikilink（仅多 `!`）·只替换 [from,to]·零新 vault 写路径（走正常 CM transaction → autosave）。
-> - **桌面 probe N/A 浏览器可验证**（纯函数 `__geodeFormat.apply` 探针 + live CM dispatch·同 R189/R198 format 引擎既定）。**v1 偏差/defer**：`插入附件`（需原生 picker + vault 拷贝·桌面中心·单独轮）；embed 仅插结构（用户再键入/补全目标·同 insert-wikilink·Geode 不弹建议器）。
+> - **桌面 probe N/A 浏览器可验证**（纯函数 `__geodeFormat.apply` 探针 + live CM dispatch·同 R189/R198 format 引擎既定）。**v1 偏差/defer**：`插入附件`（需原生 picker + vault 拷贝·桌面中心·单独轮）；embed 仅插结构（用户再键入/补全目标·同 insert-wikilink·ADKM 不弹建议器）。
 > - **⚠️ 渲染调查（评审 key 点·证实非死语法）**：本轮 render PROOF 初见 `__geodeRenderMarkdown("![[Note]]")` → `<p>!<a class="internal-link">Note</a></p>`（字面 `!`+link·**非** embed）。调查根因：**裸 `__geodeRenderMarkdown` 探针不传 `noteEmbeds` 选项 + null resolver** → 走 markdown.ts:536-540 fallback（`!`+link）。**真实阅读视图非如此**：`features/editor/preview.ts`/EditorPane/HoverPreview/Slides/Export 均调 `renderMarkdownToHtml(src, resolver, {noteEmbeds:true,…})` → markdown.ts:489-535 `bang && resolveEmbed/noteEmbeds` 分支渲染 **geode-embed**[图片]/**geode-embed-file**[音视频/PDF]/**geode-embed-note**[笔记 span]。旁证 `noteComposer.ts:77` 既有用 `![[${name}]]` 作 embed 形态。**∴ insert-embed 产出有意义的 embed 语法·非死语法**；空 `![[]]`（inner 空）不匹配 `WIKILINK_RE`（`[^[\]]+?` 要 ≥1 字符）→ 与 vetted 空 `[[]]`(R189) 同保持字面、不触坏 widget。**修正：r208 render PROOF 移除**（测的是探针缺省非命令·embed 渲染属 R12/R26/R61 既有套件域）。
 > - **⚠️ 对抗评审结论（focused reviewer · 放行 · 0 confirmed 缺陷）**：① insertEmbed 字节逐字镜像 insertWikilink（node 实测 5 边界：空/选区/CJK/doc-start/元字符 `*|`·空选区光标 `from+3`=wikilink `from+2`+1·只动 [from,to]·永不 no-op）；② 非死语法（见上渲染调查）；③ `!` 前缀无副作用（纯字符串插入·走标准 CM 事务→autosave·不读 syntaxTree/overlay·空 embed 不触坏 widget）；④ wiring 齐（union/switch/never 门/spec 唯一/i18n en+zh·typecheck 0 证无 phantom 键）；⑤ SIMPLIFY-NO（~6 行低于 dedup 阈值·镜像兄弟 insertInlineMath 先例·不合并）。data-safety 清单复核：无新写路径·继承 B 类写护栏·避开 Lezer syntaxTree 根因。
 > - **r208-e2e 12/12**（byte[空选区 `![[]]` 光标+3·mid-text·选区 `![[Note]]`·中段选区 span·startsWith `![[`·**CONTRAST wikilink `[[x]]` vs embed `![[x]]`**] + 注册无默认键[name=Insert embed] + live[选区 `Target`→`![[Target]]`·周边字节保留]）+回归 **r33 37/37·r189 17/17[insert-wikilink 镜像源不退]**·typecheck 0/cargo/生产构建。
@@ -891,7 +891,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 206 additions — G3 §17 表格编辑器 片 A（6 命令 表格增删行列 · 新 core/tableEditor.ts 纯模型[markdown-it escapedSplit 对齐阅读视图] + features/editor/tableCommands.ts[复用 R55 findTableRanges 检测] · data-safety 逻辑档[byte·整表重写] + 零新依赖）【As-built v0.202】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §17「表格 Table」（Obsidian 1.5+ 内置表格编辑器·命令组 ~15 条·**无默认键**）。**片 A = 增删行列 6 命令** + 建**可复用表格模型**（解析/序列化/光标定位）；**move/align/copy 9 命令 = 片 B（R207·模型已 vetted 后追加 thin ops）defer**。**关键根因纪律（R201/R204/R205 同族）**：表格单元格切分**必须对齐阅读视图**——Geode reading view 走 `markdown.ts:550` markdown-it 默认 GFM table 规则，其 `escapedSplit` 按未转义 `|` 切分（`\|` 转义·**无代码 span 例外**）；编辑器模型若用别的切分会与渲染不一致→编辑可损坏。**契约（新 core 纯模块 + 新 editor 命令文件，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §17「表格 Table」（Obsidian 1.5+ 内置表格编辑器·命令组 ~15 条·**无默认键**）。**片 A = 增删行列 6 命令** + 建**可复用表格模型**（解析/序列化/光标定位）；**move/align/copy 9 命令 = 片 B（R207·模型已 vetted 后追加 thin ops）defer**。**关键根因纪律（R201/R204/R205 同族）**：表格单元格切分**必须对齐阅读视图**——ADKM reading view 走 `markdown.ts:550` markdown-it 默认 GFM table 规则，其 `escapedSplit` 按未转义 `|` 切分（`\|` 转义·**无代码 span 例外**）；编辑器模型若用别的切分会与渲染不一致→编辑可损坏。**契约（新 core 纯模块 + 新 editor 命令文件，无跨模块签名破坏）**：
 > - **`core/tableEditor.ts`（新·纯·greenfield）**：
 >   - `type TableOp = "insert-row-above"|"insert-row-below"|"insert-column-left"|"insert-column-right"|"delete-row"|"delete-column"`；`type ColumnAlign = "none"|"left"|"right"|"center"`；`interface TableModel { header: string[]; aligns: ColumnAlign[]; rows: string[][] }`（aligns.length===header.length·每 body 行规整到 header.length 单元格）；`interface CellPos { col: number; bodyRow: number }`（bodyRow=-1=表头/分隔行区）。
 >   - **`applyTableOp(op, tableText, cursorOffsetInTable): { text: string; cursorOffsetInTable: number } | null`**（命令层单一入口·镜像 applyFormatOp）：parse→locate 光标 cell→应用 op→serialize→返回新表文本 + 新光标相对偏移（落在受影响 cell 内容首）。cursor 不在合法表格 / op no-op（删到 0 列 / 表头删行）→ null。
@@ -902,7 +902,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **`core/i18n/dict.app.ts`** +6 键 `cmd.tableInsertRowAbove/Below`/`cmd.tableInsertColumnLeft/Right`/`cmd.tableDeleteRow/Column`（en + zh·zh 用矩阵官方名「在上方新增行/在下方新增行/在左侧新增列/在右侧新增列/删除行/删除列」）。`main.tsx` +探针 `__geodeTableEdit.apply(op,text,offset)`（避与既有 `__geodeTable` 检测探针冲突）。
 > - **分档：逻辑档（data-safety·editor 写路径·整表重写）**——applyTableOp 产 .md 字节（重写整表）。**字节安全**：纯字符串模型·**不读 syntaxTree**（检测在命令层用 vetted findTableRanges·只读 Table 节点名非动 mark·R201 规则允许）·cell 切分镜像 markdown-it（编辑器与渲染一致）·整表替换走 view.dispatch 单事务[undo 原子]·零新 vault 写路径·内容字节保留（仅 inter-cell 空白规整）。
 > - **桌面 probe N/A 浏览器可验证**：applyTableOp 纯函数探针 + live CM dispatch + findTableRanges（R55 既有 probe 覆盖）browser-E2E 兜。
-> - **As-built 加固（实现 + 评审揪出的字节安全）**：① **renderCell 重转义** `|`→`\|`（model 存裸内容[escapedSplit 折 `\|`→`|`]·写回不转义则 `| a|b |` 重解析为 2 cell=损坏）；② **parseTable 规整到最宽行**（ragged 行多出的 cell 绝不截断丢失·补 header/aligns 列·底线①）；③ **hasOverlayPipe 守卫**：任何 `|` 落在 Geode overlay（wikilink/embed `[[…]]`/`![[…]]`·inline code·inline math）内 → parseTable 返 null（命令 no-op）——阅读视图视 overlay 为原子（`[[Page|Alias]]` 渲染为单列·实证），escapedSplit 会切断它=损坏；math arm 对齐 markdown.ts:899（hug+非数字闭·`\\.` 吞转义·内容类排 `\` 防 `\$` 被拆=货币 `$5\|$10` 不误拦、`$a\$\|b$` 正确拦）；④ **缩进/列表内嵌表格保 indent**（findTableRanges 把 range.from 放在表头首管道[indent 在其前]·body/delim 行 indent 在 range 内·纯模型 flush-left 序列化→命令层把 indent 重补到每行+光标偏移 `indent.length*(L+1)`·否则 delim/body 失 indent→表格塌陷[1 table→0]=底线①改非光标行)。
+> - **As-built 加固（实现 + 评审揪出的字节安全）**：① **renderCell 重转义** `|`→`\|`（model 存裸内容[escapedSplit 折 `\|`→`|`]·写回不转义则 `| a|b |` 重解析为 2 cell=损坏）；② **parseTable 规整到最宽行**（ragged 行多出的 cell 绝不截断丢失·补 header/aligns 列·底线①）；③ **hasOverlayPipe 守卫**：任何 `|` 落在 ADKM overlay（wikilink/embed `[[…]]`/`![[…]]`·inline code·inline math）内 → parseTable 返 null（命令 no-op）——阅读视图视 overlay 为原子（`[[Page|Alias]]` 渲染为单列·实证），escapedSplit 会切断它=损坏；math arm 对齐 markdown.ts:899（hug+非数字闭·`\\.` 吞转义·内容类排 `\` 防 `\$` 被拆=货币 `$5\|$10` 不误拦、`$a\$\|b$` 正确拦）；④ **缩进/列表内嵌表格保 indent**（findTableRanges 把 range.from 放在表头首管道[indent 在其前]·body/delim 行 indent 在 range 内·纯模型 flush-left 序列化→命令层把 indent 重补到每行+光标偏移 `indent.length*(L+1)`·否则 delim/body 失 indent→表格塌陷[1 table→0]=底线①改非光标行)。
 > - **⚠️ 对抗评审结论（Ultracode 3-lens[byte-correctness/data-safety/fidelity-wiring] + skeptic synthesis · 初判 needs-fixes → 焦点复评 deliverable · 1 critical + 3 minor + 1 nit 全修 · 6 refuted）**：**1 critical 修**=缩进/列表内嵌表格编辑剥离 delim/body 行 indent→表格塌陷（live 复现 1 table→0·改非光标行·底线①）→命令层 indent 重补（见上④·复评实证光标落新 cell·table count 1→1）。**3 minor 修**=（a 实现自查）renderCell 管道重转义[否则 in-cell `|` 重解析损坏]·（b 实现自查）ragged 行截断丢 cell→改规整到最宽行·（c 评审）hasOverlayPipe 货币 `$5\|$10` 误拦[coarse math regex]+（复评）escaped-`$` 下 under-strip 撕裂 math cell→escape-aware regex 双修。**1 nit 修**=TableModel.rows 过期注释。**6 refuted**：escapedSplit 字节奇偶/光标 offset/boundary ops 全对·两处自查 fix 完备·整表重序列化改未编辑字节[markdown-it 渲染等价·非损坏]·blockquote `> ` 表格（findTableRanges 检出但 delim 行 `>` cell 令 parseAlign 失→null·safe decline）·tab 缩进表格（Lezer 不识别→no-op）·available 非表格内仍 enabled[同 R33 先例]。**根因教训（记忆扩展）**：(i) **「编辑器对齐阅读视图」扩到表格**——cell 切分须避开阅读视图视为原子的 overlay（wikilink/code/math 内 `|`），否则撕裂[R192/R201/R204/R205 同族]；(ii) **整块替换 [from,to] 时，块外/逐行前缀（indent/`> `）必须保留**——findTableRanges 的 range.from 在表头首管道之后，flush-left 序列化会丢后续行的 indent。
 > - **r206-e2e 52/52**（byte 6 ops + 光标 offset + no-op 守卫[表头删行/单列删列/非表格] + **overlay-pipe 守卫[body `[[a|b]]` 撕裂防护/header/code/math/escaped-`$`/货币可编辑/pipe-less `[[Page]]` 可编辑保留]** + **ragged 不丢 cell** + escape round-trip + render PROOF[含 escaped cell 不损坏] + 注册无键 + live[insert-row + **缩进/列表内嵌表保 indent·table count 1→1**] + blockquote safe decline）+回归 **r33 37/37·r55 15/15·r198 34/34**·typecheck 0/cargo/生产构建。**v1 偏差/defer**：片 B move/align/copy 9 命令；序列化单空格填充[非列宽 pretty-format·渲染等价·CJK 显示宽]；含 overlay-pipe 的表格 no-op（overlay-aware 编辑=follow-on）；blockquote/tab 缩进表格 no-op（safe）。
 
@@ -921,7 +921,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 204 additions — G3 §2「重命名当前小标题」片 A（1 命令 editor:rename-heading · 改 heading 文字 + 同文件自锚 `[[#OldH]]`→`[[#NewH]]` 更新 · core/renameHeading.ts 纯函数 + window.prompt · data-safety 逻辑档[byte 风险·链接改写] + 零新依赖）【As-built v0.200】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `missing`「重命名当前小标题」（Obsidian `editor:rename-heading`「Rename this heading…」）。**忠实基线 + 局部增强**：web 实证（Obsidian dev Licat 明确表态）**Obsidian 核心 rename-heading 不更新任何 heading 链接引用**（`[[#Section]]` 静默失效·不会自动更新·正式不实现）→ 忠实基线 = 改 heading 文字；**Geode 片 A 加同文件自锚更新**（同一文档内 `[[#OldH]]` 自引用跟随·明显合理的局部完整性增强）。**跨档 `[[File#OldH]]` 改写 = 片 B（R16-重·高 data-safety·字节套件重建·下一轮）defer**（与 Obsidian 核心同样不做·非回退）。**契约（新 core 纯函数 + 命令，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `missing`「重命名当前小标题」（Obsidian `editor:rename-heading`「Rename this heading…」）。**忠实基线 + 局部增强**：web 实证（Obsidian dev Licat 明确表态）**Obsidian 核心 rename-heading 不更新任何 heading 链接引用**（`[[#Section]]` 静默失效·不会自动更新·正式不实现）→ 忠实基线 = 改 heading 文字；**ADKM 片 A 加同文件自锚更新**（同一文档内 `[[#OldH]]` 自引用跟随·明显合理的局部完整性增强）。**跨档 `[[File#OldH]]` 改写 = 片 B（R16-重·高 data-safety·字节套件重建·下一轮）defer**（与 Obsidian 核心同样不做·非回退）。**契约（新 core 纯函数 + 命令，无跨模块签名破坏）**：
 > - **`core/renameHeading.ts`（新·纯）**：`renameHeadingAt(text, cursorPos, newText): { changes: Array<{from,to,insert}>, selFrom, selTo } | null`——① 光标所在行测 `/^(#{1,6})\s+(.+)$/`（非 heading 行→null）；② oldText=组 2 trim·newTrim=newText.trim()·`!newTrim||newTrim===oldText`→null（no-op）；③ changes=[替 heading 文字段（`### ` marker 后）为 newTrim]；④ **自锚更新仅当 newTrim link-safe（无 `|[]#`）**：扫全文 `(!?)\[\[#([^[\]|#]+?)(\|[^[\]]*)?\]\]` 自锚 wikilink·每个 `stripHeadingText(子路径)===stripHeadingText(oldText)`（复用 metadata.ts 导出·镜像 resolveSubpath 匹配语义·大小写/markdown/空白不敏感）→ 替组 2 子路径为 newTrim（保 `!` 前缀 + `|alias`）·**跳过落在 heading 文字 change 区内的自锚（防 overlap）**；⑤ selFrom/selTo=改名后 heading 文字末。changes 按 from 排序、非重叠。
 > - **`features/editor/formatCommands.ts`**：注册 `editor:rename-heading`（无默认键·`available: getView()!==null`）。callback：取光标 → **先测是否在 heading 行**（不在→no-op·不弹 prompt）→ `window.prompt(t("editor.renameHeadingPrompt"), currentText)`（复用 TagsPanel:158/BookmarksPanel:155 vetted 先例·零新模态）→ 结果非空 → `renameHeadingAt` → `view.dispatch({changes, selection})` 单事务（undo 原子）→ `view.focus()`。
 > - **`core/i18n/dict.app.ts`** +2 键 `cmd.renameHeading`（Rename heading… / 重命名当前小标题…）+ `editor.renameHeadingPrompt`（New heading text: / 新的小标题文字：）。`main.tsx` +探针 `__geodeRenameHeading(text,cursor,newText)`。
@@ -951,7 +951,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **`core/i18n/dict.app.ts`** +1 键 `cmd.openLinkNewSplit`（Open link under cursor to the right / 在新标签组中打开光标处链接·与 Obsidian 官方本地化一致）。
 > - **hotkey**：`Mod+Alt+Enter`（⌘⌥Enter）经 Prec.highest handleKeydown 精确模位比对·不撞 R201 的 Alt+Enter/Mod+Enter（多 Mod 或 Alt 之一不同即不同键）·不破裸 Enter。
 > - **分档：逻辑档（data-safety）**——续 R201（openWikilink 可 createNewNote·vault 写 vetted uniquePath）。**字节安全**：零新写机制（复用 R201 全部 vetted 路径 + splitActivePane 纯 workspace 树操作无 vault 写）；split 不改 .md；markdown unresolved 先判后 split 不留空窗格。
-> - **桌面 probe N/A**：导航 + split（同 R183/R201 既定 browser-E2E）。**v1 偏差/defer**：§4 余 `open-link-in-new-window`（多窗口未支持）；split 方向固定 "row"（向右·Obsidian 默认）；external 链接 split 模式仍 window.open（无 Geode 窗格意义）。
+> - **桌面 probe N/A**：导航 + split（同 R183/R201 既定 browser-E2E）。**v1 偏差/defer**：§4 余 `open-link-in-new-window`（多窗口未支持）；split 方向固定 "row"（向右·Obsidian 默认）；external 链接 split 模式仍 window.open（无 ADKM 窗格意义）。
 > - **⚠️ 对抗评审结论（Ultracode 3 lens[split-composition/refactor-regression-datasafety/fidelity-wiring] + skeptic synthesis · verdict=deliverable · 0 critical/0 major）**：lens 追进 workspace.ts 证 **splitActivePane dup tab → openFile `replace-in-place`(ws.ts:409) RETARGET 单 tab·无残留 dup/双开/错窗格**、newTab=（mode==="tab"）current/tab 与 R201 逐字节等价（r201 29/29）、code-context 守卫读 pre-split 原 view、零新写路径（splitActivePane 纯 workspace 树操作）、热键 Mod+Alt+Enter 无撞、en/zh 标签与 Obsidian 官方一致。
 >   - **1 minor 已修**：split 模式下 degenerate `[[#]]`/`[[#|x]]`（空 target+空 subpath）wikilink 分支**无条件 split** 后 openWikilink no-op → 残留 dup 窗格（markdown/external 免疫——先 resolve/判后 split）→ 修=wikilink 分支 split **前**加 `if(target===""&&!subpath) return false`（镜像 openWikilink 自身 no-op·current/tab 字节等价[仅未用 bool 返回翻转]），r202-e2e +`[[#]]` split 无残留窗格断言。
 >   - **2 nit（不改·R201 fidelity 已反驳）**：① 「热键非 Obsidian stock」——**R201 fidelity lens 经 keycheck.dev/obsidian-translations 已实证** Alt+Enter/Mod+Enter/Cmd+Opt+Enter 即 Obsidian 默认键、split=Cmd+Opt+Enter，故保留；② 「zh 标签缺『向右』」——zh `在新标签组中打开光标处链接` **是 Obsidian 官方 zh-CN 字符串**（R201 实证），加『右侧』反偏离官方，故保留。
@@ -968,7 +968,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **分档：逻辑档（data-safety）**——触 editor + openWikilink 可 createNewNote（vault 写）。**字节安全**：**零新写机制**（全复用 vetted openWikilink/createNewNote[既有 Ctrl+Click 路径]/openFile/window.open）；导航主体只读；createNewNote 仅 unresolved wikilink（Obsidian 忠实·R23 active-file 门控）。
 > - **桌面 probe N/A**：导航 + window.open（同 R183 既定「编辑器导航 browser-E2E」）；`linkAtCursor` 纯函数浏览器侧探针直驱。**v1 偏差/defer**：§4 余 `open-link-in-new-split`（⌘⌥Enter「在新标签组中打开」·需 splitLeaf+openFile 组合）/`open-link-in-new-window`（⌘⌥⇧Enter·多窗口未支持）defer；markdown unresolved internal 不 create（仅 wikilink create·更安全）；光标恰在两相邻链接边界取首条。
 > - **⚠️ 对抗评审结论（Ultracode 4 lens[linkAtCursor-bytes/data-safety-navigation/fidelity/wiring-hotkey] + skeptic synthesis · verdict=deliverable · 0 critical/0 major）**：lens 实证——scan 全边界正确（含界判定/alias-drop/embed `!`/external 检测）、**追进 metadata.ts 证 `javascript:`/`data:` 无 `://` → 非 external → resolveMarkdownLink 经 normalizeMdHref scheme 守卫返 null → no-op（无 window.open 无执行）**、openWikilink 加 opts 向后兼容（openFile `opts.newTab??false` · 8 调用点 newTab=undefined 不变·r71 17/17）、热键 `Alt+Enter`/`Mod+Enter` 经 matchParsedHotkey 精确模位比对**不破裸 Enter/IME/补全接受**、en+zh 标签**与 Obsidian 官方本地化逐字一致**。
->   - **2 minor 已修**：① **`linkAtCursor` 无 inline-code/fence 感知** → 跟随 `` `[[X]]` ``/fence 内字面链接会导航、unresolved wikilink 还会 **createNewNote 写幻影笔记**（背离 Geode 阅读视图 markdown.ts:440/465-468 跳码 + Obsidian）→ 修=`followLinkAtCursor` 加 **Lezer code-context 守卫**（`syntaxTree.resolveInner(pos,-1)` 祖先名含 `Code`[InlineCode/FencedCode/CodeBlock/CodeText] 即 false·**只读节点名安全·非动 emphasis mark·R192/R197 规则允许**），r201-e2e +inline/fence live no-op + 无幻影笔记断言；② **`MDLINK_RE` href `[^)]+` 截断含平衡括号 URL**（`…/Foo_(bar)` → 错页·背离 markdown-it）→ 修=`(?:[^()]|\([^()]*\))+` 容一层平衡括号 + byte 断言。
+>   - **2 minor 已修**：① **`linkAtCursor` 无 inline-code/fence 感知** → 跟随 `` `[[X]]` ``/fence 内字面链接会导航、unresolved wikilink 还会 **createNewNote 写幻影笔记**（背离 ADKM 阅读视图 markdown.ts:440/465-468 跳码 + Obsidian）→ 修=`followLinkAtCursor` 加 **Lezer code-context 守卫**（`syntaxTree.resolveInner(pos,-1)` 祖先名含 `Code`[InlineCode/FencedCode/CodeBlock/CodeText] 即 false·**只读节点名安全·非动 emphasis mark·R192/R197 规则允许**），r201-e2e +inline/fence live no-op + 无幻影笔记断言；② **`MDLINK_RE` href `[^)]+` 截断含平衡括号 URL**（`…/Foo_(bar)` → 错页·背离 markdown-it）→ 修=`(?:[^()]|\([^()]*\))+` 容一层平衡括号 + byte 断言。
 >   - **1 nit 记录（不修）**：`Mod+Enter` 经 Prec.highest 命令拦截**遮蔽 CM defaultKeymap 的 insertBlankLine**——有意为之（同 editorMotionCommands 遮蔽 Alt-Arrow 先例·`editor:insert-blank-line` 仍在仅无默认键·Obsidian 不绑 Cmd+Enter 到 insertBlankLine），记此防误判回归。
 >   - **3 refuted**：`javascript:` scheme（安全·非 external 路由 no-op）/ openWikilink 向后兼容回归（newTab=undefined 不变）/ 跟随真 unresolved `[[X]]` 创建 X（Obsidian 忠实非缺陷）。
 > - **r201-e2e 29/29**（byte linkAtCursor[wikilink/subpath/alias/embed/self-link/markdown/external/external+frag/**平衡括号 URL**/无链接/双链接/边界] + 注册 Alt+Enter & Mod+Enter + live[no-op/follow 同 tab/new-leaf 2 tab/subpath/markdown internal/external window.open + **inline-code/fence 守卫 no-op + 无幻影笔记**]）+ 回归 r71 17/17·typecheck 0/cargo/生产构建。
@@ -988,7 +988,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **桌面 probe N/A**：右键菜单 DOM + clipboard（同 R183「clipboard + CM dispatch 仅 browser-E2E」既定口径，clipboard 从不 desktop-probe）；菜单逻辑纯 compat/CM 平台无关。**v1 偏差/defer**：原生项无图标（compat BUILTIN 集缺 scissors/copy/clipboard）；无 active markdown editor 时不接管（保留浏览器菜单）；selection-aware 仅 cut/copy 禁用态（paste 总启用）。
 > - **⚠️ 对抗评审结论（Ultracode 4 lens[data-safety-clipboard/menu-lifecycle/fidelity/wiring-layering] + skeptic synthesis · verdict=deliverable · 0 critical/0 major）**：lens 实证——Cut「writeText().then(删).catch(不删)」次序成立（clipboard 失败绝不丢字）、**追进 documents.ts 证 delete.cut/input.paste 走既有 updateListener→scheduleSave 无新写路径**、Paste 读 fresh 选区 anchor 可证 in-bounds、菜单生命周期（mousedown 先关旧菜单无泄漏·throwing 插件经 tryTrigger 隔离）、分层（compat→core only·无 feature import compat）、i18n en+zh 齐。
 >   - **3 confirmed 已修**：① **(nit·data-safety 硬化) Cut 复用 await 前选区 vs Paste 读 fresh**——理论上 clipboard 写 await 窗口内外部 reload 移位会删错范围（仅合成注入可达、undo 可恢复）→ 修=镜像 Paste：`copied=sliceDoc` 后 `.then` 内 `if(sliceDoc(sel)!==copied) return`（只删拷过的字节、否则跳过）；② **(nit) 单 `if` 去分隔线**——插件只贡献裸 separator 时留尾随孤儿/相邻双线 → 修=`childElementCount` 边界判定只在插件加非分隔节点时插一条 rule + `for` 循环剥所有尾随 separator（r200-e2e §F 锁裸分隔线无孤儿）；③ **(minor) editor-menu JSDoc 过期**（workspace.ts/context.ts 仍写「仅插件贡献才显」）→ 据 R200 改写。
->   - **1 minor 记为 v1 已知限制（不修）**：**总是 preventDefault 抑制浏览器原生拼写建议菜单**——R50 拼写检查开（默认关）的用户右击拼错词，原本浏览器菜单给纠正建议，R200 后只见 Cut/Copy/Paste（Obsidian 把拼写建议并入自身菜单、Geode v1 未做）。属忠实/UX 缺口、窄 cohort（非默认偏好），记 OBSIDIAN-COMPAT 缺口；完整修=把平台拼写建议作为菜单项注入（更大件、defer）。
+>   - **1 minor 记为 v1 已知限制（不修）**：**总是 preventDefault 抑制浏览器原生拼写建议菜单**——R50 拼写检查开（默认关）的用户右击拼错词，原本浏览器菜单给纠正建议，R200 后只见 Cut/Copy/Paste（Obsidian 把拼写建议并入自身菜单、ADKM v1 未做）。属忠实/UX 缺口、窄 cohort（非默认偏好），记 OBSIDIAN-COMPAT 缺口；完整修=把平台拼写建议作为菜单项注入（更大件、defer）。
 >   - **refuted**：原生项无图标=任务既定 v1（compat BUILTIN 缺·setIcon 降级空 span 非错图标）。
 > - **r200-e2e 21/21**（总显示 + 原生 Cut/Copy/Paste 序 + 选区禁用态 + Copy 写剪贴不改文 + Cut 删选区+写剪贴+undoable + Paste 插光标 + 插件项在原生+分隔线后 + 无插件无尾分隔线 + **裸分隔线插件无孤儿**）+ 改测 **r131-e2e 8/8**（行为变更：菜单含原生项+总显示）+ r144-e2e 7/7（Menu 不退）+ typecheck 0/cargo/生产构建。
 
@@ -1011,7 +1011,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 > **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `missing` insert 家族 3 项（Obsidian `editor:insert-math` 行内数学 / `editor:insert-math-block` 插入数学块 / `editor:insert-horizontal-rule` 插入分隔线）。与 R189 `insertWikilink`、R186 `setHeadingLevel` 同槽——**扩 R33 纯函数 format 引擎（`core/format.ts`），不读 Lezer 树、只替换 [from,to]，纯插入（非 toggle，不 unwrap）→ 天然回避 R192/R197 的「overlay 腰斩/保护翻转」损坏族**（那族源于删/改既有 overlay；本轮只新增分隔符）。**契约（扩 R33，无跨模块签名破坏）**：
 > - **`core/format.ts`** 新增 3 个 `FormatOp`：`"inline-math"` / `"math-block"` / `"horizontal-rule"`，3 个纯函数 helper + `applyFormatOp` 3 个 case：
->   - **`insertInlineMath(text,from,to)`**（镜像 `insertWikilink`，单 `$` 包裹）：空选区→`$$` 光标居中（selFrom=selTo=from+1）；有选区→`$`+sel+`$`，光标在闭合 `$` 后。**已知固有歧义（记录、非 corruption）**：空选区落在**整空行**时 `$$` 会被 Geode block-math 扫描器（行首 `$$`）当块公式起始 → 渲染瞬时态待闭合；与 Obsidian 行内空插入字节一致（用户随即键入），accept。
+>   - **`insertInlineMath(text,from,to)`**（镜像 `insertWikilink`，单 `$` 包裹）：空选区→`$$` 光标居中（selFrom=selTo=from+1）；有选区→`$`+sel+`$`，光标在闭合 `$` 后。**已知固有歧义（记录、非 corruption）**：空选区落在**整空行**时 `$$` 会被 ADKM block-math 扫描器（行首 `$$`）当块公式起始 → 渲染瞬时态待闭合；与 Obsidian 行内空插入字节一致（用户随即键入），accept。
 >   - **`insertMathBlock(text,from,to)`**（镜像 `toggleCodeBlock` 的 wrap 分支，但**纯插入不 toggle**——不检测既有 `$$…$$`，故不读 overlay）：`lineBounds` 取整行块 `block`；insert=`$$\n`+block+`\n$$`；空块→`$$\n\n$$` 光标在中间空行（selFrom=selTo=start+3）；有块→选中内层（selFrom=start+3, selTo=start+3+block.length）。
 >   - **`insertHorizontalRule(text,from,to)`**（**唯一不消选区** op，避免删用户文本=底线①）：pos=`to`（选区尾，from=to=pos 纯插入、保留选区文本）；lead=`(pos===0||text[pos-1]==="\n")?"":"\n"`；insert=lead+`***\n`；光标在规则后（selFrom=selTo=pos+insert.length）。**分隔符用 `***` 非 `---`**：`---` 直接跟在段落文本下会被 markdown-it 解析成 **setext H2 下划线**（语义损坏/底线①），`***`/`___` 永不是 setext；markdown-it `hr` 规则 `***`/`---`/`___` 渲染**完全等价**为 `<hr>`，故 `***` = 最忠实(Obsidian 三者同渲)且 setext-proof 的安全选择。
 > - **`features/editor/formatCommands.ts`**：FORMAT_COMMANDS +3 spec（`editor:insert-math`/`cmd.insertMath`/`inline-math`、`editor:insert-math-block`/`cmd.insertMathBlock`/`math-block`、`editor:insert-horizontal-rule`/`cmd.insertHorizontalRule`/`horizontal-rule`，均无默认键，对齐 Obsidian「未设置」）。
@@ -1019,23 +1019,23 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **零接线成本**：`main.tsx` `__geodeFormat.apply(op,text,from,to)` 透传 `applyFormatOp` → 3 新 op 自动暴露给浏览器 E2E + 桌面 probe，无额外 wiring。
 > - **分档：逻辑档（data-safety）**——`core/format.ts`=编辑器 format 引擎产出 .md 字节，跑 data-safety skill + byte 回归 **r198-e2e 34/34** + 既有 r33 37/37·r189 17/17 不退。**字节安全论证**：3 op 全纯插入、只替换 [from,to]（math wrap 选区、HR 不消选区）、不 `syntaxTree`/不读 overlay → 无 R192/R197 损坏面；唯一新增风险=选区跨既有 overlay 边界时包裹产破损（用户驱动，与 Obsidian 同），区外字节不动。CRLF 经 `vault.ts:356 normalizeContent`（R16 choke point）已 CRLF→LF，HR 的 `text[to-1]==="\n"` 判定对每篇文档成立、无 `\r` 漏判。
 > - **⚠️ 对抗评审结论（Ultracode 4 lens + skeptic synthesis · verdict=deliverable · 0 critical/0 major）**：4 lens（byte-offset / data-safety-overlay / fidelity / wiring）逐项独立复核——offset 全对、R192/R197 损坏族**经证实不适用**（纯 slice 无树读）、wiring 干净（唯一 `switch(op)` 是 `default:never` 穷尽、3 键 en+zh 齐、id 无撞）。
->   - **fidelity lens 洞见（强化 `***` 选择）**：`***` 不只**规避** setext 陷阱——它让 Geode **渲染输出对齐 Obsidian**（Obsidian 根本不支持 setext 标题，其 `text\n---` 渲成段落+`<hr>`；Geode 阅读视图[markdown-it]却把 `text\n---` 渲成 setext `<h2>`=**既有 Geode 阅读视图失真**，非 R198 范围）。插 `***` 使 Geode 渲染结果 = Obsidian。
+>   - **fidelity lens 洞见（强化 `***` 选择）**：`***` 不只**规避** setext 陷阱——它让 ADKM **渲染输出对齐 Obsidian**（Obsidian 根本不支持 setext 标题，其 `text\n---` 渲成段落+`<hr>`；ADKM 阅读视图[markdown-it]却把 `text\n---` 渲成 setext `<h2>`=**既有 ADKM 阅读视图失真**，非 R198 范围）。插 `***` 使 ADKM 渲染结果 = Obsidian。
 >   - **唯一 confirmed = nit（已修，非产品码）**：r198-e2e 两条 math-**渲染**断言原带 `|| includes("a^2")` 回退（且正则 `\$` 匹配未渲染的裸 `$`）→ 近乎恒真、math 渲染坏了也绿。已收紧为 `class="…geode-math-inline"` / `geode-math-block`（`markdown.ts:825` 实出标记），收紧后仍 34/34 → 渲染证明现为 load-bearing。byte 级 A/A2/A3 + setext render proof 本就精确、不受影响。
->   - **refuted**：命令 id 非 Obsidian 逐字 core id（内部 id、用户不可见、Geode 自有注册表无 id 键迁移、零功能影响 + Obsidian 真 id 前提本身未证）。
+>   - **refuted**：命令 id 非 Obsidian 逐字 core id（内部 id、用户不可见、ADKM 自有注册表无 id 键迁移、零功能影响 + Obsidian 真 id 前提本身未证）。
 > - **桌面 probe N/A**：纯 `core/` format 引擎、无 fs/vault 路径，同一纯 TS 双端等价；`__geodeFormat.apply` 浏览器侧已直驱 `applyFormatOp`（同 R197/R189/R186 非 fs 命令轮）。
-> - **v1 偏差（记录、非 corruption）**：① inline-math 空选区插 `$$`（整空行上 = 瞬时 block-math 起始，用户随即键入，与 Obsidian 同）；② math-block 行级整行包裹（光标所在整行入 `$$…$$`，同 toggleCodeBlock）；③ HR 用 `***` 非 `---`（setext-proof + 渲染对齐 Obsidian）。**已知 wart（ROADMAP，非本轮）**：Geode 阅读视图 setext 标题失真（`text\n---`→h2，Obsidian 不支持 setext）= 独立缺口、R198 已绕开不需修。**v1 defer**：§2 重命名小标题/插入表格(§17)·附件·脚注·嵌入；§3 光标处上下文菜单；`管理仓库` C1。
+> - **v1 偏差（记录、非 corruption）**：① inline-math 空选区插 `$$`（整空行上 = 瞬时 block-math 起始，用户随即键入，与 Obsidian 同）；② math-block 行级整行包裹（光标所在整行入 `$$…$$`，同 toggleCodeBlock）；③ HR 用 `***` 非 `---`（setext-proof + 渲染对齐 Obsidian）。**已知 wart（ROADMAP，非本轮）**：ADKM 阅读视图 setext 标题失真（`text\n---`→h2，Obsidian 不支持 setext）= 独立缺口、R198 已绕开不需修。**v1 defer**：§2 重命名小标题/插入表格(§17)·附件·脚注·嵌入；§3 光标处上下文菜单；`管理仓库` C1。
 
 ## Round 197 additions — G3 missing→done「删除段落」（1 命令 editor:delete-paragraph · syntaxTree 顶层块边界 + frontmatter 守卫 · data-safety 逻辑档 + byte 回归 · 零新依赖）【As-built v0.193】
 
 > **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §3 `missing`「删除段落」（Obsidian `editor:delete-paragraph`）。**字节安全核心：用 syntaxTree 顶层块边界，非行级**（行级「连续非空行」会把**多行 frontmatter 值 / 含空行的代码围栏**从中间切断 = 损坏；syntaxTree 把 FencedCode/List 当整块）。**契约（扩 R52 editorEditCommands，无跨模块签名破坏）**：
 > - **`features/editor/editorEditCommands.ts`** 新增 `frontmatterEnd(doc)`（首行 `---` + 找闭合 `---`/`...` 返其行尾、否则 0）+ `blockMathRanges(doc)`（**缩进≤3** 的 `$$…$$` 扫描，逐项镜像 `core/markdown.ts:835-897` geode-math-block 阅读视图规则——**非**复用 liveMath 的 `findMathBlockRanges`[indent===0，为 live widget]）+ `deleteParagraph(view)`（CM `Command`）：**① frontmatter 守卫** `pos < frontmatterEnd → no-op`；② `syntaxTree.resolveInner(pos,1)` 上溯到 `parent.name==="Document"` 的**顶层块**；③ **F2**：得 Document 且 `pos>0 && doc[pos-1]!=="\n"`（光标在块末行尾、非真空隙）→ `resolveInner(pos,-1)` 重试偏向前块；④ Document（真空隙）→ no-op；⑤ **overlay 交集展开（R192 教训）**：`overlays=[...blockMathRanges(doc), ...commentSpans(state,true)]`，fixpoint 对每个 `r` 若 `r.from<to && r.to>from`（**交集**，非光标成员）且 `r.from<from||r.to>to`（超出 Lezer 块）→ `from=min,to=max`（block math/comment 含空行整删不腰斩）；⑥ **行首 snap** `from=lineAt(from).from`（缩进码不残留缩进）；⑦ 删 `[from, to+连续尾随\n]`。+1 EDIT_COMMANDS spec（无默认键）。`commentSpans`（formatCommands）R197 改 **export + 加 `pairedOnly` 参**。i18n dict.app +1 键 en+zh。
-> - **⚠️⚠️ 根因教训（多 agent 对抗评审揪出 4 个字节损坏、逐个 probe 实证后修——R192「Lezer GFM 树 ≠ Geode overlay」同一族的延伸）**：
+> - **⚠️⚠️ 根因教训（多 agent 对抗评审揪出 4 个字节损坏、逐个 probe 实证后修——R192「Lezer GFM 树 ≠ ADKM overlay」同一族的延伸）**：
 >   - **(probe 自查) block math/comment 含内部空行被 Lezer 腰斩**：`$$\na\n\nb\n$$`→`b\n$$`（孤儿 `$$`）。
 >   - **A**：缩进代码块 `node.from` 是首个非缩进列、非行首 → 删后残留 `    ` 与下文熔成新缩进码块。修 = 行首 snap。
 >   - **B**：`findMathBlockRanges` 要 indent===0，但阅读视图收 indent≤3 → 缩进 1-3 的 block math 漏检被腰斩。修 = 自建 `blockMathRanges`（缩进≤3）。
 >   - **C**：overlay 守卫凭**光标成员**判定，但光标落在跨空行注释**周边可见文本（span 外）**时漏判 → 留孤儿 `%%`。修 = **交集**（非成员）+ fixpoint。
 >   - **(C 修引入的回旋镖) over-expansion**：`commentSpans` 对**未配对** `%%`（半写注释，常态瞬时态）返 `{open, doc.length}`run-to-EOF span（为 clearFormatting 的**保护**语义设计=过覆盖无害）；喂进交集展开后**保护翻转成删除**→ 删「光标块→EOF」整篇。修 = `commentSpans(state,true)` 仅 gate 末尾未配对 opener 的 run-to-EOF push（未配对 `%%` 无 closer 可孤儿、不需展开）；clearFormatting 仍默认 false。
-> - **方法论铁律（再次验证）**：碰任何会删/改 .md 块的编辑命令，**多行 Geode overlay（block math 缩进≤3 / `%%comment%%` / frontmatter）必逐一对照「会否被 Lezer 在空行腰斩」+「保护语义的 span 喂进删除路径会否翻转成过删」**——单 probe 易漏，对抗评审 fan-out 才扫得净（本轮 4 缺陷里 3 个单 probe 没抓到）。
+> - **方法论铁律（再次验证）**：碰任何会删/改 .md 块的编辑命令，**多行 ADKM overlay（block math 缩进≤3 / `%%comment%%` / frontmatter）必逐一对照「会否被 Lezer 在空行腰斩」+「保护语义的 span 喂进删除路径会否翻转成过删」**——单 probe 易漏，对抗评审 fan-out 才扫得净（本轮 4 缺陷里 3 个单 probe 没抓到）。
 > - **分档：逻辑档（data-safety）**——editorEditCommands.ts=编辑器写路径（删 .md），跑 data-safety skill + byte 回归 **r197-e2e 28/28**（段落/列表/代码围栏/标题整删·body 保留·frontmatter no-op·**缩进码不残留缩进**·**缩进≤3 math 整删**·**block math/comment 含空行不腰斩**·**跨界 comment 不留孤儿**·**未配对 `%%` 不吞 EOF**·F2 块末行尾删·多行 frontmatter 值 no-op·空隙 no-op·undoable）+ 既有 r52/r33/r192 不退。
 > - **v1 偏差（记录、非 corruption）**：① 列表 = 删**整个列表**（顶层块 List；Obsidian 可能只删当前项）；② frontmatter 内 no-op（清整块用 R194 clear-metadata-properties）；③ 消所有尾随 \n。**已知 wart（ROADMAP，非本轮）**：`frontmatterEnd` 三处副本（livePreview/folding/此）+ `FENCE_RE` 两处，参数型不一、跨文件、收敛须建共享 export。**v1 defer**：§3 光标处上下文菜单[需编辑器右键菜单]；§11 bookmark-search[需 query 提升 store]；`partial` theme:switch；`管理仓库` C1；§17 表格编辑器整片。
 
@@ -1046,13 +1046,13 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 > - **`features/editor/PropertiesPanel.tsx`** tryConsume 消费后（沿用 R22 stale-tab/file-mismatch 守卫 + frontmatter-ensure）：`if (req.key) submitAdd(req.key); else { pendingFocusRef={kind:"add"}; setAdding(true); rerender() }`。**复用既有 vetted `submitAdd(name)`**（已含：同名 dedup→聚焦既有值 / `buildSetProperty(doc,name,null)` 加属性 + `pendingFocusRef={kind:"value",key}` 聚焦值 / applyEdit）——**零新写机制**。
 > - **`app/App.tsx`** +2 命令 `editor:add-alias`（key `"aliases"`）/ `editor:add-tag`（key `"tags"`），镜像既有 `editor:add-property` body（getActiveTab gated→source 翻 live→propertiesInDocument 设 visible→`requestAddProperty(tab.id, tab.filePath, key)`）。无默认键（Obsidian 未设置）。i18n dict.app +2 `cmd.addAlias`/`cmd.addTag` 键 en+zh。
 > - **分档：逻辑档（data-safety）**——碰 PropertiesPanel + 写 frontmatter（buildSetProperty 经 vetted applyEdit→documents dirty→autosave、R22 INT-2/SEC-03 stale-tab 守卫仍前置），跑 data-safety skill + 既有 properties 套件不退。
-> - **v1 nuance**：① 属性以 null 值加入（`buildSetProperty(doc,name,null)`）、聚焦值供输入——aliases/tags 在 Obsidian 是 list 型，Geode 此处不预设 list 型（用户输入值时由面板处理），faithful-enough（加属性+聚焦）。② **继承自既有 add-property 的口径（非 R196 新引入）**：无 frontmatter 时 tryConsume 两步 applyEdit（create block + submitAdd），**preview 模式**下两次同步 applyPreviewEdit 在真 fs 理论上可瞬时竞态留空块（**非 corruption——两 payload 均含全文 body、内存 canonical 正确、下次编辑自愈、底线①不破**）；命令 source→live 翻转 + live 默认模式下两编辑 debounce 成单次保存=干净。同 add-property 既有行为。**v1 defer**：删除段落[需 frontmatter 感知]；§11 bookmark-search；`partial` theme:switch；`管理仓库` C1。
+> - **v1 nuance**：① 属性以 null 值加入（`buildSetProperty(doc,name,null)`）、聚焦值供输入——aliases/tags 在 Obsidian 是 list 型，ADKM 此处不预设 list 型（用户输入值时由面板处理），faithful-enough（加属性+聚焦）。② **继承自既有 add-property 的口径（非 R196 新引入）**：无 frontmatter 时 tryConsume 两步 applyEdit（create block + submitAdd），**preview 模式**下两次同步 applyPreviewEdit 在真 fs 理论上可瞬时竞态留空块（**非 corruption——两 payload 均含全文 body、内存 canonical 正确、下次编辑自愈、底线①不破**）；命令 source→live 翻转 + live 默认模式下两编辑 debounce 成单次保存=干净。同 add-property 既有行为。**v1 defer**：删除段落[需 frontmatter 感知]；§11 bookmark-search；`partial` theme:switch；`管理仓库` C1。
 
 ## Round 195 additions — G3 missing→done「切换新标签页的默认视图」（1 命令 app:toggle-default-new-tab-view · 循环 defaultNewTabMode 三态 · 非数据安全 · 零新依赖）【As-built v0.191】
 
 > **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §5 `missing`「切换新标签页的默认视图」（Obsidian `app:toggle-default-new-tab-view`，R185 当时 defer 为「三态非布尔 cycle」）。**契约（纯命令注册 + i18n，无跨模块签名变更）**：
 > - **`app/App.tsx`** 紧邻 R185 既有 `app:toggle-ribbon` 注册 1 命令（复用 vetted `setDefaultNewTabMode`，**纯 appearance 设置、无 vault/doc 写**）：`app:toggle-default-new-tab-view` → 循环 `defaultNewTabMode` 三态 `["live","source","preview"]`（`ORDER[(indexOf(cur)+1)%3]`）。**无默认键**（Obsidian 未设置）。import `defaultNewTabMode`/`setDefaultNewTabMode`。
-> - **映射口径**：Obsidian 把「新标签默认视图」拆成两设置（阅读/编辑 view + 源码/实时编辑模式）；Geode 合并为单一 `NewTabMode` 三态，故单命令**循环全 3 态**（覆盖所有状态、可经命令到达任意模式），是 Geode 单设置模型的自然映射（非 Obsidian 二态 toggle 的逐字复刻——记录偏差）。
+> - **映射口径**：Obsidian 把「新标签默认视图」拆成两设置（阅读/编辑 view + 源码/实时编辑模式）；ADKM 合并为单一 `NewTabMode` 三态，故单命令**循环全 3 态**（覆盖所有状态、可经命令到达任意模式），是 ADKM 单设置模型的自然映射（非 Obsidian 二态 toggle 的逐字复刻——记录偏差）。
 > - i18n dict.app +1 `cmd.toggleDefaultNewTabView` 键 en+zh。
 > - **分档：逻辑档（非数据安全）**——新增 cycle 计算（array+modulo），但**纯 appearance 设置 localStorage 持久化、零 vault/doc 写**（data-safety skill 不触发）；scoped review = cycle 正确性 + 持久化 + i18n + 命令注册。
 > - **v1 defer**：其余 missing 纯编辑（删除段落/添加别名·标签）；§11 bookmark-search；`partial` theme:switch[语义待定]；`管理仓库` C1。
@@ -1080,25 +1080,25 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 > **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `missing`「清除格式」（Obsidian `editor:clear-formatting`）。**字节风险高、单独轮**（ROADMAP 早标记，名副其实——本轮对抗评审揪出 **2 个 CRITICAL 字节损坏**，全修后方交付）。**契约（扩 R33 formatCommands，无跨模块签名破坏）**：
 > - **`features/editor/formatCommands.ts`** 新增 `clearFormatting(view)`（CM 视图级、非纯 op——需 syntaxTree）：iterate 选区内 syntax tree，对 **`Emphasis`/`StrongEmphasis`/`Strikethrough`/`InlineCode`** 包裹节点，**仅当节点完整包含于选区（`from>=sel.from && to<=sel.to`）**才删其直接子 mark（`EmphasisMark`/`StrikethroughMark`/`CodeMark`）——**部分选中→跳过、绝不留半个标记（防 unbalance 损坏）**；removals 排序后单事务 `changes` 删除（CM 自动映射选区到清理后文本）；removals 空→返 false 不派发。经既有 registerFormatCommands 注册（available=active-file view、callback→view.dispatch=既有 dirty→autosave，**无新写路径**、R23 只写 active-file）。i18n dict.app +1 键 en+zh。
-> - **⚠️⚠️ 本轮根因教训（CRITICAL ×2 · 字节安全核心）**：**裸 syntaxTree（Lezer GFM 树）≠ Geode 的实际 literal 结构**。Lezer 只认 GFM，**不认识 Geode 在其上加的正则 overlay 扩展**（wikilink/embed/alias、inline+block math、frontmatter、`%%comment%%`）；在这些结构内，Lezer 把**字面** `**`/`~~` 误判为真 Emphasis/Strikethrough → 裸剥除会**损坏链接目标 / 数学公式 / frontmatter 元数据 / 注释体**（底线①违反）。如 `[[**x**]]`→`[[x]]`=指向不同笔记、`$a*b*c$`→`$abc$`=数学乘法损坏。**修复 = `clearFormatting` 删 mark 前过 overlay 排除**：① **wikilink/embed/alias** 经 `hasLinkAncestor(node)`（祖先链含 Lezer `Link`/`Image` 即跳过——这些 Geode 把目标/别名当 literal）；② **math/frontmatter/comment** 经 `protectedSpans(state,from,to)`：frontmatter `---…---` 块 + 复用 vetted `findMathBlockRanges`（块 math）+ `commentSpans`（`%%…%%` 单行/跨行块/EOF，**fence 感知**：fenced code 内孤立 `%%` 不开注释，否则 over-protect 全文）+ inline math `INLINE_MATH_RE`；每个候选 mark 经 `inProtected` 相交过滤丢弃。**方法论**：overlay 权威清单 = reading-view pre-pass 处理的全部 literal 结构（wikilink + comment + math + frontmatter；fenced/indented code + link-ref 由 Lezer 天然不解析 emphasis 而安全）——补 overlay 排除须**对照该清单逐项确认**，勿临时枚举（本轮第一次修漏了 comment，第二轮才补全）。
+> - **⚠️⚠️ 本轮根因教训（CRITICAL ×2 · 字节安全核心）**：**裸 syntaxTree（Lezer GFM 树）≠ ADKM 的实际 literal 结构**。Lezer 只认 GFM，**不认识 ADKM 在其上加的正则 overlay 扩展**（wikilink/embed/alias、inline+block math、frontmatter、`%%comment%%`）；在这些结构内，Lezer 把**字面** `**`/`~~` 误判为真 Emphasis/Strikethrough → 裸剥除会**损坏链接目标 / 数学公式 / frontmatter 元数据 / 注释体**（底线①违反）。如 `[[**x**]]`→`[[x]]`=指向不同笔记、`$a*b*c$`→`$abc$`=数学乘法损坏。**修复 = `clearFormatting` 删 mark 前过 overlay 排除**：① **wikilink/embed/alias** 经 `hasLinkAncestor(node)`（祖先链含 Lezer `Link`/`Image` 即跳过——这些 ADKM 把目标/别名当 literal）；② **math/frontmatter/comment** 经 `protectedSpans(state,from,to)`：frontmatter `---…---` 块 + 复用 vetted `findMathBlockRanges`（块 math）+ `commentSpans`（`%%…%%` 单行/跨行块/EOF，**fence 感知**：fenced code 内孤立 `%%` 不开注释，否则 over-protect 全文）+ inline math `INLINE_MATH_RE`；每个候选 mark 经 `inProtected` 相交过滤丢弃。**方法论**：overlay 权威清单 = reading-view pre-pass 处理的全部 literal 结构（wikilink + comment + math + frontmatter；fenced/indented code + link-ref 由 Lezer 天然不解析 emphasis 而安全）——补 overlay 排除须**对照该清单逐项确认**，勿临时枚举（本轮第一次修漏了 comment，第二轮才补全）。
 > - **字节安全不变量（守住）**：① 只删真 mark token（非字面字符）；② 过保护是安全方向（**under-removal=漏删、绝不 corruption**）；③ 部分选中绝不残半标记。**对抗评审实证**：reviewer 真驱动命令把副字面置各 overlay + 真键执行，逐字节核对 28 e2e 场景（含 7 wikilink/math/frontmatter/embed/alias + 3 comment + fence-内孤立 `%%` + 代码跨距字面 `*` 保 + 部分选中 + 嵌套 + no-op）。
 > - **分档：逻辑档（data-safety）**——formatCommands.ts=编辑器写路径，跑 data-safety skill + byte 回归 r33 37/37 + r192 28/28 字节级 live-view e2e。
 > - **v1 已知 honest gap（均 under-removal=安全方向、非 corruption，记录在案）**：① **highlight `==` 不剥除**——`==` 非 `*`/`~`/`` ` ``，Lezer 不误判为 emphasis（**非 corruption 源**，仅未实现剥除 `==` 自身 = feature gap）；highlight 内的真 `**bold**` 仍被正确清除。② `INLINE_MATH_RE` 过匹配 currency/散文 `$`（`$5…$10` 间会 over-protect 真 emphasis = 漏删，罕见、安全方向；`scanInlineMath` 未导出故未复用）。其余 missing 纯编辑（删除段落/添加别名·标签/清除笔记属性）；`partial` 余（panel「新标签页」变体[需主区视图]/theme:switch）；`管理仓库` C1。
 
 ## Round 191 additions — G3 missing→done「在上方/下方添加光标（多光标）」（2 命令 editor:add-cursor-above / -below · view.moveVertically 加副光标 · selection-only 无 .md 写 · 逻辑档[editor] · 零新依赖）【As-built v0.187】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §3 `missing`「在上方添加光标」「在下方添加光标」（Obsidian `editor:add-cursor-above` / `editor:add-cursor-below`）。Geode 编辑器**早已开 `EditorState.allowMultipleSelections`**（cmExtensions.ts:651 + drawSelection/rectangularSelection），仅缺「按命令加副光标」入口。**契约（扩展既有 R51 motion 命令模块，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §3 `missing`「在上方添加光标」「在下方添加光标」（Obsidian `editor:add-cursor-above` / `editor:add-cursor-below`）。ADKM 编辑器**早已开 `EditorState.allowMultipleSelections`**（cmExtensions.ts:651 + drawSelection/rectangularSelection），仅缺「按命令加副光标」入口。**契约（扩展既有 R51 motion 命令模块，无跨模块签名破坏）**：
 > - **`features/editor/editorMotionCommands.ts`** 新增 `addCursorVertical(view, forward)`（CM `Command` 型）+ `addCursorAbove`/`addCursorBelow` 包装：用 **`view.moveVertically(cursor(main.head), forward)`** 求同 goal-column 的上下行位置（尊重折行/Tab 视觉列，非手算字符列）；**边界 no-op**（移动后行号 == 原行号 → 文档顶/底，返 false）；**去重**（该位已有空光标 → 不重复加）；`EditorSelection.create([...ranges, newCursor], ranges.length-1)`（新光标设为 main → 连按级联；create 内部 normalized 排序并正确追踪 main）。**纯改 selection、无 `changes` → 无 doc 变更/无 dirty/无 autosave**。+2 MOTION_COMMANDS spec（**无默认键**——Obsidian 未设置 + CM defaultKeymap 也未绑），经既有 `registerEditorMotionCommands`（App.tsx:684 已 wire）自动注册（available=active-file view）。模块头注释更新：line-motion 写 doc→autosave / add-cursor 仅 selection。
 > - i18n dict.app +2 `cmd.addCursorAbove`/`cmd.addCursorBelow` 键 en+zh。
 > - **分档：逻辑档（editor）**——碰 editor 管线，跑 data-safety skill。但 add-cursor **仅改 selection、零 .md 写**；且**多光标删除安全早由 R63 兜底**（livePreview.ts:1400-1405：deleteCharBackward 检查**每个** range、护 frontmatter 闭合 fence，本命令只「加光标」不改删除行为 → 无新损坏路径）。
-> - **既有口径（评审记录）**：CM defaultKeymap 早绑 `Mod-Alt-↑/↓`→addCursorAbove/Below（R63 注释 cmExtensions.ts:645），故 Geode 此前已有键盘多光标；R191 加的是**命令面板可见 + 可重绑**的具名 Obsidian-id 命令（无默认键=与 Obsidian 一致，沿用 R51「具名命令与 defaultKeymap 共键/或留空」哲学）。两入口无冲突（本命令无键）。
+> - **既有口径（评审记录）**：CM defaultKeymap 早绑 `Mod-Alt-↑/↓`→addCursorAbove/Below（R63 注释 cmExtensions.ts:645），故 ADKM 此前已有键盘多光标；R191 加的是**命令面板可见 + 可重绑**的具名 Obsidian-id 命令（无默认键=与 Obsidian 一致，沿用 R51「具名命令与 defaultKeymap 共键/或留空」哲学）。两入口无冲突（本命令无键）。
 > - **v1 defer**：matrix `missing` 纯编辑（清除格式[字节风险高单独轮]）；`partial` 余（panel「新标签页」变体[需主区视图]/theme:switch[语义待定]）；`管理仓库`/`切换仓库`（C1）。
 
 ## Round 190 additions — G3 ui-only→done「关闭其他标签页 / 关闭此标签页分组」（2 命令 app:close-others / app:close-tab-group · 复用 vetted closeOtherTabs/closeAllTabs · 逻辑档[tab 生命周期·flush]·无新写路径 · 零新依赖）【As-built v0.186】
 
 > **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §4「关闭其他标签页」「关闭此标签页分组」（Obsidian `workspace:close-others` / `workspace:close-tab-group`）。矩阵原标 missing，实为 **ui-only**：`closeOtherTabs`/`closeAllTabs` 已是 vetted workspace 方法、由标签右键菜单（`tabctx-close-others`/`tabctx-close-all`）调用，仅缺注册成命令。**契约（纯命令注册 + i18n，无跨模块签名变更、无新方法）**：
 > - **`app/App.tsx`** 紧邻既有 `app:close-tab` 注册 2 命令，**镜像其 `getActiveTab()` 守卫**（`const tab = workspace.getActiveTab(); if (tab) ...`）：
->   - `app:close-others` → `workspace.closeOtherTabs(tab.id)`（关闭活动组内其他标签页；Geode 单 leaf=单 tab 组，故同时覆盖 Obsidian `close-others-tab-group` 语义）。
+>   - `app:close-others` → `workspace.closeOtherTabs(tab.id)`（关闭活动组内其他标签页；ADKM 单 leaf=单 tab 组，故同时覆盖 Obsidian `close-others-tab-group` 语义）。
 >   - `app:close-tab-group` → `workspace.closeAllTabs(tab.id)`（关闭活动组全部标签页 = 关闭该组）。
 >   - 两者**无默认键**（Obsidian 未设置）；**复用 vetted `closeTab` 路径**（R81/R4：保 neighbor 激活 / recently-closed 入栈 / **关闭前 flush 未存编辑** / 跳过 pinned），**无新写/关闭路径**。
 > - i18n dict.app +2 `cmd.closeOthers`/`cmd.closeTabGroup` 键 en+zh。
@@ -1107,7 +1107,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 189 additions — G3 partial→done「插入内部链接（wikilink）」（1 命令 editor:insert-wikilink · 扩展 R33 format 引擎 insertWikilink · data-safety 逻辑档 + byte 回归 · 零新依赖）【As-built v0.185】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `partial`「插入内部链接」（Obsidian `editor:insert-wikilink`，此前 Geode 仅 `editor:insert-link`=Markdown 链接 `[text](url)`、无 wikilink `[[]]` 变体）。沿用 R186 同款「扩展既有 R33 format 引擎」模式（无跨模块签名破坏）：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §2 `partial`「插入内部链接」（Obsidian `editor:insert-wikilink`，此前 ADKM 仅 `editor:insert-link`=Markdown 链接 `[text](url)`、无 wikilink `[[]]` 变体）。沿用 R186 同款「扩展既有 R33 format 引擎」模式（无跨模块签名破坏）：
 > - **`core/format.ts`** 新增纯 `insertWikilink(text, from, to)`（镜像既有 `insertLink`）：空选区→`[[]]` 光标居中（`from+2`）；非空选区→`[[selected]]` 光标落 `]]` 之后；**始终返回 edit、绝不 no-op**；**绝不 unwrap 既有链接**（Obsidian「插入内部链接」非 toggle）；**只替换 `[from,to]` 字节、选区外内容逐字不动**（与 vetted `insertLink` 同字节安全属性）。FormatOp += `wikilink`；applyFormatOp 加 `case "wikilink"→insertWikilink`（`never` 穷尽门强制覆盖）。
 > - **`features/editor/formatCommands.ts`** +1 spec `{ id:"editor:insert-wikilink", op:"wikilink" }`（**无默认键**——Obsidian 未设置；`Mod+K` 仍归 insert-link）。经既有 `registerFormatCommands`→`applyFormat` 派发（available=active-file view、callback→既有 R33 派发路径=CM 事务→documents dirty→autosave，**无新写路径**、R23 只写 active-file）。
 > - i18n dict.app +1 `cmd.insertWikilink` 键 en+zh。
@@ -1116,7 +1116,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 188 additions — G3 partial→done「折叠 / 展开分拆」（2 命令 editor:fold / editor:unfold · 复用 CM foldCode/unfoldCode · 逻辑档[editor]·无 .md 写 · 零新依赖）【As-built v0.184】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §15 `partial`「折叠」「展开」（Obsidian `editor:fold` / `editor:unfold`，矩阵此前两条均映射到 Geode 单条 `editor:toggle-fold`、无独立 fold/unfold）。**契约（薄包装 + 命令注册 + i18n，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 §15 `partial`「折叠」「展开」（Obsidian `editor:fold` / `editor:unfold`，矩阵此前两条均映射到 ADKM 单条 `editor:toggle-fold`、无独立 fold/unfold）。**契约（薄包装 + 命令注册 + i18n，无跨模块签名破坏）**：
 > - **`features/editor/folding.ts`** 新增 2 个导出薄包装 `foldAtCursor(view)`→`foldCode(view)`、`unfoldAtCursor(view)`→`unfoldCode(view)`（CM `Command` 返回 boolean → 适配为 `(view)=>void`，镜像既有 `toggleFoldAtCursor`/`foldAllInView`/`unfoldAllInView` 的 view-op 约定）。**层级决策（Step 1 契约）**：App.tsx 现 **0 个 `@codemirror` 导入**，所有编辑器 view-op 一律经 folding.ts 入口——这两个包装把 `@codemirror/language` 留在 editor feature 内、App 层保持 CM-free；**简化门不得内联**（内联 = 迫使 App→@codemirror 直接导入、破既有边界）。
 > - **`app/App.tsx`** 注册 2 命令 `editor:fold` / `editor:unfold`（矩阵 §15 id），callback 用 `if(active)` 守卫（镜像兄弟 `editor:toggle-fold`/`fold-all`/`unfold-all` 同款回调守卫，**无 `available` gate**）。**无默认键**（Obsidian editor:fold/unfold = 未设置；肌肉记忆 `Cmd-Alt-[`/`]` 早绑在 folding.ts 的 CM keymap 上、非这两命令）。i18n dict.app +2 `cmd.fold`/`cmd.unfold` 键 en+zh。
 > - **分档：逻辑档（碰 editor → 底线①强制逻辑档）**——data-safety skill 触发，但确认**无 .md 写路径**：`foldCode`/`unfoldCode` 仅 dispatch fold effects（`docChanged=false`）、不触 documents dirty/autosave；与既有 vetted `editor:toggle-fold` 同款 CM 命令、零新写机制。
@@ -1124,7 +1124,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 187 additions — G3 partial→done「方向性聚焦标签页组」（4 命令 focus-left/right/top/bottom-pane · 纯 core 几何算法 · 非数据安全逻辑档 · 零新依赖）【As-built v0.183】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 `partial` 校准档：§4「聚焦上方/下方/左侧/右侧标签页组」（Obsidian `workspace:focus-{top,bottom,left,right}-tab-group`），矩阵此前标 partial（Geode 仅 `app:focus-next-pane`=布局序循环、无方向性）。**契约（纯 core 几何 + 命令注册 + i18n，无跨模块签名破坏）**：
+> **状态：As-built（已交付）。** 表面复刻 G 系列——按 R182 矩阵收割 `partial` 校准档：§4「聚焦上方/下方/左侧/右侧标签页组」（Obsidian `workspace:focus-{top,bottom,left,right}-tab-group`），矩阵此前标 partial（ADKM 仅 `app:focus-next-pane`=布局序循环、无方向性）。**契约（纯 core 几何 + 命令注册 + i18n，无跨模块签名破坏）**：
 > - **`core/workspace.ts`** 新增纯导出 `FocusDirection = "left"|"right"|"top"|"bottom"`（复用 `moveTabToEdge` 的 edge 词汇，非另造 up/down）+ 两个纯函数：
 >   - `leafRects(node, rect={x:0,y:0,w:1,h:1})`：从 split 树 + `sizes` 递归算每个 leaf 的归一化矩形（`direction==="row"`→沿 x 分、`"column"`→沿 y 分）。纯、导出供 e2e/probe 真值表。
 >   - `directionalPaneTarget(root, activePaneId, direction)`：算 active 矩形，按方向收集「该侧 leaf」（边界判据 + 跨轴重叠 `>EPS` 才算共享边带）→ 按 `(主轴中心距 asc, 跨轴中心距 asc, 布局序 asc)` 稳定排序取首 → 返回 paneId 或 `null`（无该向邻居）。布局序 final tiebreak 保证全等距时确定性（如右满高 pane 向左在上下两 leaf 间取布局序靠前者）。
@@ -1175,7 +1175,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 ## Round 181 additions — G3「侧栏面板 Show 命令组」（6 个 `app:show-*` 命令 · 复用既有 setLeft/RightPanel · 零新依赖）【As-built v0.178】
 
-> **状态：As-built（已交付）。** 表面复刻 G 系列（向 G3「热键 90→280」推进——补真 handler 命令、不做空行）。**Gate（R160）**：命令清单实查（grep 全 82 个 id）证 Geode 面板齐全（左 explorer/search/bookmarks；右 backlinks/outline/tags/allproperties/fileproperties/footnotes/outgoinglinks/calendar）但仅 `app:show-footnotes`/`app:show-outgoing-links` 两个有命令——Obsidian 每个视图都有「Show X」命令。**契约（无跨模块签名变更，纯命令注册）**：`app/App.tsx` 在 show-footnotes 块后注册 6 命令，回调皆单调用既有方法（`setLeftPanel`/`setRightPanel` 同时置 `*SidebarOpen:true`，故命令既切面板又开侧栏）：
+> **状态：As-built（已交付）。** 表面复刻 G 系列（向 G3「热键 90→280」推进——补真 handler 命令、不做空行）。**Gate（R160）**：命令清单实查（grep 全 82 个 id）证 ADKM 面板齐全（左 explorer/search/bookmarks；右 backlinks/outline/tags/allproperties/fileproperties/footnotes/outgoinglinks/calendar）但仅 `app:show-footnotes`/`app:show-outgoing-links` 两个有命令——Obsidian 每个视图都有「Show X」命令。**契约（无跨模块签名变更，纯命令注册）**：`app/App.tsx` 在 show-footnotes 块后注册 6 命令，回调皆单调用既有方法（`setLeftPanel`/`setRightPanel` 同时置 `*SidebarOpen:true`，故命令既切面板又开侧栏）：
 > - `app:show-file-explorer`→`setLeftPanel("explorer")` · `app:show-search`→`setLeftPanel("search")`
 > - `app:show-backlinks`/`app:show-outline`/`app:show-tags`/`app:show-all-properties`→`setRightPanel(<同名>)`
 > - i18n dict.app +6 `cmd.show*` 键 en+zh（命名对齐 Obsidian「Backlinks: Show backlinks」式）。
@@ -1275,7 +1275,7 @@ Escape key closing is handled globally by the shell; modals must ALSO close on o
 
 **data-safety**：纯导航/滚动（openFile + requestReveal Store），不写 vault/.md/editor 文档内容；**openLinkText 的 `vault.create`（未解析链接）是既有行为、本轮不动**（改 subpath 解析勿误改创建分支）→ 非 data-safety 轮（但对抗评审核创建分支未被破坏）。
 
-**v1 nuance / defer**：setActiveLeaf 对非 SidebarViewLeaf 落为 reveal/no-op（Geode 单 active-pane facade、无独立 leaf id 寻址=recorded deviation）；getMostRecentLeaf 的 `root?` 参在单窗口下忽略（无 popout）；openViewState 只消费 subpath reveal（`active`/`group` 等其余字段未用）。
+**v1 nuance / defer**：setActiveLeaf 对非 SidebarViewLeaf 落为 reveal/no-op（ADKM 单 active-pane facade、无独立 leaf id 寻址=recorded deviation）；getMostRecentLeaf 的 `root?` 参在单窗口下忽略（无 popout）；openViewState 只消费 subpath reveal（`active`/`group` 等其余字段未用）。
 
 ## Round 174 additions — Tier 8 D12+D16 中型纯 API 缺口打包（FileManager.getAvailablePathForAttachment/getNewFileParent + getLanguage + getIcon/getIconIds + Platform.resourcePathPrefix · compat · 复用既有 core/compat · 零新依赖）【As-built v0.171】
 
@@ -1476,7 +1476,7 @@ export function prepareSimpleSearch(query: string): (text: string) => SearchResu
 >
 > **Gate（R160 教训：explorer 实查现状）**：compat 缺 renderMath/finishRenderMath/loadMathJax（grep 全零命中）；core 已有 `loadKatex(): Promise<typeof katex>`（`core/math.ts:16`，动态 import + 缓存 + 失败重置）；既有 KaTeX 渲染范例在 `core/embeds.ts` hydrateMath（`katex.render(tex, el, {displayMode, throwOnError:false, output, maxSize:100[rule-bomb 防护]})`）→ compat 直接复用 `loadKatex` + 自调 `katex.render`，**不耦合 embeds.ts**（feature 渲染管线）。
 >
-> **关键设计 = sync-return + async-finish（对齐 Obsidian 真实 MathJax 模型）**：Obsidian `renderMath(source, display): HTMLElement` **同步**返元素（d.ts:5420 注「Requires calling finishRenderMath when rendering is all done」），但 Geode `loadKatex()` 是 **async** → renderMath 同步返 `<span class="math math-inline/block">`（先填 source 作可读 fallback）+ 异步 `loadKatex().then(katex.render into el)` 入队、`finishRenderMath()` await 队列。完美复刻 Obsidian「立即返元素、稍后 typeset、finishRenderMath 等齐」契约。
+> **关键设计 = sync-return + async-finish（对齐 Obsidian 真实 MathJax 模型）**：Obsidian `renderMath(source, display): HTMLElement` **同步**返元素（d.ts:5420 注「Requires calling finishRenderMath when rendering is all done」），但 ADKM `loadKatex()` 是 **async** → renderMath 同步返 `<span class="math math-inline/block">`（先填 source 作可读 fallback）+ 异步 `loadKatex().then(katex.render into el)` 入队、`finishRenderMath()` await 队列。完美复刻 Obsidian「立即返元素、稍后 typeset、finishRenderMath 等齐」契约。
 >
 > **商业主轴价值**：图表/数学/web-clipper 类插件（程序化渲染 LaTeX）的标准 API。
 
@@ -1542,7 +1542,7 @@ export function loadMathJax(): Promise<void> { return loadKatex().then(() => und
 **契约（加性 · compat util 表面 · 全部复用既有内部实现）**：
 
 - **D1 `apiVersion`**（`util.ts:51`）：`"1.5.0"` → **`"1.8.0"`**（匹配已实现的 1.7.x 全 + 早期 1.8.x footnoteRefs/copy；**不虚高到 1.12.3** 因 appendBinary 仍 stub）。一行常量改。`semverCompare`/`requireApiVersion` 逻辑本身正确不动；唯一读者 `loader.ts:261-262`（minAppVersion 比较）现对 minAppVersion≤1.8.0 的插件不再 warn = 预期收益。
-- **D2 `parseLinktext`**（`util.ts` 新增、紧跟 getLinkpath）：`parseLinktext(linktext): {path, subpath}` —— `idx=indexOf("#")`；`idx<0` → `{path:linktext, subpath:""}`；否则 `{path:slice(0,idx), subpath:slice(idx)}`。**subpath 保留前导 `#`/`^`**（对齐 Obsidian 真实源 `substr(n)` 语义，**不 trim**——与 Geode 既有 `getLinkpath`[trim] 语义不同 → **getLinkpath 不动、不合并**）。零 core 依赖。
+- **D2 `parseLinktext`**（`util.ts` 新增、紧跟 getLinkpath）：`parseLinktext(linktext): {path, subpath}` —— `idx=indexOf("#")`；`idx<0` → `{path:linktext, subpath:""}`；否则 `{path:slice(0,idx), subpath:slice(idx)}`。**subpath 保留前导 `#`/`^`**（对齐 Obsidian 真实源 `substr(n)` 语义，**不 trim**——与 ADKM 既有 `getLinkpath`[trim] 语义不同 → **getLinkpath 不动、不合并**）。零 core 依赖。
 - **D10 base64 三件套**（`util.ts` 新增；`import { bytesToBase64, base64ToBytes } from "@core/net"`）：`arrayBufferToBase64(buf)=bytesToBase64(new Uint8Array(buf))`；`base64ToArrayBuffer(b64)=base64ToBytes(b64).buffer`（core 返 `Uint8Array<ArrayBuffer>`、`.buffer` 类型即 `ArrayBuffer` 无需 cast、exact-size alloc 无 slack）；`getBlobArrayBuffer(blob)=blob.arrayBuffer()`（标准 API）。桥接既有 core/net，零新依赖。
 - **D9 `loadMermaid`**（`index.ts` barrel）：`export { loadMermaid } from "@core/mermaid"`（实现已在 core/mermaid.ts:15，`Promise<Mermaid>` 形状与 Obsidian 一致）。一行再导出。
 - **barrel `index.ts`** util block（95-116）加 `parseLinktext`/`arrayBufferToBase64`/`base64ToArrayBuffer`/`getBlobArrayBuffer`；新增 `loadMermaid` 从 `@core/mermaid` 再导出。
@@ -1598,7 +1598,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 > **状态：As-built（已交付）。** 对抗评审 + data-safety 9 维 → **1 MAJOR（D1，已修）**：D1 = uninstall 用 `manifest.id` 拼删除路径，但磁盘文件夹是 `source.dir`，loader 明确 warn 二者可不同 → `dir!==id` 时桌面删不存在路径（静默失败、reload 复活）或**错删另一个文件夹名==manifest-id 的插件配置**（红线未破：仍封闭在 `.obsidian/plugins/` 内、不碰用户 .md，故 major 非 critical）→ 修=`RegisterOptions` 加 `installDir`、loader 传 `source.dir`、uninstall 删 `record.options?.installDir ?? id` 并校验 dir（非 id）。**红线核查全证伪**：id/dir 校验封死越界（空串/`/`/`\`/任意位置 `..`/前导 `.` 全 REJECT；双层防护 = 前端正则 + Rust `safe_join` 拒 `..`/绝对路径）；删除顺序 removeRecord（停运行时）→ persistEnabled(false)（摘 community-plugins.json）→ vault.remove（删目录），`record` const 在 removeRecord 后仍持有引用安全；confirmDelete 弹窗（永久删除/含配置文案）。简化门 clean。验收：r166-e2e 18/18（含 **D1 dir≠id 回归** + vault.remove spy 验删除路径封闭 + guard）、回归 r113 10/10·r163 20/20·r165 9/9·typecheck 0·cargo·生产构建。**桌面 probe N/A**（orchestration 平台无关、e2e 验路径+guard；fs 删用既有 `vault.remove`→`vault_delete`[Rust safe_join + remove_dir_all]、r42/r140 delete probe 已桌面覆盖）。
 >
-> **Gate**：启停已对齐 community-plugins.json（R4），grep 无 uninstall→删除/卸载缺。基础设施全在（vault.remove 递归、unregister、Rust safe_join、confirmDelete、persistEnabled 钩子）。**两缺口**：external 插件无 id→file 映射（`GeodePlugin` 无路径字段、loadExternal 丢弃 file.name）→ defer；community-plugins.json 摘 id 走 `persistEnabled(false)` 钩子（避免 core import compat）。**v1 scope = 仅 obsidian（社区）插件**（id=dir、零契约扩展[除 D1 的 installDir]、零新 Rust）。
+> **Gate**：启停已对齐 community-plugins.json（R4），grep 无 uninstall→删除/卸载缺。基础设施全在（vault.remove 递归、unregister、Rust safe_join、confirmDelete、persistEnabled 钩子）。**两缺口**：external 插件无 id→file 映射（`ADKMPlugin` 无路径字段、loadExternal 丢弃 file.name）→ defer；community-plugins.json 摘 id 走 `persistEnabled(false)` 钩子（避免 core import compat）。**v1 scope = 仅 obsidian（社区）插件**（id=dir、零契约扩展[除 D1 的 installDir]、零新 Rust）。
 
 **契约（加性 · core 新方法 + UI 按钮）**：
 - **`core/plugins.ts`**：`RegisterOptions` 加 `installDir?: string`（R166：磁盘文件夹名，可异于 manifest id）。新 `async uninstall(id)`：① `record.source!=="obsidian"` 早返；② `dir = options?.installDir ?? id` + 校验单段安全路径（Memory adapter 无 safe_join）；③ `removeRecord(id)`（停运行时）；④ `record.options?.persistEnabled?.(false)`（摘 community-plugins.json）；⑤ `await this.app.vault.remove(\`.obsidian/plugins/${dir}\`)`。
@@ -1615,7 +1615,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 165 additions — Tier 7 B3③「`global` 垫片」（loader 注入 globalThis.global · 解锁 Node-targeting 插件 bundle · 商业主轴 compat · 一行）【As-built v0.162】
 
-> **状态：As-built（已交付）。** 对抗评审 9 维 → **0 confirmed defect（clean）**。**最关键证伪 = 假绿风险已排除**（reviewer 实测：`vite.config.ts` 无 `define`/global polyfill、`package.json` 零 global-polyfill 依赖、`about:blank` `typeof window.global==="undefined"`、删 shim 后 loader 的 exact eval 真抛 `ReferenceError: global is not defined` → **shim 是唯一修复源、非假绿**）。副作用全证伪（dist 里 lodash/mermaid 的 `typeof global` 守卫在 shim 前后都解析到同一 `window` 对象、零行为变化；Geode 源码无 `window.global`/`typeof global` 假设其不存在的读取）。process/Buffer 不垫的取舍正确（垫 process 会让 bundle 的 `typeof process!=="undefined"` 分支误判走 Node 路径）。简化门 skip（单文件 1 行代码 + 注释）。验收：r165-e2e 9/9、回归 r113 10/10（compat boot）·r116 9/9·typecheck 0·cargo·生产构建。**桌面 probe N/A**（纯 JS 全局赋值平台无关、WKWebView 语义一致；真实 obsidian-git 完整功能需 isomorphic-git+fs 另评）。**bonus**：`core/plugins.ts` native 插件 eval 也吃到此 shim（free `global` 现亦可解、纯加性）。
+> **状态：As-built（已交付）。** 对抗评审 9 维 → **0 confirmed defect（clean）**。**最关键证伪 = 假绿风险已排除**（reviewer 实测：`vite.config.ts` 无 `define`/global polyfill、`package.json` 零 global-polyfill 依赖、`about:blank` `typeof window.global==="undefined"`、删 shim 后 loader 的 exact eval 真抛 `ReferenceError: global is not defined` → **shim 是唯一修复源、非假绿**）。副作用全证伪（dist 里 lodash/mermaid 的 `typeof global` 守卫在 shim 前后都解析到同一 `window` 对象、零行为变化；ADKM 源码无 `window.global`/`typeof global` 假设其不存在的读取）。process/Buffer 不垫的取舍正确（垫 process 会让 bundle 的 `typeof process!=="undefined"` 分支误判走 Node 路径）。简化门 skip（单文件 1 行代码 + 注释）。验收：r165-e2e 9/9、回归 r113 10/10（compat boot）·r116 9/9·typecheck 0·cargo·生产构建。**桌面 probe N/A**（纯 JS 全局赋值平台无关、WKWebView 语义一致；真实 obsidian-git 完整功能需 isomorphic-git+fs 另评）。**bonus**：`core/plugins.ts` native 插件 eval 也吃到此 shim（free `global` 现亦可解、纯加性）。
 >
 > **Gate**：Node-targeting 插件 bundle（obsidian-git 等）引用 Node 全局 `global` 作自由变量，`loader.ts` 的 `new Function("require","module","exports", code)` 求值时崩 `Can't find variable: global`（只传 3 参、`global` 不在作用域）。**澄清**：loader.ts:163 既有「global」实为 moment 全局（`window.moment`），与 Node `global` 无关。
 
@@ -1679,7 +1679,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **data-safety**：唯一写 = 复用 R27 vetted `toggleFile`（序列化 RMW 写 `.obsidian/bookmarks.json`，**非新写路径**）；按钮在 header 不碰 CM/autosave/mode；`useStore(items)` 只刷 header 不重建 CM（deps 隔离）。
 
-**v1 nuance / defer**：复用 `is-active`（accent 高亮）让星标与 mode 按钮同款高亮底色（Geode 自加入口、reference UI 无此星标）=设计选择；title 用整句（复用命令键、避免新 i18n）；只 file 级收藏（heading/block 仍走命令）。
+**v1 nuance / defer**：复用 `is-active`（accent 高亮）让星标与 mode 按钮同款高亮底色（ADKM 自加入口、reference UI 无此星标）=设计选择；title 用整句（复用命令键、避免新 i18n）；只 file 级收藏（heading/block 仍走命令）。
 
 ---
 
@@ -1717,7 +1717,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **数据安全**：纯 app-shell DOM/CSS overlay + 复用既有反应式 `WorkspaceState`，**零 editor/vault/markdown/fs 写**，无 `.md` 写面、无竞态子句触发。
 
-**v1 nuance / defer**：默认无快捷键（用户自绑，对齐 Obsidian）；toggle 为 mid-height 边缘 pill（非 Obsidian 的 tab-header-corner，因 Geode tab-bar 为 per-pane 不宜放 → 边缘 overlay 是解耦最优）；不做 collapsed 时的悬停-边缘展开热区（pill 已常驻可见）。
+**v1 nuance / defer**：默认无快捷键（用户自绑，对齐 Obsidian）；toggle 为 mid-height 边缘 pill（非 Obsidian 的 tab-header-corner，因 ADKM tab-bar 为 per-pane 不宜放 → 边缘 overlay 是解耦最优）；不做 collapsed 时的悬停-边缘展开热区（pill 已常驻可见）。
 
 ---
 
@@ -1728,14 +1728,14 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 > 续 R158 internalPlugins instance 模式（bounded niche compat，用户未重定向）。**Gate**：`obsidian-daily-notes-interface` 库（Calendar / Periodic Notes 等插件依赖）的 `getDailyNoteSettings()` 读 `app.internalPlugins.getPluginById("daily-notes")?.instance?.options = {folder, format, template, autorun}`；R48 已有 `core/dailyNote.ts` `dailyNoteFolder`/`dailyNoteFormat`(moment 格式，**与 Obsidian 同 lib**)/`dailyNoteTemplate` Stores → 直接暴露。当前 stub `plugins["daily-notes"]` 空（calendar 注释 F6 destructure 它）。**纯只读 options**（无写方法）→ 比 R158 更安全、零 data-safety。
 
 **契约（加性；只动 `compat/obsidian/plugin.ts` + r159-e2e）**：
-- **`compat/obsidian/plugin.ts`**：① 新 `dailyNotesInstance = { get options() { return { folder: dailyNoteFolder.get(), format: dailyNoteFormat.get(), template: dailyNoteTemplate.get(), autorun: false } } }`（live getter 读 Store；folder RAW 匹配 Obsidian instance.options、消费 lib 自 trim；autorun=false Geode 无此设置）+ `dailyNotesPlugin = { enabled:true, instance }`。② **重构 R158 两-id inline 为查找 record**：`internalPluginsRecord = { bookmarks: bookmarksPlugin, "daily-notes": dailyNotesPlugin }`；`getPluginById(id)`=`Object.hasOwn(record,id) ? record[id] : null`（**`Object.hasOwn` 守卫防 `getPluginById("toString")` 命中原型方法**，R104 先例）；`getEnabledPluginById(id)`=同守卫返 `.instance`；`plugins`=record（calendar `plugins["daily-notes"]` 现得真 wrapper）。import `dailyNoteFolder/Format/Template` from `@core/dailyNote`。
+- **`compat/obsidian/plugin.ts`**：① 新 `dailyNotesInstance = { get options() { return { folder: dailyNoteFolder.get(), format: dailyNoteFormat.get(), template: dailyNoteTemplate.get(), autorun: false } } }`（live getter 读 Store；folder RAW 匹配 Obsidian instance.options、消费 lib 自 trim；autorun=false ADKM 无此设置）+ `dailyNotesPlugin = { enabled:true, instance }`。② **重构 R158 两-id inline 为查找 record**：`internalPluginsRecord = { bookmarks: bookmarksPlugin, "daily-notes": dailyNotesPlugin }`；`getPluginById(id)`=`Object.hasOwn(record,id) ? record[id] : null`（**`Object.hasOwn` 守卫防 `getPluginById("toString")` 命中原型方法**，R104 先例）；`getEnabledPluginById(id)`=同守卫返 `.instance`；`plugins`=record（calendar `plugins["daily-notes"]` 现得真 wrapper）。import `dailyNoteFolder/Format/Template` from `@core/dailyNote`。
 - **r159-e2e**：getPluginById("daily-notes")→{enabled,instance}；instance.options={folder,format,template,autorun} 反映设置；改设置→options 跟变（live getter）；getPluginById("toString")===null（原型守卫）；plugins["daily-notes"]===getPluginById 同 wrapper；R158 bookmarks 仍工作（record 重构零回归）。
 
 **数据安全**：纯只读 options（读 3 个 setting Store），**零写、零 vault/.md、零 markdown.ts** = 零 data-safety 面（比 R158 还干净，无 add/remove）。
 
 **双端**：浏览器 e2e（r159）+ 回归 r158 13/13（record 重构不回退 bookmarks instance）。桌面 probe N/A（纯 JS API shim、平台无关，同 R158/R113）。
 
-**v1 nuance / defer**：非公开 API de-facto 形状；autorun 恒 false（Geode 无「启动开今日笔记」设置）；不暴露 instance 方法（getDailyNote 等=消费 lib 自 options+vault 算，非 instance）；periodic-notes plugin 检测 defer。
+**v1 nuance / defer**：非公开 API de-facto 形状；autorun 恒 false（ADKM 无「启动开今日笔记」设置）；不暴露 instance 方法（getDailyNote 等=消费 lib 自 options+vault 算，非 instance）；periodic-notes plugin 检测 defer。
 
 ---
 
@@ -1743,7 +1743,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 > **状态：As-built（已交付）。** 对抗评审 6 维 → **3 确认修+e2e 锁**：**D1 MAJOR（init 序）**=`main.tsx` `bookmarks.init(vault)` 在插件 load 之后→插件 onload 期书签库空（regVault null、addItem 丢失被 init clobber）→**修=hoist `await bookmarks.init(vault)` 到 BUILTIN_PLUGINS/loadExternal 之前**（书签 API 在 onload 即可用，同 Obsidian）；**D2 MINOR（getItemTitle 扩展名）**=file case 返 basename **带 .md**，偏离 Obsidian TFile.basename / 自身 BookmarksPanel（strip ext）→修=file/heading/block 用 `stripExtension(basename())`、folder 不变 + e2e 断言改 "Ideas"；**D3 MINOR（内部 sentinel 泄漏）**=R27 把未知类型存为 carrier `{type:"__geode_unknown_type__", _extra}`，getBookmarks 原样暴露+getItemTitle 返 sentinel 字面量→修=**export `serializeItem`、getBookmarks 经它 map**（重建 carrier 成 canonical Obsidian wire 形 + defensive copy）。验收：r158-e2e 13/13、r27 22/22（书签持久化未回退）、r113 10/10（插件 boot 未扰）、typecheck/cargo。**桌面 probe N/A**（纯 JS API shim、平台无关，同 R113/R116/R130）。
 >
-> 🛑 **赛道枯竭信号（记给后续轮）**：本轮 gate 横扫确认 Geode 已达**近乎完整的 Obsidian 平价**——㊺ 外观全 done、CSS snippets[R20 compat 已含发现+设置 toggle]、Outline[features/outline]、Random note[plugins]、Note composer[R44]、Workspaces[saved layouts]、以及 R60 列的「最大插件迁移阻塞项」全已实现（registerMarkdownPostProcessor R115 / editor-menu R131 / file-menu R130 / generateMarkdownLink R112 / app.commands R113 / getMode R116）。**bounded 候选池实质枯竭**；剩余=大工程（Canvas/Sync/pop-out 需用户拍板或新依赖）或 niche compat 边角。**Gate**：OBSIDIAN-COMPAT 缺口表 line 145 显式列 `app.internalPlugins.getPluginById("bookmarks").instance`（getBookmarks/addItem/removeItem）**仍为缺口**——R27 已让 `.obsidian/bookmarks.json` 双向保真 + 原生 `BookmarksApi`（`items` Store/`add`/`removeAt`/`isFileBookmarked` 等）完整，只差把这层程序化 API 暴露给插件。`internalPluginsStub.getPluginById:()=>null` 现让插件 `.instance` 崩。**非公开 API**（`app.internalPlugins` 不在 d.ts）→ 按 de-facto 社区用法实现 best-effort 形状，note 之。
+> 🛑 **赛道枯竭信号（记给后续轮）**：本轮 gate 横扫确认 ADKM 已达**近乎完整的 Obsidian 平价**——㊺ 外观全 done、CSS snippets[R20 compat 已含发现+设置 toggle]、Outline[features/outline]、Random note[plugins]、Note composer[R44]、Workspaces[saved layouts]、以及 R60 列的「最大插件迁移阻塞项」全已实现（registerMarkdownPostProcessor R115 / editor-menu R131 / file-menu R130 / generateMarkdownLink R112 / app.commands R113 / getMode R116）。**bounded 候选池实质枯竭**；剩余=大工程（Canvas/Sync/pop-out 需用户拍板或新依赖）或 niche compat 边角。**Gate**：OBSIDIAN-COMPAT 缺口表 line 145 显式列 `app.internalPlugins.getPluginById("bookmarks").instance`（getBookmarks/addItem/removeItem）**仍为缺口**——R27 已让 `.obsidian/bookmarks.json` 双向保真 + 原生 `BookmarksApi`（`items` Store/`add`/`removeAt`/`isFileBookmarked` 等）完整，只差把这层程序化 API 暴露给插件。`internalPluginsStub.getPluginById:()=>null` 现让插件 `.instance` 崩。**非公开 API**（`app.internalPlugins` 不在 d.ts）→ 按 de-facto 社区用法实现 best-effort 形状，note 之。
 
 **契约（加性；只动 `compat/obsidian/plugin.ts` + `main.tsx` 测试钩子）**：
 - **`compat/obsidian/plugin.ts`**：`internalPluginsStub` 替换——`getPluginById(id)`：`id==="bookmarks"`→`{ enabled:true, instance }`、否则 `null`；`getEnabledPluginById(id)`：`"bookmarks"`→instance、否则 null；`plugins` 保持空 record（calendar `plugins["daily-notes"]` 不动）。`instance`（de-facto 形状）：`getBookmarks():BookmarkItem[]`=`[...bookmarks.items.get()]`（读）+ `getItemTitle(item):string`=shim 内纯 helper（`item.title ?? basename(path) ?? subpath ?? query ?? type`，无 i18n）+ `addItem(item)`→`void bookmarks.add(item)`（写、delegate vetted）+ `removeItem(item)`→纯递归 `bookmarkPath(items,item)` value-match 找 index-path → `void bookmarks.removeAt(path)`（写、delegate）。`reportGap` 文案改「bookmarks 真实现，其余 warn-stub」。import `bookmarks`+`BookmarkItem` from `@core/bookmarks`。
@@ -1778,7 +1778,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 156 additions — 编辑器「Fold heading」开关（㊶ · foldService compartment · 复用 R153 模式 · 零 data-safety）【As-built v0.153】
 
-> **状态：As-built（已交付）。** ㊶ 续编辑器设置（R153 auto-pair → R156 Fold heading）。**Gate**：① Obsidian Editor 两设置「Fold heading」「Fold indent」均默认 ON；② grep Geode 现状=`folding.ts markdownFoldRange` 是**单一 foldService**，含两分支——heading section（ATX+Setext, R54）+ multi-line ListItem。→ 初拟 gate 两分支放 compartment 反应式重配（复用 R153 closeBracketsExtension(on) + R88/R92 模式）。**零新依赖**（CM6 既有 `@codemirror/language` foldService；**indentation guides 因需新 CM 依赖=硬边界#5 而弃、改做 fold 设置**）。
+> **状态：As-built（已交付）。** ㊶ 续编辑器设置（R153 auto-pair → R156 Fold heading）。**Gate**：① Obsidian Editor 两设置「Fold heading」「Fold indent」均默认 ON；② grep ADKM 现状=`folding.ts markdownFoldRange` 是**单一 foldService**，含两分支——heading section（ATX+Setext, R54）+ multi-line ListItem。→ 初拟 gate 两分支放 compartment 反应式重配（复用 R153 closeBracketsExtension(on) + R88/R92 模式）。**零新依赖**（CM6 既有 `@codemirror/language` foldService；**indentation guides 因需新 CM 依赖=硬边界#5 而弃、改做 fold 设置**）。
 >
 > **🛑 实现中 gate 发现硬约束 → 只交付 Fold heading、defer Fold indent（As-built 根因）**：写 foldIndent gate 后 e2e 揭露——`@codemirror/language` 的 `foldable()`（dist:1275）**先试所有 `foldService` facet、全返 null 才 fallback 到内置 `syntaxFolding`（读 `foldNodeProp`）**；而 lang-markdown 给「除 heading/list/Document 外的多行 Block」挂了 `foldNodeProp`（dist:13）→ **list item 内的多行 Paragraph 经 syntaxFolding 仍折叠**，即使我们的 list foldService gated off。`foldService` 无法「否决」fallback（返 null = 不处理、不是 veto），要禁掉须改 parser 的 foldNodeProp=动冻结 R17 fold 语言=出本轮范围且风险高。**heading 不受此影响**（foldNodeProp 显式排除 heading：`isHeading(type)!=null?undefined`），故 **Fold heading 完全可 gate、Fold indent 不行** → 只做 Fold heading。
 
@@ -1802,7 +1802,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 > **状态：As-built（已交付）。** 对抗评审 6 维全证伪 → **0 confirmed defect（clean）** + 简化门 clean。reviewer 逐 case 真值表证 OFF 分支 `ext!=="" && (false||ext!=="md")` 与旧 `ext!=="md" && ext!==""` 代数等价=零回归、extensionless/dotfile（ext=`""`）两态都无徽章、renderRow 是纯函数非 memo→toggle 即时刷新全行。验收：r155-e2e 11/11、r91 10/10、r96 17/17、typecheck/cargo 全绿、截图实证（ON 时 Ideas[MD]/diagram[PNG]/config[JSON] 全显徽章、文件夹无）。**桌面 probe N/A**（Explorer DOM 显示、平台无关，同 R150/R151）。
 >
-> ㊽ Explorer/Files 设置。**Gate**：① Obsidian「Detect all file extensions」=Files & Links 设置，默认 OFF；文档化效果「show all file types in the file explorer」+ 观察效果=ON 时 markdown 笔记也显 `.md` 扩展名（OFF 时笔记隐 `.md`）。② grep Geode 现状：`vault.ts listTree` 已含 `files`+`binaryFiles`（**Explorer 已显示所有文件、不按扩展名过滤** → Obsidian「显示未识别类型」效果在 Geode 已恒为真）；`Explorer.tsx:804` 已把**非 md 扩展名**渲为独立 `.explorer-ext` 徽章（dimmed 小写转大写 pill、`var(--text-faint)`/`var(--code-bg)`），gate=`node.extension !== "md"`。→ 唯一缺口 = ON 时让 `.md` 也显徽章。**结论：放宽一个 gate 即可**（`.explorer-name`=basename 与 rename `initial`=label **完全不动** → 零回归、零 rename 影响）。
+> ㊽ Explorer/Files 设置。**Gate**：① Obsidian「Detect all file extensions」=Files & Links 设置，默认 OFF；文档化效果「show all file types in the file explorer」+ 观察效果=ON 时 markdown 笔记也显 `.md` 扩展名（OFF 时笔记隐 `.md`）。② grep ADKM 现状：`vault.ts listTree` 已含 `files`+`binaryFiles`（**Explorer 已显示所有文件、不按扩展名过滤** → Obsidian「显示未识别类型」效果在 ADKM 已恒为真）；`Explorer.tsx:804` 已把**非 md 扩展名**渲为独立 `.explorer-ext` 徽章（dimmed 小写转大写 pill、`var(--text-faint)`/`var(--code-bg)`），gate=`node.extension !== "md"`。→ 唯一缺口 = ON 时让 `.md` 也显徽章。**结论：放宽一个 gate 即可**（`.explorer-name`=basename 与 rename `initial`=label **完全不动** → 零回归、零 rename 影响）。
 
 **契约（加性；最小改）**：
 - **`core/appearance.ts`**：`detectAllExtensions` Store（默认 `false`=Obsidian default）+ `geode.detectAllExtensions` 持久 + `setDetectAllExtensions`（镜像 showLineNumbers）。
@@ -1814,7 +1814,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **双端**：浏览器 e2e（新 r155-e2e）= 默认 OFF → `.md` 行无 `.explorer-ext` 徽章 + `.png` 行有「PNG」徽章；toggle ON → `.md` 行显「MD」徽章；OFF 回退隐 md 徽章；reload 持久。桌面 probe N/A（Explorer DOM 显示、平台无关逻辑，同 R150/R151 纯前端轮）。
 
-**v1 nuance（文档化）**：Obsidian ON 时把扩展名**附加进文件名文本**（"Note.md"）；Geode 沿用自身既有设计=**独立 dimmed 徽章**（"Note" + [MD] pill），与 Geode 渲染所有非 md 扩展名的方式**内部一致**——观察效果（md 扩展名现可见）已交付。rename `initial` 仍=basename（不随设置变，rename 语义出本轮范围）。
+**v1 nuance（文档化）**：Obsidian ON 时把扩展名**附加进文件名文本**（"Note.md"）；ADKM 沿用自身既有设计=**独立 dimmed 徽章**（"Note" + [MD] pill），与 ADKM 渲染所有非 md 扩展名的方式**内部一致**——观察效果（md 扩展名现可见）已交付。rename `initial` 仍=basename（不随设置变，rename 语义出本轮范围）。
 
 ---
 
@@ -1844,7 +1844,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 153 additions — 编辑器「Auto pair brackets」开关（㊶ · CM compartment · 复用 R88 模式 · 零 data-safety）【As-built v0.150】
 
-> **状态：As-built（v0.150 交付，2026-06-21）。对抗评审 9 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean。** **换子系统**（㊻ 标签面板 3 轮收官）→ ㊶ 编辑器设置。**Gate**：① grep 确认 Geode `closeBrackets()` **always-on**（cmExtensions.ts:662、注释自承「CM's default bracket set is exactly Obsidian's "Auto pair brackets"」）但**无 toggle**；② Obsidian「Auto pair brackets」是 ubiquitous Editor 设置（默认 ON、长期存在=非 phantom）。**复用 R88 lineNumbers compartment 模式**：把 always-on 的 closeBrackets 移进可重配 compartment、加设置 toggle（默认 ON=零回归）。**纯 input-assist 开关、零 data-safety**（closeBrackets 是输入辅助、不写文件/不触 autosave；toggle 是 localStorage）。
+> **状态：As-built（v0.150 交付，2026-06-21）。对抗评审 9 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean。** **换子系统**（㊻ 标签面板 3 轮收官）→ ㊶ 编辑器设置。**Gate**：① grep 确认 ADKM `closeBrackets()` **always-on**（cmExtensions.ts:662、注释自承「CM's default bracket set is exactly Obsidian's "Auto pair brackets"」）但**无 toggle**；② Obsidian「Auto pair brackets」是 ubiquitous Editor 设置（默认 ON、长期存在=非 phantom）。**复用 R88 lineNumbers compartment 模式**：把 always-on 的 closeBrackets 移进可重配 compartment、加设置 toggle（默认 ON=零回归）。**纯 input-assist 开关、零 data-safety**（closeBrackets 是输入辅助、不写文件/不触 autosave；toggle 是 localStorage）。
 
 **契约（加性；复用 R88 compartment 模式）**：
 - **`core/appearance.ts`**：`autoPairBrackets` Store（默认 `true`=R 现状）+ `geode.autoPairBrackets` localStorage 持久 + setter（镜像 showLineNumbers）。
@@ -1887,7 +1887,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 151 additions — 标签面板排序菜单（㊻ 续 R150 · freq/name × asc/desc · 零 data-safety）【As-built v0.148】
 
-> **状态：As-built（v0.148 交付，2026-06-21）。对抗评审 9 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean。** 续 R150 标签树。**Gate（faithfulness）**：WebFetch obsidian.md/help/plugins/tags 已确认 Obsidian 标签面板「Change sort order: Tag name / Frequency」（2 轴×2 向=4 选项，与 Geode 自家 SearchPanel sort 同形）。R150 在 `buildTagTree` cmp 硬编码 count desc；R151 加排序 toggle（每层 siblings 重排）。**纯 UI 排序、零 data-safety**（同 R150）。
+> **状态：As-built（v0.148 交付，2026-06-21）。对抗评审 9 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean。** 续 R150 标签树。**Gate（faithfulness）**：WebFetch obsidian.md/help/plugins/tags 已确认 Obsidian 标签面板「Change sort order: Tag name / Frequency」（2 轴×2 向=4 选项，与 ADKM 自家 SearchPanel sort 同形）。R150 在 `buildTagTree` cmp 硬编码 count desc；R151 加排序 toggle（每层 siblings 重排）。**纯 UI 排序、零 data-safety**（同 R150）。
 
 **契约（加性；TagsPanel 排序参数化 + select）**：
 - **`features/tags/TagsPanel.tsx`**：`TagSortKey = "freq-desc"|"freq-asc"|"name-asc"|"name-desc"`；`buildTagTree(map, sortKey="freq-desc")` 加可选参（向后兼容），cmp 由 `TAG_CMP[sortKey]` 选（freq=count±+name tiebreak；name=segment localeCompare±）；递归 finalize 用同 cmp（每层重排）。`sortKey` state 持久化 `geode.tagsSort`（**inline raw localStorage** try/catch、feature 不 import SearchPanel 的 readSearchPref、先例 R141 commandMru）默认 `freq-desc`（=R150 行为零回归）。panel-header 改 flex 行：title + `<select class="tags-sort">` 4 option。
@@ -1900,7 +1900,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **data-testid**：`tags-sort`（select）+ 复用 R150 `tag-row-<fullPath>`。
 
-**对抗评审（reviewer 9 维全证伪 → 0 confirmed）：** comparator 正确（4 模式、freq 带 name tiebreak、name 模式无 tiebreak 但 siblings 按 segment Map-key 唯一不可能 tie）· 每层重排（finalize 同 cmp、子树 siblings 翻转 e2e 锁）· readTagSort 健壮（**显式 4 值 isTagSortKey 非 `in TAG_CMP`**=避原型键、corrupt/missing/throw→freq-desc 不崩、旧 key 格式 count-desc 被拒）· **默认 freq-desc 与 R150 硬编码 cmp 逐字符同**=零回归· useMemo deps 含 sortKey 重建全树（非热路径）+ **collapsed 按 fullPath 独立、跨排序保留**（e2e 锁）· faithfulness（4 选项匹配 Obsidian、`<select>` vs icon-menu 是与 Geode SearchPanel 一致的偏离、文档化）· 持久化（sort 持久 vs collapse per-session=set-once-pref vs transient、文档化）· data-safety 零写 · 分层（inline localStorage 强制 dup R141 先例）/a11y（select aria-label）/header 重构不破 R150 树。**采纳 1 coverage nit**：补「collapse 跨排序变更存活」e2e。
+**对抗评审（reviewer 9 维全证伪 → 0 confirmed）：** comparator 正确（4 模式、freq 带 name tiebreak、name 模式无 tiebreak 但 siblings 按 segment Map-key 唯一不可能 tie）· 每层重排（finalize 同 cmp、子树 siblings 翻转 e2e 锁）· readTagSort 健壮（**显式 4 值 isTagSortKey 非 `in TAG_CMP`**=避原型键、corrupt/missing/throw→freq-desc 不崩、旧 key 格式 count-desc 被拒）· **默认 freq-desc 与 R150 硬编码 cmp 逐字符同**=零回归· useMemo deps 含 sortKey 重建全树（非热路径）+ **collapsed 按 fullPath 独立、跨排序保留**（e2e 锁）· faithfulness（4 选项匹配 Obsidian、`<select>` vs icon-menu 是与 ADKM SearchPanel 一致的偏离、文档化）· 持久化（sort 持久 vs collapse per-session=set-once-pref vs transient、文档化）· data-safety 零写 · 分层（inline localStorage 强制 dup R141 先例）/a11y（select aria-label）/header 重构不破 R150 树。**采纳 1 coverage nit**：补「collapse 跨排序变更存活」e2e。
 
 **套件**：typecheck 0 · cargo check exit 0 · **r151-e2e 13/13**（4 排序序 top-level + 子树 siblings 翻转 + **collapse 跨排序存活** + pref reload 持久 + 默认 freq-desc=R150 序）· 回归 r150 20/20·r41 21/21 · 简化门 clean。**桌面 probe N/A**（纯前端排序 UI）。**v1 defer 续**：flat-list toggle / 折叠持久化。
 
@@ -1930,7 +1930,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 149 additions — compat `Keymap.isModEvent` 补全（static · tab/split/window/中键 · 插件 API 商业主轴 · 零 data-safety）【As-built v0.146】
 
-> **状态：As-built（v0.146 交付，2026-06-21）。对抗评审 9 维 → 1 MINOR 确认修（mod 平台感知）+ 余全证伪 + 简化门 clean（2 文件）。** 续 R148——R148 reviewer 实证 informational：Geode `isModEvent` 只返 `"tab"|false`，d.ts 是 `"tab"|"split"|"window"`+中键。**Gate**：d.ts 注释逐字——「Returns 'tab' if Cmd/Ctrl pressed OR middle-click MouseEvent；'split' if Cmd/Ctrl+Alt；'window' if Cmd/Ctrl+Alt+Shift」（@since 0.16.0）。**grep 确认 isModEvent 无内部调用者**（仅 compat 定义）→ 纯 compat API 补全、**零内部行为改动**（只影响调 `Keymap.isModEvent` 的 plugins）。`PaneType="tab"|"split"|"window"` 已是类型、Geode 有 `splitActivePane`（"window" 仅作分类返回值、不实际开窗）。**零 data-safety**（纯 static 读 event flag）。
+> **状态：As-built（v0.146 交付，2026-06-21）。对抗评审 9 维 → 1 MINOR 确认修（mod 平台感知）+ 余全证伪 + 简化门 clean（2 文件）。** 续 R148——R148 reviewer 实证 informational：ADKM `isModEvent` 只返 `"tab"|false`，d.ts 是 `"tab"|"split"|"window"`+中键。**Gate**：d.ts 注释逐字——「Returns 'tab' if Cmd/Ctrl pressed OR middle-click MouseEvent；'split' if Cmd/Ctrl+Alt；'window' if Cmd/Ctrl+Alt+Shift」（@since 0.16.0）。**grep 确认 isModEvent 无内部调用者**（仅 compat 定义）→ 纯 compat API 补全、**零内部行为改动**（只影响调 `Keymap.isModEvent` 的 plugins）。`PaneType="tab"|"split"|"window"` 已是类型、ADKM 有 `splitActivePane`（"window" 仅作分类返回值、不实际开窗）。**零 data-safety**（纯 static 读 event flag）。
 
 **契约（加性；compat Keymap.isModEvent 重写）**：
 - **`compat/obsidian/ui.ts` Keymap.isModEvent**：`if(!evt) return false; const mod=Keymap.isModifier(evt,"Mod");`（**复用 R148 isModifier=平台感知 Mod[mac Cmd/其它 Ctrl]、两 Keymap helper 一致**）→ **most-specific first**：`mod&&altKey&&shiftKey`→`"window"`、`mod&&altKey`→`"split"`、`mod`→`"tab"`、`evt instanceof MouseEvent && evt.button===1`（中键，MouseEvent+PointerEvent[extends MouseEvent]）→`"tab"`、else `false`。无内部调用者→旧 either-mod→平台 mod 的改动零内部影响。
@@ -1950,7 +1950,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 148 additions — compat `Keymap.isModifier`（static · 插件 API 商业主轴 · 零 data-safety）【As-built v0.145】
 
-> **状态：As-built（v0.145 交付，2026-06-21）。对抗评审 8 维全证伪 + gate 决策（pushScope/popScope 不做）经核验 SOUND → 0 confirmed defect（clean）+ 简化门 clean（2 文件跳过条件）。** 续 R146/R147 compat surface 审计。**Gate（d.ts + Geode 现状 + 范围裁剪）**：`awk` 提 Keymap 类确认四方法——`static isModifier(evt, modifier): boolean`(@0.12.17)、`pushScope(scope)`(@0.13.9)、`popScope(scope)`(@0.13.9)、`static isModEvent`(@0.16.0，Geode 已有)。**只做 `isModifier`**——它是 static、plugins 直接经类调（`Keymap.isModifier(evt,"Mod")`）、缺它即崩=**真 crash-gap**；**pushScope/popScope 故意不做**（已是 `app.keymap` 上的 no-op[plugin.ts:386，「host never dispatches scopes」文档化]，且 Keymap **类**的 instance 方法 plugins 够不到=加了也无调用路径=completionism padding，弃）。**零 data-safety**（纯 static helper 读 event 修饰键 flag，无写）。
+> **状态：As-built（v0.145 交付，2026-06-21）。对抗评审 8 维全证伪 + gate 决策（pushScope/popScope 不做）经核验 SOUND → 0 confirmed defect（clean）+ 简化门 clean（2 文件跳过条件）。** 续 R146/R147 compat surface 审计。**Gate（d.ts + ADKM 现状 + 范围裁剪）**：`awk` 提 Keymap 类确认四方法——`static isModifier(evt, modifier): boolean`(@0.12.17)、`pushScope(scope)`(@0.13.9)、`popScope(scope)`(@0.13.9)、`static isModEvent`(@0.16.0，ADKM 已有)。**只做 `isModifier`**——它是 static、plugins 直接经类调（`Keymap.isModifier(evt,"Mod")`）、缺它即崩=**真 crash-gap**；**pushScope/popScope 故意不做**（已是 `app.keymap` 上的 no-op[plugin.ts:386，「host never dispatches scopes」文档化]，且 Keymap **类**的 instance 方法 plugins 够不到=加了也无调用路径=completionism padding，弃）。**零 data-safety**（纯 static helper 读 event 修饰键 flag，无写）。
 
 **契约（加性；compat Keymap 一 static 方法）**：
 - **`compat/obsidian/ui.ts` Keymap 类**：`static isModifier(evt: MouseEvent | TouchEvent | KeyboardEvent, modifier: Modifier): boolean`——switch modifier：`"Mod"`→`Platform.isMacOS ? evt.metaKey : evt.ctrlKey`（Obsidian Mod=mac Cmd/其它 Ctrl）、`"Ctrl"`→ctrlKey、`"Meta"`→metaKey、`"Shift"`→shiftKey、`"Alt"`→altKey。`Modifier` 已 import（ui.ts:11）；加 `Platform` 到既有 `import { moment } from "./util"`（util 不 import ui=无循环）。**不复用 `normalizeModifiers`**（它把 Mod→Ctrl 无条件=scope 匹配简化、非平台感知；isModifier 要忠实平台）。
@@ -1962,7 +1962,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **data-testid**：N/A（probe-hook 驱动）。
 
-**对抗评审（reviewer 8 维全证伪 → 0 confirmed + 采纳 1 nit）：** modifier 映射忠实（每 case 读对应 flag、`"Mod"`=mac metaKey/其它 ctrlKey、`"Meta"`=metaKey 平台无关因 evt.metaKey 已反映物理键）· Platform.isMacOS 可靠（真 WKWebView UA 含 Macintosh、probe 验 isMac=true+Mod=meta、Geode isDesktop 硬编码故无 iPad-UA 顾虑）· TouchEvent 有 modifier 属性（typecheck 绿无 any/cast）· 穷尽（Modifier 闭 union 5 case）· normalizeModifiers vs isModifier「Mod」不一致=正确（scope 匹配规范串 vs live event 测试两不同关注、JSDoc 文档化、无 host 注册 Mod scope）· **gate 决策 pushScope/popScope 不做经核验 SOUND**（`app.keymap`=`keymapStub` 独立对象非 Keymap 类实例、类无 instance 方法、plugins 经 app.keymap no-op 不崩、`new Keymap()` 无此方法且无真插件这么做=无调用路径=加了即死代码）· data-safety 零写 · 探针无泄漏。**采纳 1 nit（已修+锁）**：未知 modifier 串（untyped JS plugin 可传）原 fall-through 返 `undefined` 违反 `:boolean` 契约→加 `default: return false`（plugins 是 untyped JS、保证总返 boolean）+ e2e 锁（`isModifier("Cmd",...)`→false）。**informational（非本轮）**：`isModEvent` 只返 `"tab"|false`、d.ts 是 `"tab"|"split"|"window"`+中键=R51 既有、未来审计候选。
+**对抗评审（reviewer 8 维全证伪 → 0 confirmed + 采纳 1 nit）：** modifier 映射忠实（每 case 读对应 flag、`"Mod"`=mac metaKey/其它 ctrlKey、`"Meta"`=metaKey 平台无关因 evt.metaKey 已反映物理键）· Platform.isMacOS 可靠（真 WKWebView UA 含 Macintosh、probe 验 isMac=true+Mod=meta、ADKM isDesktop 硬编码故无 iPad-UA 顾虑）· TouchEvent 有 modifier 属性（typecheck 绿无 any/cast）· 穷尽（Modifier 闭 union 5 case）· normalizeModifiers vs isModifier「Mod」不一致=正确（scope 匹配规范串 vs live event 测试两不同关注、JSDoc 文档化、无 host 注册 Mod scope）· **gate 决策 pushScope/popScope 不做经核验 SOUND**（`app.keymap`=`keymapStub` 独立对象非 Keymap 类实例、类无 instance 方法、plugins 经 app.keymap no-op 不崩、`new Keymap()` 无此方法且无真插件这么做=无调用路径=加了即死代码）· data-safety 零写 · 探针无泄漏。**采纳 1 nit（已修+锁）**：未知 modifier 串（untyped JS plugin 可传）原 fall-through 返 `undefined` 违反 `:boolean` 契约→加 `default: return false`（plugins 是 untyped JS、保证总返 boolean）+ e2e 锁（`isModifier("Cmd",...)`→false）。**informational（非本轮）**：`isModEvent` 只返 `"tab"|false`、d.ts 是 `"tab"|"split"|"window"`+中键=R51 既有、未来审计候选。
 
 **套件**：typecheck 0 · cargo check + 生产 build exit 0 · **r148-e2e 14/14**（Ctrl/Meta/Shift/Alt 各 flag→true + 非对应→false + cross + **Mod 平台键 XOR** + Mod neither/shift→false + **未知 modifier→false 不 undefined**）· **r148-probe 10/10**（真 WKWebView：各 modifier + 真 mac UA→isMac=true→Mod=Cmd(metaKey) §D-safe）· 回归 r51 10/10（isModEvent）· 简化门 clean（2 文件）。
 
@@ -1970,7 +1970,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 147 additions — compat `MarkdownView.showSearch(replace?)`（插件 API 商业主轴 · 复用 R34 editor find · 零 data-safety）【As-built v0.144】
 
-> **状态：As-built（v0.144 交付，2026-06-20）。对抗评审 8 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean（1 文件跳过条件）。** 续 R146 compat surface 审计。**Gate（两道核查）**：① d.ts——`awk` 提 MarkdownView 类体确认 `showSearch(replace?: boolean): void` 是 `@public`（d.ts:4233）；② Geode 现状——grep 确认 Geode 有 R34 editor find/replace（`searchCommands.ts` 用 CM `openSearchPanel(view)` + replace-field focus）+ compat `MarkdownView.editor: Editor`（`Editor.cm: EditorView` public readonly），但 MarkdownView 没 showSearch→插件调 `view.showSearch()` 即崩。**clean 映射**：`showSearch(replace)`→`openSearchPanel(this.editor.cm)`（CM 库、R34 同机制）+ replace 时聚焦 replace 字段。**零 data-safety**（开搜索面板=纯 display UI，不写文档）。**零新依赖**（`@codemirror/search` 已是 R34 依赖）。
+> **状态：As-built（v0.144 交付，2026-06-20）。对抗评审 8 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean（1 文件跳过条件）。** 续 R146 compat surface 审计。**Gate（两道核查）**：① d.ts——`awk` 提 MarkdownView 类体确认 `showSearch(replace?: boolean): void` 是 `@public`（d.ts:4233）；② ADKM 现状——grep 确认 ADKM 有 R34 editor find/replace（`searchCommands.ts` 用 CM `openSearchPanel(view)` + replace-field focus）+ compat `MarkdownView.editor: Editor`（`Editor.cm: EditorView` public readonly），但 MarkdownView 没 showSearch→插件调 `view.showSearch()` 即崩。**clean 映射**：`showSearch(replace)`→`openSearchPanel(this.editor.cm)`（CM 库、R34 同机制）+ replace 时聚焦 replace 字段。**零 data-safety**（开搜索面板=纯 display UI，不写文档）。**零新依赖**（`@codemirror/search` 已是 R34 依赖）。
 
 **契约（加性；compat MarkdownView 一方法）**：
 - **`compat/obsidian/workspace.ts` MarkdownView 类**：`showSearch(replace?: boolean): void`——`const view=this.editor.cm; openSearchPanel(view); if(replace) requestAnimationFrame(()=>{ view.dom.querySelector('.cm-search [name="replace"]')?.focus()/.select() })`。**replace-focus 内联**（5 行 DOM helper 镜像 features/editor `focusReplaceField`——**compat 不能 import features**，分层强制的小重复，同 R141 localStorage 先例）。`import { openSearchPanel } from "@codemirror/search"`（compat 已 import @codemirror/* 如 editor.ts；`@codemirror/search` 是既有 dep、非新依赖）。
@@ -1990,10 +1990,10 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 146 additions — compat `WorkspaceLeaf.setPinned` + `togglePinned`（插件 API 商业主轴 · 复用 R39 tab-pin · 零 data-safety）【As-built v0.143】
 
-> **状态：As-built（v0.143 交付，2026-06-20）。对抗评审 7 维 → 1 MINOR 确认修+e2e 锁 + 余全证伪 + 简化门 clean（1 文件跳过条件）。** compat surface 审计轮（R144 方法复用）。**Gate 路径（两道核查，R138/R144 教训）**：① **stale-gap 核查**——HANDOFF 默认项 Properties 增强续经 grep 揭示**全已实现**：tags chip 点击搜索=R83（`PropertiesPanel.searchTag`）、File properties 右栏=R86（`FilePropertiesPanel`）→ Properties 候选**已枯竭/或非 faithful（date→日记 Obsidian 无此行为）**，弃。② **compat surface 审计**——`curl` 全量 obsidian.d.ts，比对 Vault/Notice/MetadataCache/Component/Workspace/WorkspaceLeaf 等类的 `@public` 方法 vs Geode compat：多数已全（R111–R144 填过），**真·缺失且 bounded+faithful 的**=`WorkspaceLeaf.setPinned(pinned:boolean)` + `togglePinned()`（均 `@public`）——Geode 有 R39 tab-pin（`core/workspace.toggleTabPin` + `TabState.pinned`）但 compat 的 WorkspaceLeaf facade 没暴露→插件调 `leaf.setPinned(true)` 即 `is not a function` 崩。**零 data-safety**（纯 tab UI 态，复用 vetted `toggleTabPin`，无 vault/.md 写）。
+> **状态：As-built（v0.143 交付，2026-06-20）。对抗评审 7 维 → 1 MINOR 确认修+e2e 锁 + 余全证伪 + 简化门 clean（1 文件跳过条件）。** compat surface 审计轮（R144 方法复用）。**Gate 路径（两道核查，R138/R144 教训）**：① **stale-gap 核查**——HANDOFF 默认项 Properties 增强续经 grep 揭示**全已实现**：tags chip 点击搜索=R83（`PropertiesPanel.searchTag`）、File properties 右栏=R86（`FilePropertiesPanel`）→ Properties 候选**已枯竭/或非 faithful（date→日记 Obsidian 无此行为）**，弃。② **compat surface 审计**——`curl` 全量 obsidian.d.ts，比对 Vault/Notice/MetadataCache/Component/Workspace/WorkspaceLeaf 等类的 `@public` 方法 vs ADKM compat：多数已全（R111–R144 填过），**真·缺失且 bounded+faithful 的**=`WorkspaceLeaf.setPinned(pinned:boolean)` + `togglePinned()`（均 `@public`）——ADKM 有 R39 tab-pin（`core/workspace.toggleTabPin` + `TabState.pinned`）但 compat 的 WorkspaceLeaf facade 没暴露→插件调 `leaf.setPinned(true)` 即 `is not a function` 崩。**零 data-safety**（纯 tab UI 态，复用 vetted `toggleTabPin`，无 vault/.md 写）。
 
 **契约（加性；compat WorkspaceLeaf 两方法）**：
-- **`compat/obsidian/workspace.ts` WorkspaceLeaf 类**：`togglePinned(): void`（`const tab=findActiveTab(handle.workspace.state.get()); if(tab) handle.workspace.toggleTabPin(tab.id)`）；`setPinned(pinned): void`（同上但 **toggle-if-differs**：`if(tab && !!tab.pinned !== pinned) toggleTabPin(tab.id)`——幂等设具体值、复用 toggleTabPin 不加 core 方法）。**facade 口径**=操作 `findActiveTab`（与既有 getViewState/getDisplayText/detach **同一 facade 语义**=Geode WorkspaceLeaf 是活动 tab 的薄 facade、文档化）。`findActiveTab`/`toggleTabPin` 均已 import/可达。
+- **`compat/obsidian/workspace.ts` WorkspaceLeaf 类**：`togglePinned(): void`（`const tab=findActiveTab(handle.workspace.state.get()); if(tab) handle.workspace.toggleTabPin(tab.id)`）；`setPinned(pinned): void`（同上但 **toggle-if-differs**：`if(tab && !!tab.pinned !== pinned) toggleTabPin(tab.id)`——幂等设具体值、复用 toggleTabPin 不加 core 方法）。**facade 口径**=操作 `findActiveTab`（与既有 getViewState/getDisplayText/detach **同一 facade 语义**=ADKM WorkspaceLeaf 是活动 tab 的薄 facade、文档化）。`findActiveTab`/`toggleTabPin` 均已 import/可达。
 - **不动 core**（toggle-if-differs 复用既有 `toggleTabPin`，零核心改）。
 
 **数据安全**：纯 tab pin 状态（React + core workspace state），复用 R39 vetted `toggleTabPin`（pin 不动文档内容/不触 autosave）=零 data-safety 面。
@@ -2002,7 +2002,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **data-testid**：复用既有 tab `.is-pinned` class（`.tab-pin` 指示）。
 
-**对抗评审（reviewer 7 维 → 1 MINOR 确认修+e2e 锁 + 余证伪）：** **F1 MINOR（已修+锁）**：`SidebarViewLeaf extends WorkspaceLeaf` **继承**新 setPinned/togglePinned 但无 override——而该子类 override 了**每一个** findActiveTab-based 方法（view/openFile/getViewState/setViewState/getDisplayText/detach）正是为了「侧栏 leaf 不该操作主区活动 tab」。我新增两方法破了这条不变量→插件调 `getRightLeaf(false).setPinned(true)` 会 findActiveTab 在**主编辑区**、pin 一个无关主区 tab（R39 nav 副作用）。**修**=`SidebarViewLeaf` 加 `override togglePinned(){}` + `override setPinned(_){}` no-op（faithful=Geode 侧栏面板非可固定 tab），镜像子类既有 override 纪律 + 补 3 e2e 锁（侧栏 leaf pin 不动主区 tab）。**证伪**：setPinned 幂等 4 组合全对（`!!tab.pinned !== pinned`、`!!` 必需因 R39 omit-false→undefined）· togglePinned 翻转正确 · facade 操作 findActiveTab 与既有方法同语义 · toggleTabPin 复用 data-safety（仅改 pinned flag、零 .md/autosave 写）· `handle.workspace.toggleTabPin` 真方法非 any · 边角（无活动 tab→null guard no-op、split 内 findTabLeaf 重定位、连续调幂等）。
+**对抗评审（reviewer 7 维 → 1 MINOR 确认修+e2e 锁 + 余证伪）：** **F1 MINOR（已修+锁）**：`SidebarViewLeaf extends WorkspaceLeaf` **继承**新 setPinned/togglePinned 但无 override——而该子类 override 了**每一个** findActiveTab-based 方法（view/openFile/getViewState/setViewState/getDisplayText/detach）正是为了「侧栏 leaf 不该操作主区活动 tab」。我新增两方法破了这条不变量→插件调 `getRightLeaf(false).setPinned(true)` 会 findActiveTab 在**主编辑区**、pin 一个无关主区 tab（R39 nav 副作用）。**修**=`SidebarViewLeaf` 加 `override togglePinned(){}` + `override setPinned(_){}` no-op（faithful=ADKM 侧栏面板非可固定 tab），镜像子类既有 override 纪律 + 补 3 e2e 锁（侧栏 leaf pin 不动主区 tab）。**证伪**：setPinned 幂等 4 组合全对（`!!tab.pinned !== pinned`、`!!` 必需因 R39 omit-false→undefined）· togglePinned 翻转正确 · facade 操作 findActiveTab 与既有方法同语义 · toggleTabPin 复用 data-safety（仅改 pinned flag、零 .md/autosave 写）· `handle.workspace.toggleTabPin` 真方法非 any · 边角（无活动 tab→null guard no-op、split 内 findTabLeaf 重定位、连续调幂等）。
 
 **套件**：typecheck 0 · cargo check exit 0 · **r146-e2e 12/12**（setPinned true/false + 幂等双设 + togglePinned 翻转 + 方法 shape + **侧栏 leaf pin no-op 不动主区 tab**=F1 锁）· 回归 r39 17/17（tab-pin）·r137 13/13（WorkspaceLeaf setViewState）·r117 9/9 · 简化门 clean（1 文件、≤2 跳过条件）。**桌面 probe N/A**（纯 React/core tab 状态、无 WKWebView 特异行为，同 R142/R143）。
 
@@ -2032,10 +2032,10 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 144 additions — compat Menu API 补全（`static forEvent` + `setParentElement` · 插件 API 商业主轴 · 零 data-safety）【As-built v0.141】
 
-> **状态：As-built（v0.141 交付，2026-06-20）。对抗评审 8 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean（0 编辑）。** 换口味 compat 小项。**Gate 否决 setSubmenu（R128/R137/R138 反 completionism 又一次）**：HANDOFF 默认项 `MenuItem.setSubmenu`——`curl` 拉全量 obsidian.d.ts（8482 行）`grep setSubmenu` = **0 命中**；官方 docs `MenuItem` 页只列 8 方法（onClick/setChecked/setDisabled/setIcon/setIsLabel/setSection/setTitle/setWarning）Geode **已全有**；`setSubmenu` dedicated docs 页「does not exist」→ **setSubmenu 不是 public API、不实现**（造它=发明 Obsidian 没有的方法=反 faithful）。**但同次 d.ts 比对揪出两个【真·缺失】public Menu 方法**：`setParentElement(el: HTMLElement): this`(@0.16.0) + `static forEvent(evt: PointerEvent|MouseEvent): Menu`(@1.6.0)——后者是 Obsidian 1.6+ 插件建右键菜单的**现代惯用法**（`Menu.forEvent(evt).addItem(…).showAtMouseEvent(evt)`），Geode 缺它→插件调用即 `Menu.forEvent is not a function` 崩。**零 data-safety**（纯菜单 DOM UI，零 vault/.md 写）。
+> **状态：As-built（v0.141 交付，2026-06-20）。对抗评审 8 维全证伪 → 0 confirmed defect（clean）+ 简化门 clean（0 编辑）。** 换口味 compat 小项。**Gate 否决 setSubmenu（R128/R137/R138 反 completionism 又一次）**：HANDOFF 默认项 `MenuItem.setSubmenu`——`curl` 拉全量 obsidian.d.ts（8482 行）`grep setSubmenu` = **0 命中**；官方 docs `MenuItem` 页只列 8 方法（onClick/setChecked/setDisabled/setIcon/setIsLabel/setSection/setTitle/setWarning）ADKM **已全有**；`setSubmenu` dedicated docs 页「does not exist」→ **setSubmenu 不是 public API、不实现**（造它=发明 Obsidian 没有的方法=反 faithful）。**但同次 d.ts 比对揪出两个【真·缺失】public Menu 方法**：`setParentElement(el: HTMLElement): this`(@0.16.0) + `static forEvent(evt: PointerEvent|MouseEvent): Menu`(@1.6.0)——后者是 Obsidian 1.6+ 插件建右键菜单的**现代惯用法**（`Menu.forEvent(evt).addItem(…).showAtMouseEvent(evt)`），ADKM 缺它→插件调用即 `Menu.forEvent is not a function` 崩。**零 data-safety**（纯菜单 DOM UI，零 vault/.md 写）。
 
 **契约（加性；compat Menu 两方法）**：
-- **`compat/obsidian/ui.ts` Menu 类**：① 新私有 `parentEl: HTMLElement | null = null`；② `setParentElement(el): this`（存 `parentEl`、返回 this 可链）；③ `static forEvent(evt): Menu`（`const m=new Menu(); if(evt.target instanceof HTMLElement) m.setParentElement(evt.target); return m;`）；④ `showAtPosition` 的 append 从 `document.body` 改 `(this.parentEl?.ownerDocument ?? document).body`——**单窗口 Geode 恒等于 document.body=逐字节零回归**（菜单 `position:fixed` 视口定位、与父无关），但忠实存 parentElement（多窗口 ready）。**不动 showAtPosition 的 `{x,y}` 窄类型**（d.ts 是 `MenuPositionDef{x,y,width?,overlap?,left?}`——present-but-narrow 是另一类 gap、非本轮）。
+- **`compat/obsidian/ui.ts` Menu 类**：① 新私有 `parentEl: HTMLElement | null = null`；② `setParentElement(el): this`（存 `parentEl`、返回 this 可链）；③ `static forEvent(evt): Menu`（`const m=new Menu(); if(evt.target instanceof HTMLElement) m.setParentElement(evt.target); return m;`）；④ `showAtPosition` 的 append 从 `document.body` 改 `(this.parentEl?.ownerDocument ?? document).body`——**单窗口 ADKM 恒等于 document.body=逐字节零回归**（菜单 `position:fixed` 视口定位、与父无关），但忠实存 parentElement（多窗口 ready）。**不动 showAtPosition 的 `{x,y}` 窄类型**（d.ts 是 `MenuPositionDef{x,y,width?,overlap?,left?}`——present-but-narrow 是另一类 gap、非本轮）。
 - **`main.tsx`**：新 `__geodeMenuProbe()` 测试钩子（镜像 `__geodeProbeRenderChild` 等先例，import `Menu` from `@compat/obsidian/ui`，app 层 bootstrap 可 import compat）——合成 `MouseEvent`（`Object.defineProperty(evt,"target",{value:host})`）→ `Menu.forEvent(evt)` → addItem+onClick → showAtMouseEvent → 点击 item → 返 `{isMenu, chainable, shown, fired}`，e2e + desktop probe 共用、§D-safe 同步。
 
 **数据安全**：纯菜单 DOM 构造/显示，**零 vault/documents/markdown.ts 写**=零 data-safety 面。
@@ -2192,11 +2192,11 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 137 additions — compat `WorkspaceLeaf.setViewState` 程序化模式切换（mode-only · 插件 API 商业主轴 · 收 R116/R126 留口）【As-built v0.134】
 
-> **状态：As-built（v0.134 交付，2026-06-20）。** 收 HANDOFF 默认项「MarkdownView.setMode」——但 **gate 揭示 Obsidian `MarkdownView` 根本无 public `setMode`**（`obsidian.d.ts` MarkdownView 公开面=getViewType/getMode/getViewData/clear/setViewData/showSearch；`currentMode` 是内部 sub-view 属性非字符串方法）→ R126 标的「setMode 非干净 API」**根因=它不是 public API**。**真·faithful 的程序化模式切换路径 = `WorkspaceLeaf.setViewState({type:"markdown", state:{mode:"source"|"preview", source?}})`**（Obsidian 官方文档 workspace.ts:65 已记此口径）。Geode 现状：`WorkspaceLeaf.openFile` 已 honor `openState.state.mode`→`setTabMode`，但 `setViewState` 只处理 `state.file`（重开）、对 mode-only 变更 `reportGap`。R137 = **补 `setViewState` 让它 honor mode 变更**（已开 tab 上切阅读/源码/live，无 file），= 插件切模式的真 API。**不造假 `setMode`**（Obsidian 无此 public 方法，造它=反 faithful，R128 教训）。
+> **状态：As-built（v0.134 交付，2026-06-20）。** 收 HANDOFF 默认项「MarkdownView.setMode」——但 **gate 揭示 Obsidian `MarkdownView` 根本无 public `setMode`**（`obsidian.d.ts` MarkdownView 公开面=getViewType/getMode/getViewData/clear/setViewData/showSearch；`currentMode` 是内部 sub-view 属性非字符串方法）→ R126 标的「setMode 非干净 API」**根因=它不是 public API**。**真·faithful 的程序化模式切换路径 = `WorkspaceLeaf.setViewState({type:"markdown", state:{mode:"source"|"preview", source?}})`**（Obsidian 官方文档 workspace.ts:65 已记此口径）。ADKM 现状：`WorkspaceLeaf.openFile` 已 honor `openState.state.mode`→`setTabMode`，但 `setViewState` 只处理 `state.file`（重开）、对 mode-only 变更 `reportGap`。R137 = **补 `setViewState` 让它 honor mode 变更**（已开 tab 上切阅读/源码/live，无 file），= 插件切模式的真 API。**不造假 `setMode`**（Obsidian 无此 public 方法，造它=反 faithful，R128 教训）。
 
 **契约（加性 single-file；共享 mode 映射 + setViewState mode 分支）**：
 - `compat/obsidian/workspace.ts`：
-  - 新 module-private `applyViewStateMode(handle, mode, source)`：Obsidian markdown view-state (mode + 可选 `source` bool 区分 live-vs-raw) → Geode `ViewMode` 并 apply 到 active tab（`setTabMode`）。映射：`"preview"`→`preview`；`"source"`+`source===false`→`live`（live preview）；`"source"`+(source true/缺省)→`source`（raw，与既有 openFile 缺省一致）；mode 不识别=no-op。**收敛现有 3 处重复**（WorkspaceLeaf.openFile + SidebarViewLeaf.openFile 既有 mode-mapping + 新 setViewState）为单一真源。
+  - 新 module-private `applyViewStateMode(handle, mode, source)`：Obsidian markdown view-state (mode + 可选 `source` bool 区分 live-vs-raw) → ADKM `ViewMode` 并 apply 到 active tab（`setTabMode`）。映射：`"preview"`→`preview`；`"source"`+`source===false`→`live`（live preview）；`"source"`+(source true/缺省)→`source`（raw，与既有 openFile 缺省一致）；mode 不识别=no-op。**收敛现有 3 处重复**（WorkspaceLeaf.openFile + SidebarViewLeaf.openFile 既有 mode-mapping + 新 setViewState）为单一真源。
   - `WorkspaceLeaf.openFile` + `SidebarViewLeaf.openFile`：既有 `if(m==="source"||"preview") setTabMode` 改走 `applyViewStateMode`（source 缺省时逐字节同前=行为保持；扩 openState 类型加 `state.source` 获 live 保真）。
   - `WorkspaceLeaf.setViewState`：扩类型 `state?:{file?, mode?, source?}`；(a) markdown+file → openFile + applyViewStateMode（file+mode 同设）；(b) **markdown+mode-only（无 file）→ applyViewStateMode**（R137 新——替原 reportGap，= 程序化模式切换）；(c) 余 reportGap。
 - **不动 `MarkdownView.getMode`**（R116 冻结：hardcode "source"，因 active editor≠active tab 在 split 分叉——独立决策，setViewState 写路径不需 getMode 变）。
@@ -2207,7 +2207,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **对抗评审（reviewer 多维 + 追 Ctrl+E 链路/core sink → 1 MINOR 确认修 + e2e 锁；openFile 重构 byte-compat + data-safety 全证伪）：**
 - **MINOR fix（applyViewStateMode 漏 `viewType==="markdown"` 守卫，已修+e2e 锁）**：两个 Ctrl+E sink（`toggleActiveTabMode`/`toggleActiveSourceMode`, `core/workspace.ts:512/519`）改 mode 前都 gate `tab?.viewType === "markdown"`，但 `applyViewStateMode` 没有——插件 `setViewState({type:"markdown", state:{mode}})` 在 **graph/attachment tab** 活动时 → findActiveTab 返非 markdown tab → setTabMode 把 mode 盖到 graph/attachment tab 上。**影响=cosmetic 零数据丢失**（tab 内容按 viewType 分发 `App.tsx:1219`，GraphView/AttachmentView 不读 tab.mode → 无可见变化、无写盘），但**faithfulness wart**（Obsidian 对非 markdown leaf 的 setViewState({type:markdown}) 会换 view type 非偷偷盖 mode；faithful=`reportGap`/no-op 不盖）。**修**：helper 加 `if (tab && tab.viewType === "markdown") setTabMode(...)`（镜像键盘 toggle 守卫；对冻结 openFile 路径安全=markdown openFile 后活动 tab 必 markdown→同前，且顺带收紧「openFile 一个 PNG 还带 mode」的荒谬边角=更正确）。e2e 补 openGraph→mode-only setViewState→graph tab mode 不被盖。
-- **reviewer 证伪全维**：**openFile 重构 byte-compat（最高风险=冻结 F10）**——`applyViewStateMode` 对 source 缺省 `undefined===false`→false→"source"（同旧 `"source"→"source"`）、"preview"→"preview"、余 null（同旧 skip）；grep 全部 `.openFile(` 调用者：唯一内部非 compat 调用者=core nav-restore（`workspace.ts:707` 不传 source）、compat openFile 仅插件面 → **无内部调用者传 source**→ source 读取路径从既有 Geode 码不可达（r116/r117/r123/r47 绿因 openState 无 source=字面替换）· **data-safety（最高风险）**——`setViewState→applyViewStateMode→setTabMode` 是 Ctrl+E **同一 sink**（App.tsx 键盘回调只调 toggle 无额外 flush）；脏内容活在 **handle 非 CM view**（`EditorPane.tsx:403`「pending saves belong to the handle, outlives the view」）→ live→preview 切换纯 display-only 结构上不可能丢数据、setTabMode 只写 `tab.mode` 零文档字节 · setViewState 分支正确（file+mode：core openFile 同步置 active tab 后 applyViewStateMode 读 findActiveTab；`{state:{}}` 无 file 无 mode→reportGap）· source 三元 preview 先判（矛盾 `{mode:preview,source:false}`→preview）· facade 动态解析 active tab 符合既有单 active tab 模型 · 分层（仅调 core，getMode R116 hardcode 不动=写路径不需）。
+- **reviewer 证伪全维**：**openFile 重构 byte-compat（最高风险=冻结 F10）**——`applyViewStateMode` 对 source 缺省 `undefined===false`→false→"source"（同旧 `"source"→"source"`）、"preview"→"preview"、余 null（同旧 skip）；grep 全部 `.openFile(` 调用者：唯一内部非 compat 调用者=core nav-restore（`workspace.ts:707` 不传 source）、compat openFile 仅插件面 → **无内部调用者传 source**→ source 读取路径从既有 ADKM 码不可达（r116/r117/r123/r47 绿因 openState 无 source=字面替换）· **data-safety（最高风险）**——`setViewState→applyViewStateMode→setTabMode` 是 Ctrl+E **同一 sink**（App.tsx 键盘回调只调 toggle 无额外 flush）；脏内容活在 **handle 非 CM view**（`EditorPane.tsx:403`「pending saves belong to the handle, outlives the view」）→ live→preview 切换纯 display-only 结构上不可能丢数据、setTabMode 只写 `tab.mode` 零文档字节 · setViewState 分支正确（file+mode：core openFile 同步置 active tab 后 applyViewStateMode 读 findActiveTab；`{state:{}}` 无 file 无 mode→reportGap）· source 三元 preview 先判（矛盾 `{mode:preview,source:false}`→preview）· facade 动态解析 active tab 符合既有单 active tab 模型 · 分层（仅调 core，getMode R116 hardcode 不动=写路径不需）。
 
 **套件**：typecheck 0 · cargo build (release) exit 0 · **r137-e2e 13/13**（mode-only 切 preview/source/live + source bool + DOM 阅读↔编辑 + 未知 type/空 state reportGap no-op + file+mode 同设 + **graph tab 不被盖 mode=MINOR 锁**）· **r137-probe 5/5**（真 WKWebView setViewState→tab.mode preview/live/source §D-safe Store）· 回归 r116 9/9·r117 9/9·r123 7/7·r47 11/11 · 简化门 clean（0 编辑，applyViewStateMode 收敛 3 处重复）。**收 gate 揭示**：Obsidian `MarkdownView` 无 public `setMode`（R126「非干净 API」根因）→ 真 API=`setViewState`，**不造假 setMode**（R128 反 completionism 教训）。**剩余 compat 缺口**：file-menu 续 phase（files-menu 需 Explorer 多选 · 其它 source · editor-menu 原生项）· `MenuItem.setSubmenu`/`referenceLinks`（低优）· 原生池 ㊵ graph 嵌套标签等。
 
@@ -2267,7 +2267,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 134 additions — 插件代码块处理器 live preview（编辑模式也渲染 · registerMarkdownPostProcessor 大头 phase 3 · Dataview/Tasks 主要机制续）【As-built v0.131】
 
-> **状态：As-built（v0.131 交付，2026-06-20）。** R132（通用 postProcessor·阅读视图）+ R133（代码块处理器·阅读视图）让 Dataview/Tasks 在**阅读视图**工作；R134 让它们在**编辑模式（live preview）**也渲染——`​```dataview`/`​```tasks` 在编辑器里实时渲成结果，而非裸 fence 源。**复用 Geode 既有 live-block widget 管线**（R55/R56/R57/R75 的 liveTables/liveMermaid/liveMath/liveQuery）：syntaxTree 扫 FencedCode → 光标不在块内则块级 REPLACE 装饰 + atomicRanges + `contenteditable=false` 渲 widget；光标/点击进块 → 揭源编辑。**纯视图层、绝不改文档字节**（继承 R55 数据安全：块级装饰必出自 StateField、行首对齐、选区命中跳过）。不动 `core/markdown.ts`（r18-diff/§C 不触发）。
+> **状态：As-built（v0.131 交付，2026-06-20）。** R132（通用 postProcessor·阅读视图）+ R133（代码块处理器·阅读视图）让 Dataview/Tasks 在**阅读视图**工作；R134 让它们在**编辑模式（live preview）**也渲染——`​```dataview`/`​```tasks` 在编辑器里实时渲成结果，而非裸 fence 源。**复用 ADKM 既有 live-block widget 管线**（R55/R56/R57/R75 的 liveTables/liveMermaid/liveMath/liveQuery）：syntaxTree 扫 FencedCode → 光标不在块内则块级 REPLACE 装饰 + atomicRanges + `contenteditable=false` 渲 widget；光标/点击进块 → 揭源编辑。**纯视图层、绝不改文档字节**（继承 R55 数据安全：块级装饰必出自 StateField、行首对齐、选区命中跳过）。不动 `core/markdown.ts`（r18-diff/§C 不触发）。
 
 **关键约束（explorer 揭示）**：R133 把 handler 存为**不透明 post-processor**（lang 闭包在 `makeCodeBlockPostProcessor` 里、注册表看不见）→ live preview **无法按 lang 查 handler**。故 R134 必须加一个 **core lang→handler 注册表**，**阅读视图（R133 路径）+ live preview（R134）共读一个真源**。
 
@@ -2330,7 +2330,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 131 additions — compat workspace.on('editor-menu')（编辑器右键菜单 · 插件 API 商业主轴 · file-menu 大头 phase 2）【As-built v0.128】
 
-> **状态：As-built（v0.128 交付，2026-06-20）。** Obsidian `workspace.on('editor-menu', (menu, editor, info) => menu.addItem(...))`（插件给编辑器右键菜单加项）现真实现——file-menu 大头 phase 2。**与 phase 1 架构不同**：editor-menu 是**独立 popup**（非并入既有菜单），compat 的真 Menu（`ui.ts` `showAtMouseEvent`）已能渲染 → 用**真 Menu 而非 CollectorMenu**；且 Geode 编辑器无原生右键菜单（用浏览器默认）→ **compat-only**（无需改 editor feature、无 core 改动）。
+> **状态：As-built（v0.128 交付，2026-06-20）。** Obsidian `workspace.on('editor-menu', (menu, editor, info) => menu.addItem(...))`（插件给编辑器右键菜单加项）现真实现——file-menu 大头 phase 2。**与 phase 1 架构不同**：editor-menu 是**独立 popup**（非并入既有菜单），compat 的真 Menu（`ui.ts` `showAtMouseEvent`）已能渲染 → 用**真 Menu 而非 CollectorMenu**；且 ADKM 编辑器无原生右键菜单（用浏览器默认）→ **compat-only**（无需改 editor feature、无 core 改动）。
 
 **契约（加性；纯 compat ~35 行）**：
 - `compat/obsidian/editorMenu.ts`（新）：`editorContextMenuExtension(workspace): Extension` = 一个 always-on CM `domEventHandlers({ contextmenu })`：取 `workspace.activeEditor`（活动 MarkdownView，null 则放行浏览器菜单）→ 建真 `Menu` → fire `workspace.trigger('editor-menu', menu, info.editor, info)` → **仅当插件真加了项（`menu.dom.querySelector('.menu-item')`）才 preventDefault + showAtMouseEvent**，否则 `return false` 放行浏览器默认菜单。
@@ -2342,13 +2342,13 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 - **data-safety 证伪**：注册的是纯 `domEventHandlers`（无 StateField/facet/doc 改事务）；R115 revision bump→`compartment.reconfigure`（无 doc 事务）；菜单不写 vault。
 - **reviewer 证伪全维**：activeEditor 时序稳健（右键 mousedown 先聚焦→activeEditor=被右键编辑器，Chromium+WKWebView 皆然）· 空菜单检测正确（每 addItem 追加 `.menu-item`，无 submenu API 选择器不漏；仅 separator→无 item→放行；未显的 Menu 不 append body 无泄漏）· CM 语义正确（显式 preventDefault+return true 可靠抑制原生菜单，无其它 contextmenu handler 冲突）· lifecycle 无双触（disposer 幂等、reload 先 dispose 再注册新扩展对象；tryTrigger 隔离抛错插件）· faithfulness（签名/info=MarkdownView 超集/editor===info.editor）。
 - **可选硬化（reviewer 给、未采纳）**：绑 `view` 参数而非 `workspace.activeEditor` 可让 split 编辑器精确-by-construction——但 reviewer 无法复现 focus 不跟随右键的情形（无 manifest defect），且从任意 view 建 MarkdownView 非平凡 → 维持现状 + split 边角已文档化（偏离 ②）。
-- **文档化偏离（v1 scope）**：① **plugin items only**——Geode editor-menu 无原生 cut/copy/paste（插件加项时菜单替换浏览器默认、只显插件项→右键失去 cut/copy/paste[键盘仍可]；无插件项时浏览器默认菜单；native 编辑项**延后**）· ② 右键非活动 split 编辑器时 `activeEditor` 可能给到另一编辑器（罕见，contextmenu 通常先聚焦）· ③ 仅加 separator 无 item→不显（放行浏览器默认）。
+- **文档化偏离（v1 scope）**：① **plugin items only**——ADKM editor-menu 无原生 cut/copy/paste（插件加项时菜单替换浏览器默认、只显插件项→右键失去 cut/copy/paste[键盘仍可]；无插件项时浏览器默认菜单；native 编辑项**延后**）· ② 右键非活动 split 编辑器时 `activeEditor` 可能给到另一编辑器（罕见，contextmenu 通常先聚焦）· ③ 仅加 separator 无 item→不显（放行浏览器默认）。
 
 **套件**：typecheck 0 · cargo build exit 0 · r131-e2e **7/7**（右键→editor-menu fire（editor/info 正确）→插件项显示→点击 onClick fire→菜单关；无项→不显菜单/浏览器默认）· r131-probe **3/3** 真 WKWebView（editorMenu 扩展干净加载 + on registerable；editor headless 不挂载→完整 fire 由 e2e 覆盖，与 R128 同限制）· 回归 r115 7/7（editorExtensions）·r23 22/22（编辑器）·r128 19/19·r130 12/12（file-menu）· 简化门 clean。**剩余缺口（compat 商业主轴）**：**file-menu 续 phase**（files-menu[多选] · 其它 source[tab/link/more-options] · editor-menu 原生编辑项 · section 排序）· **`registerMarkdownPostProcessor`**（Dataview 命脉，**工程大、宜单独拍板**）· `MenuItem.setSubmenu`/`referenceLinks`（低优）。
 
 ## Round 130 additions — compat workspace.on('file-menu')（右键菜单钩子 · 插件 API 商业主轴 · 主线大头 phase 1）【As-built v0.127】
 
-> **状态：As-built（v0.127 交付，2026-06-20）。** Obsidian `workspace.on('file-menu', (menu, file, source, leaf?) => menu.addItem(...))`（插件给文件/文件夹右键菜单加项）现真实现——**插件迁移阻塞面最大的两大头之一，本轮 phase 1 = Explorer 文件/文件夹菜单**。小项耗尽后（R119–R129 连做 11 项）自主启动该大头（§自主契约「决定并往前」，不做 busywork）。editor-menu 延后（Geode 编辑器用浏览器原生右键菜单、无宿主菜单可并入，需另建）。
+> **状态：As-built（v0.127 交付，2026-06-20）。** Obsidian `workspace.on('file-menu', (menu, file, source, leaf?) => menu.addItem(...))`（插件给文件/文件夹右键菜单加项）现真实现——**插件迁移阻塞面最大的两大头之一，本轮 phase 1 = Explorer 文件/文件夹菜单**。小项耗尽后（R119–R129 连做 11 项）自主启动该大头（§自主契约「决定并往前」，不做 busywork）。editor-menu 延后（ADKM 编辑器用浏览器原生右键菜单、无宿主菜单可并入，需另建）。
 
 **架构契约（跨 3 层 · 在 core 会合 · 冻结）**：分层铁律下 **compat 不能 import features、features 不能 import compat** → 桥**必须在 core 会合**：compat 写 provider 进 core 注册表，feature 从 core 注册表读。
 - `core/plugins.ts`：新**纯数据**类型 `MenuContribution {title, icon?, section?, disabled?, warning?, checked?, onClick}`（core 不认 compat Menu——compat 把 Menu 项**降维成纯数据**再过界）+ `FileMenuContext {path, isFolder, source}`。PluginManager 加 `registerFileMenuProvider(fn): ()=>void`（单 provider，disposer 仅当 `===fn` 才清——防 reload 旧 disposer 误清新 provider）+ `collectFileMenu(ctx): MenuContribution[]`（同步，try/catch→`[]`）。
@@ -2361,7 +2361,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 - **分层（核心，证伪）**：grep 确认 compat 无 `@features/@app` import、Explorer 新码无 `@compat` import；`MenuContribution`/`FileMenuContext` 在 `@core/plugins`；CollectorMenu 只在 compat 内经 `workspace.trigger` 流转（core 只见返回的纯 `MenuContribution[]`）；Menu/TAbstractFile 为 type-only import（erased 无运行时环）。
 - **reviewer 证伪全维**：lifecycle（loader 先 dispose 旧 context 再建新；`===fn` 守卫容忍乱序/缺失 dispose）· 多插件累积（`Events.trigger` 遍历全 handler 按注册序入同一 CollectorMenu，`tryTrigger` 隔离抛错插件）· per-open freshness（collectFileMenu 在 onContextMenu 一次性、存 state、不随 re-render 重跑；fresh Menu+trigger 抓当前 file）· CollectorMenu 缺的 Menu 方法（dom/showAtMouseEvent/instanceof）被 tryTrigger+try/catch 兜成 `[]` 不崩 · **数据安全=零**（菜单是 UI、桥不写 vault；onClick 在 `setMenu(null)` 后执行同 R93；title 走 React 文本节点转义无注入）· Icon 未知名 fallback `file-text` 不崩。
 - **MINOR 评审修**：contributed onClick 加 try/catch+console.error（与 compat MenuItem[ui.ts] 兜错口径一致，throwing 插件 onClick 不渗入 React 事件系统）。
-- **文档化偏离（v1 scope）**：① `MenuContribution.checked`/`section` 被录但 Explorer v1 不渲染（无 checkmark/section 排序）——数据经 collectFileMenu 流出，渲染**延后**（非 dead，是 forward-compat）· ② `item.onClick()` 不传 event 实参（Obsidian 传 Mouse/KeyboardEvent，罕见 idiom）· ③ 未知 lucide 图标名 fallback `file-text`（Geode 手写图标集 ⊊ lucide）。
+- **文档化偏离（v1 scope）**：① `MenuContribution.checked`/`section` 被录但 Explorer v1 不渲染（无 checkmark/section 排序）——数据经 collectFileMenu 流出，渲染**延后**（非 dead，是 forward-compat）· ② `item.onClick()` 不传 event 实参（Obsidian 传 Mouse/KeyboardEvent，罕见 idiom）· ③ 未知 lucide 图标名 fallback `file-text`（ADKM 手写图标集 ⊊ lucide）。
 
 **套件**：typecheck 0 · cargo build exit 0 · r130-e2e **12/12**（数据路径：titles/icons/warnings/source/file/onClick + folder→TFolder + unknown-path→[]；**Explorer UI**：右键→contributed 按钮→点击→onClick fire→菜单关）· r130-probe **7/7** 真 WKWebView（collectFileMenu 数据路径——title/icon/source/file/onClick 真机全验；Explorer UI 无 CDP 由 e2e 覆盖）· 回归 r93 22/22（Explorer 右键菜单）·r91 10/10·r129 11/11（compat 载入）·r128 19/19 · 简化门 clean。**剩余缺口（compat 商业主轴）**：**file-menu 续 phase**（editor-menu[需建原生编辑器菜单] · files-menu[多选] · 其它 source[tab/link/more-options] · section 排序）· **`registerMarkdownPostProcessor`**（Dataview 命脉，**工程大、宜单独拍板**）· `MenuItem.setSubmenu`/`referenceLinks`（低优）。
 
@@ -2385,12 +2385,12 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **契约（加性；7 新类型 + 13 方法，仅 editor.ts）**：
 - 类型：`EditorSelection {anchor,head}`（区别 CM6 同名类——CM6 import 别名为 `CMSelection`）/ `EditorRange {from,to?}` / `EditorSelectionOrCaret {anchor,head?}` / `EditorChange {from,to?,text}` / `EditorTransaction {replaceSelection?,changes?,selection?}` / `EditorCommandName`（17 名 union）。
-- 方法：`listSelections`/`setSelections`（多光标——**Geode CM 无 `allowMultipleSelections` → 多选折叠为主选，文档化偏离[R57]**，单选忠实）· `setLine`/`transaction`（写，CM dispatch→autosave；transaction 的 change offset 相对原始 doc、升序排序满足 CM6「有序不重叠」要求）· `wordAt`（`cm.state.wordAt`）· `scrollIntoView`/`scrollTo`/`getScrollInfo`（scrollDOM）· `exec`（`EXEC_COMMANDS` 表把 EditorCommandName 映射到 @codemirror/commands + @codemirror/language 命令）· `undo`/`redo`（裸 `undo`/`redo` 解析到 import 非方法递归）· `blur`/`refresh`(CM6 自管布局=no-op)。
+- 方法：`listSelections`/`setSelections`（多光标——**ADKM CM 无 `allowMultipleSelections` → 多选折叠为主选，文档化偏离[R57]**，单选忠实）· `setLine`/`transaction`（写，CM dispatch→autosave；transaction 的 change offset 相对原始 doc、升序排序满足 CM6「有序不重叠」要求）· `wordAt`（`cm.state.wordAt`）· `scrollIntoView`/`scrollTo`/`getScrollInfo`（scrollDOM）· `exec`（`EXEC_COMMANDS` 表把 EditorCommandName 映射到 @codemirror/commands + @codemirror/language 命令）· `undo`/`redo`（裸 `undo`/`redo` 解析到 import 非方法递归）· `blur`/`refresh`(CM6 自管布局=no-op)。
 
 **对抗评审（reviewer 多维 + data-safety 优先 → 1 MAJOR 评审修 + e2e 锁；余全证伪）：**
 - **MAJOR 评审修（transaction 选区坐标，已修+e2e 锁）**：`transaction({changes, selection})` 同时给 changes + selection 时，首版把 selection offset 在**原始 doc** 算好直接交 `cm.dispatch`——但 **CM6 把 spec 的 `selection` 当 NEW-doc 坐标、且不替你 map 过 changes**（`newSelection` 原样返回 + Transaction 构造按 `changes.newLength` 校验）→ 轻则光标漂移一个 change delta、重则原始 offset 超出新 doc 长度时**抛 "Selection points outside of document" 整个事务（含 changes）被中止**。**修**：先 `ChangeSet.of(specs, doc.length)` 建 changeset，再 `changes.mapPos(off, 1)` 把原始 selection offset 映射到新 doc 坐标（越界自动夹紧、不再抛）。e2e 补 CASE A（大删除+越界 selection 不抛）+ CASE B（+5 插入后光标随内容到 new ch11）。
 - **reviewer 证伪全维**：**data-safety SAFE**——setLine/transaction 与既有 replaceRange 逐字同路径（非 annotated `cm.dispatch({changes})` → documents.ts updateListener 见 docChanged + 无 syncAnnotation → local=true → scheduleSave；非 handle.setText 陷阱[R123]）；e2e 持久化断言读 MemoryVaultAdapter post-debounce = 真 save-fired 证明 · transaction changes 原始-doc 相对正确（ChangeSet.of 自处理排序）· setSelections 多光标折叠优雅（CM `asSingle()` 不抛）· undo/redo 无递归（裸名解析到 import）· CMSelection 别名无破坏 · exec 17 命令全映射 + fold 无扩展 no-op · 分层/依赖干净（@codemirror/commands+language 预存依赖）。
-- **faithfulness**：类型 shape 对齐 Obsidian；多光标折叠=文档化偏离（Geode CM 无 allowMultipleSelections，非本轮 bug）。新类型补 barrel re-export（对齐 EditorPosition 先例）。
+- **faithfulness**：类型 shape 对齐 Obsidian；多光标折叠=文档化偏离（ADKM CM 无 allowMultipleSelections，非本轮 bug）。新类型补 barrel re-export（对齐 EditorPosition 先例）。
 
 **套件**：typecheck 0 · cargo build exit 0 · r128-e2e **15/15**（listSelections/setSelections 单选/setLine/transaction/wordAt/exec goDown+goEnd/undo·redo 往返/getScrollInfo/scroll no-throw/blur/**+ setLine 落盘持久化**）· r128-probe **3/3** 真 WKWebView（editor.ts+新 CM imports 干净加载 + activeEditor null-guard；编辑器 headless 不挂载[R115/§D]→方法语义由 e2e 全覆盖）· 回归 r23 22/22（编辑器）· 简化门 clean（单文件加性公共 API、无 ≥8 行重复）。**剩余缺口（compat 商业主轴）**：`Editor` 仍可补 listSelection 余项 / `MenuItem.setSubmenu` / `app.loadLocalStorage`·`isDarkMode`（小项，gap 表 line 154）· `CachedMetadata.referenceLinks`（@since 1.8.7、shape 存疑、低价值）· **`registerMarkdownPostProcessor`**（Dataview 命脉，**工程大、宜单独拍板**）· **`file-menu`/`editor-menu` 钩子**（**阻塞面最大、宜单独拍板**）。
 
@@ -2420,8 +2420,8 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **对抗评审（reviewer 6 维 + 独立校准 → 0 confirmed 代码缺陷，"ship it"）：**
 - **reviewer 实证证伪全维**：key 编码（`key.N` 对交错非链接元素仍保索引对齐——块列表 `["[[A]]","plain","[[B]]"]`→`key.0`+`key.2`）· 正则安全（`g`-flag + `matchAll` 实证无状态泄漏、`lastIndex` 恒 0、`[[[[[[`/未闭合/10万字符/CJK/`[[a]]b]]` 均 <0.15ms 线性无回溯）· 与 body link 口径一致（`link` 去 subpath、`displayText` 仅 alias、`original` 裸 `[[..]]`）· no-content transient 安全且是改进（`FrontmatterData.fields` 非可选恒在）· 纯读不改入参 · 分层加性零回归。**唯一理论隐患落在 core 上游**（inline 列表 `.filter(Boolean)` 对空元素会移位索引——非本轮 diff、规范引号/块列表形不可达）。
-- **faithfulness 校准（自做 WebFetch，reviewer 无 WebFetch）**：`FrontmatterLinkCache extends Reference {link, original, displayText?} + key`，官方 `CachedMetadata.frontmatterLinks: FrontmatterLinkCache[]` 确认（无 position）。官方文档**未说明** frontmatter 是否含 markdown 式 `[text](url)` 链接 → Geode **只捕获 `[[wikilink]]`**（Properties UI 产出的规范形式）；**markdown 式属性链接 = 文档化偏离**（待后续）。
-- **文档化偏离（设计结果、非缺陷）**：① `link` 去 `#subpath`（与 body LinkCache.link 一致、Geode 内部自洽，差 Obsidian 的「含 subpath」）· ② `displayText` 仅在有 `|alias` 时设（沿用本文件 line 483 既有约定，Obsidian 可能恒设）· ③ core frontmatter parser 对**未引号** `k: [[X]]` 的 inline-array 启发式误判为列表（`["[X]"]`）——规范的引号形式 `k: "[[X]]"` 正常，未引号 = core 上游限制、文档化 · ④ `original` = 裸 `[[..]]`（不含 YAML 引号，正确）。
+- **faithfulness 校准（自做 WebFetch，reviewer 无 WebFetch）**：`FrontmatterLinkCache extends Reference {link, original, displayText?} + key`，官方 `CachedMetadata.frontmatterLinks: FrontmatterLinkCache[]` 确认（无 position）。官方文档**未说明** frontmatter 是否含 markdown 式 `[text](url)` 链接 → ADKM **只捕获 `[[wikilink]]`**（Properties UI 产出的规范形式）；**markdown 式属性链接 = 文档化偏离**（待后续）。
+- **文档化偏离（设计结果、非缺陷）**：① `link` 去 `#subpath`（与 body LinkCache.link 一致、ADKM 内部自洽，差 Obsidian 的「含 subpath」）· ② `displayText` 仅在有 `|alias` 时设（沿用本文件 line 483 既有约定，Obsidian 可能恒设）· ③ core frontmatter parser 对**未引号** `k: [[X]]` 的 inline-array 启发式误判为列表（`["[X]"]`）——规范的引号形式 `k: "[[X]]"` 正常，未引号 = core 上游限制、文档化 · ④ `original` = 裸 `[[..]]`（不含 YAML 引号，正确）。
 - **元教训（pool 拐点的自主决策）**：HANDOFF「下一项」是计划快照——gate 揭露其默认项（setMode）实为非干净 API，自主改取真实高价值字段。**§两道前置门第一道（grep 现状）再次救场**（同 R93/R103/R73）：不只「确认真缺口」，也「揭露计划项本身不该做」。
 
 **套件**：typecheck 0 · cargo build exit 0 · r126-e2e **11/11**（string/alias/subpath/一值两链/inline-array/block-list key 编码 + 无链接 + 无 frontmatter 缺省）· r126-probe **7/7** 真 WKWebView 原生 fs index（keys/links/originals/displayText + body 链接排除）· 回归 r125 16/16 · r124 10/10 · r119 10/10 · 简化门 clean（diff ~40 行单文件、无 ≥8 行 token 重复——FM_WIKILINK_RE 镜像 core 但跨模块不可共享、`displayText` spread 为 1 行）。**剩余缺口（compat 商业主轴）**：`MarkdownView.setMode`（非干净 API，价值低）· `CachedMetadata.footnotes`/`footnoteRefs`/`referenceLinks`（getFileCache 形状余项，core 已有 footnotes 数据可桥接）· **`registerMarkdownPostProcessor`**（Dataview 命脉，**工程大、宜单独拍板**）· **`file-menu`/`editor-menu` 钩子**（**阻塞面最大、宜单独拍板**）。
@@ -2470,7 +2470,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 122 additions — compat DataAdapter.writeBinary create-or-overwrite + 并发原子写修复（插件 API 商业主轴）【As-built v0.119】
 
-> **状态：As-built（v0.119 交付，2026-06-20）。** Obsidian `DataAdapter.writeBinary` **创建或覆盖**——R111 起 Geode 是 create-only（gap），本轮接上覆盖。**对抗评审在覆盖路径揪出一条 MAJOR 并发数据安全隐患（R120 的共享 tmp，R122 高频入口放大），连带修复。** 从原计划的 `CachedMetadata.sections`（文档结构 parser，过重）按 HANDOFF 备选 pivot 到本项。
+> **状态：As-built（v0.119 交付，2026-06-20）。** Obsidian `DataAdapter.writeBinary` **创建或覆盖**——R111 起 ADKM 是 create-only（gap），本轮接上覆盖。**对抗评审在覆盖路径揪出一条 MAJOR 并发数据安全隐患（R120 的共享 tmp，R122 高频入口放大），连带修复。** 从原计划的 `CachedMetadata.sections`（文档结构 parser，过重）按 HANDOFF 备选 pivot 到本项。
 
 **契约（compat 一处 + Rust 数据安全修复）**：
 - `compat/obsidian/vault.ts`：`CompatDataAdapter.writeBinary` 从 create-only 改 **try `createBinary`（create_new+refreshTree，新文件入树）→ catch `modifyBinary`（R120 原子覆盖）**。**非 check-then-act**（无 exists() 预检，两分支各自原子写）；path-guard/IO 错误从 modify 重跑 assertSafeRelPath 传播。
@@ -2495,7 +2495,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **对抗评审（reviewer 6 维 + obsidian-typings 核签名 → 0 confirmed 代码缺陷）：**
 - **证伪**：①removeById 与 disposer 逐字段一致（含 `parsedCache=null`——漏了会让删掉的命令快捷键在 hotkey 热路径缓存里陈旧仍触发；本轮没漏）+ 未知 id 不 bump 正确；②签名 `removeCommand(id: string): void` 经 obsidian-typings 核实（**是 string id 不是 Command 对象**）；③revision bump → palette/slashCommands/compat 响应式反映移除（live 实测）；④纯内存 Map、无 fs/无 .md、删命令非数据丢失（重载恢复）、与 disposer 删同 id 幂等无害；⑤core 仅加方法不动 register/execute/list（R113/R118 逐字节不变）、compat 只 import core；⑥空串/未知 id no-op 安全、删后立即 re-register 同 id 正常（live 实测）。
-- **已知行为（非缺陷）**：删 native 命令（app:new-note）会破 Geode palette/hotkey——Obsidian 同样允许、插件担责、非数据丢失、重载恢复。
+- **已知行为（非缺陷）**：删 native 命令（app:new-note）会破 ADKM palette/hotkey——Obsidian 同样允许、插件担责、非数据丢失、重载恢复。
 
 **套件**：typecheck 0 · cargo check 0 · r121-e2e **10/10**（removeCommand 返 void/findCommand/exec/list/commands 全移除·kept 命令存活·未知 no-op·删后 re-register）· r121-probe **9/9** 真 WKWebView 共享 registry（registry 级桌面全验）· 回归 r113 10/10·r118 13/13·r23 22/22 · build exit 0 · 简化门 clean（removeById 镜像 disposer 不可抽，纯加方法）。**剩余缺口（compat 商业主轴，渐重）**：`CachedMetadata.sections/listItems`（需文档结构 parser，中）· `MarkdownView.setViewData/setMode`（写=data-safety）· `DataAdapter.writeBinary` create-or-overwrite（需消解 check-then-act）· `registerMarkdownPostProcessor`（Dataview 命脉，**工程大、宜单独拍板**）· `file-menu`/`editor-menu` 钩子（**阻塞面最大、宜单独拍板**）。**小项已基本清空。**
 
@@ -2535,8 +2535,8 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 **契约（加性；扩展 R113 makeCommands 工厂）**：
 - 抽出共享 local `find(id) = registry.list().find(c=>c.id===id)` + `executeById(id)`（含 available 预检）——`executeCommandById` 改复用 `executeById`（R113 原 inline，**逐字节等价**：均闭包 registry、不读 this、同 find+available?.()===false→false+callback 逻辑）。
 - `findCommand(id): CompatCommand | undefined`——命中 toCompat（name thunk 解析成 string）、未命中 undefined（精确 `===`、不抛）。
-- `executeCommand(command: {id}): boolean` = `executeById(command.id)`——**按 id 回查 registry 再跑**（honor available + 跑已注册命令），而非直接 invoke 传入对象。常规流（对象来自 findCommand/commands/listCommands、id 在 registry）与 Obsidian 一致；仅「插件自造未注册 Command 传入」偏差（Obsidian 跑其 callback、Geode 查不到返 false）——极罕见、更安全（统一走 available），注释已点明。
-- `editorCommands: Record<string, CompatCommand>` getter → **恒 `{}`**（Geode 不单独追踪 editor-scoped——editorCallback/editorCheckCallback 命令在 addCommand 扁平进统一 registry）；返空对象非 undefined → 防 `Object.keys` 崩。
+- `executeCommand(command: {id}): boolean` = `executeById(command.id)`——**按 id 回查 registry 再跑**（honor available + 跑已注册命令），而非直接 invoke 传入对象。常规流（对象来自 findCommand/commands/listCommands、id 在 registry）与 Obsidian 一致；仅「插件自造未注册 Command 传入」偏差（Obsidian 跑其 callback、ADKM 查不到返 false）——极罕见、更安全（统一走 available），注释已点明。
+- `editorCommands: Record<string, CompatCommand>` getter → **恒 `{}`**（ADKM 不单独追踪 editor-scoped——editorCallback/editorCheckCallback 命令在 addCommand 扁平进统一 registry）；返空对象非 undefined → 防 `Object.keys` 崩。
 - `removeCommand` **仍 gap**（Plugin.removeCommand 已经由 disposer 移除插件自身命令；app 级 remove-by-id 需 core 新 removeById，未做）。
 
 **对抗评审（reviewer 6 维 + WebFetch + r113/r118 双套件实测 → 0 confirmed 代码缺陷）：**
@@ -2563,12 +2563,12 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **契约（加性；2 只读方法）**：
 - `compat/obsidian/workspace.ts`：`MarkdownView` 加 `getMode(): "source"|"preview"`（**hardcode "source"**）+ `getViewData(): string`（`this.editor.getValue()` = CM doc.toString()，live 源文本）。
-- **为何 getMode hardcode "source"（评审 fix 根因）**：compat MarkdownView 只在 `makeActiveMarkdownView` 经 `handle.documents.getActiveView()`（CM focus 追踪）非 null 时构建；Geode 阅读视图**非 CM-backed**、从不进 setActiveView——故 Geode 能交给插件的任何 MarkdownView 都包着真编辑器、恒 "source"。**首版曾读 active TAB 的 mode 映射（`findActiveTab`）——评审揪出 MAJOR-adjacent minor 缺陷**：active tab（`findActiveTab` 活动面板）与 active editor（`getActiveView` focus 追踪）是**两个独立活动源**，split 多面板点预览面板 / 单面板 preview 切换瞬态时二者发散 → getMode 在 live 编辑器上误报 "preview"（插件 `if getMode==="preview" 不编辑` 假阴性）。hardcode "source" 既更简又严格更正确，消除发散。
+- **为何 getMode hardcode "source"（评审 fix 根因）**：compat MarkdownView 只在 `makeActiveMarkdownView` 经 `handle.documents.getActiveView()`（CM focus 追踪）非 null 时构建；ADKM 阅读视图**非 CM-backed**、从不进 setActiveView——故 ADKM 能交给插件的任何 MarkdownView 都包着真编辑器、恒 "source"。**首版曾读 active TAB 的 mode 映射（`findActiveTab`）——评审揪出 MAJOR-adjacent minor 缺陷**：active tab（`findActiveTab` 活动面板）与 active editor（`getActiveView` focus 追踪）是**两个独立活动源**，split 多面板点预览面板 / 单面板 preview 切换瞬态时二者发散 → getMode 在 live 编辑器上误报 "preview"（插件 `if getMode==="preview" 不编辑` 假阴性）。hardcode "source" 既更简又严格更正确，消除发散。
 
 **对抗评审（reviewer 6 维 → 1 minor 已修 + 已知偏离文档化）：**
 - **已修 minor**：getMode 两源发散误报（上）→ hardcode "source"（删 findActiveTab 分支 + 构造器 mode 参数=纯减法）。
 - **证伪**：getViewData live 读（`WorkspaceLeaf.view` getter 每次新建 MarkdownView 覆当前 getActiveView → 编辑后 fresh-build 读到新内容、=== doc.toString()）· 纯读无副作用无写 · 分层合规（findActiveTab 既有 import，hardcode 后零新依赖）· 其余 makeActiveMarkdownView caller（editorCallback/getActiveViewOfType/leaf.view）不读 getMode/getViewData→零回归。
-- **已知偏离（文档化）**：Geode 阅读视图非 CM-backed → `getActiveViewOfType(MarkdownView)`/`activeLeaf.view` 在 reading mode 返 **null**（Obsidian 返该 view + getMode "preview"）；任何 compat MarkdownView getMode 恒 "source"。既有 Geode 架构事实、非 R116 引入。
+- **已知偏离（文档化）**：ADKM 阅读视图非 CM-backed → `getActiveViewOfType(MarkdownView)`/`activeLeaf.view` 在 reading mode 返 **null**（Obsidian 返该 view + getMode "preview"）；任何 compat MarkdownView getMode 恒 "source"。既有 ADKM 架构事实、非 R116 引入。
 
 **套件**：typecheck 0 · cargo check 0 · r116-e2e **9/9**（live getMode "source"/getViewData 源文本/反映实时编辑/=== CM doc/source mode 仍 "source"/**reading mode active view null=偏离**/回 live 恢复）· r116-probe **3/3** 真 WKWebView（compat 表面 + makeActiveMarkdownView null-guard；**editor-mount headless 不可达[无 focus→getActiveView null，R115]→getMode/getViewData 语义归 browser-E2E、平台同码**）· 回归 r23 22/22·r46 18/18 · build exit 0 · 简化门 clean（评审 fix 本身即减法）。**后续缺口（compat 商业主轴）**：`MarkdownView.setViewData/setMode`（写=data-safety）· `workspace.activeEditor` · `app.commands` 余项 · `CachedMetadata.embeds/sections/listItems` · `vault.modifyBinary` · `registerMarkdownPostProcessor`（Dataview 命脉）· `file-menu`/`editor-menu` 钩子。
 
@@ -2601,7 +2601,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **对抗评审（reviewer 6 维 + 缓存别名 + R113 复发检查 → 0 confirmed 缺陷）：**
 - **证伪**：count 语义保真（distinct 笔记数 == Obsidian getAllTags 聚合；同笔记 frontmatter+inline 同标签仍算 1，getTagMap Set<path> 去重）· `#` key 对齐 + 嵌套 `#a/b` 输出全路径不合成父节点（与 Obsidian 一致）· 纯读不泄漏缓存引用 · `#` 前缀防 `__proto__` 污染 · 空 vault→`{}` + 空串 tag 被 core 挡（`tag !== ""`）· 分层合规 · getTagMap 只读不 mutate→graph(R99)/Tags pane/rename(R69) 零回归。
-- **已知偏离（chief 已拍板 deferred · 文档化非缺陷）· 大小写敏感**：Obsidian 标签大小写不敏感、getTags 合并 case 变体；Geode 标签索引**有意大小写敏感**（`metadata.ts:221/296` 不 lowercase）→ getTags 把 `#Tag`/`#tag` 拆成两 key。**根因是 Geode 全局标签模型大小写敏感**（graph/Tags pane/rename/`#` 补全一致）；只让 getTags 合并会造成内部不一致（getTags 报 merged 计数而 Tags pane 显分开）。**裁决：getTags 镜像 Geode 标签模型（大小写敏感）**——保持 Geode 内部一致优先于单 API 对 Obsidian 保真；全局大小写不敏感是独立大改、非本轮 scope。
+- **已知偏离（chief 已拍板 deferred · 文档化非缺陷）· 大小写敏感**：Obsidian 标签大小写不敏感、getTags 合并 case 变体；ADKM 标签索引**有意大小写敏感**（`metadata.ts:221/296` 不 lowercase）→ getTags 把 `#Tag`/`#tag` 拆成两 key。**根因是 ADKM 全局标签模型大小写敏感**（graph/Tags pane/rename/`#` 补全一致）；只让 getTags 合并会造成内部不一致（getTags 报 merged 计数而 Tags pane 显分开）。**裁决：getTags 镜像 ADKM 标签模型（大小写敏感）**——保持 ADKM 内部一致优先于单 API 对 Obsidian 保真；全局大小写不敏感是独立大改、非本轮 scope。
 
 **套件**：typecheck 0 · cargo check 0 · r114-e2e **12/12**（shape/`#`前缀/distinct 计数/大小写分离/frontmatter `#gamma`/正数/无空 key/**nested `#a/b`/CJK `#标签`/literal `#__proto__` 安全 own key**/live revision bump）· r114-probe **8/8** 真 WKWebView 原生 fs index · 回归 r99 16/16·r69 36/36·r23 22/22·r113 10/10 · build exit 0 · 简化门 clean（5 行单方法纯加法）。**后续缺口（compat 商业主轴）**：`registerEditorExtension`（cmExtensions compartment）· `MarkdownView.getMode/getViewData/setViewData` · `app.commands` 余项 · `CachedMetadata.embeds/sections/listItems` · `vault.modifyBinary` · `registerMarkdownPostProcessor`（Dataview 命脉）· `file-menu`/`editor-menu` 钩子。
 
@@ -2612,12 +2612,12 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 **契约（加性；纯 compat 层，零改 core）**：
 - `compat/obsidian/plugin.ts`：新 `interface CompatCommand {id; name; callback; hotkeys:never[]}` + 工厂 `makeCommands(registry: CommandRegistry)` + App 类 `get commands()`（lazy 缓存，镜像 `fileManager` 先例，读 `this._geode.handle.commands`）。
 - **`executeCommandById`**：`registry.list().find(c=>c.id===id)`；`!cmd || cmd.available?.()===false → false`（**尊重 available 预检**——Obsidian 对 checkCallback 命令先 `checkCallback(true)`、false 则不执行返 false）；否则 `cmd.callback()` 返 true。比 core `registry.execute()`（无视 available）更贴 Obsidian——有意分工（core execute 服务 palette，palette 已先按 available 过滤）。
-- **名字 thunk 解析**：Geode `Command.name` 是 i18n thunk（`string | (()=>string)`，R8）→ `listCommands`/`commands` 用 `getCommandName(c)` 解析成 string 给插件（否则 `cmd.name.toLowerCase()` 炸）。
+- **名字 thunk 解析**：ADKM `Command.name` 是 i18n thunk（`string | (()=>string)`，R8）→ `listCommands`/`commands` 用 `getCommandName(c)` 解析成 string 给插件（否则 `cmd.name.toLowerCase()` 炸）。
 - **`commands` getter** 每次重建 Record（反映动态注册/注销，live）。
 
 **对抗评审（reviewer 6 维 + 共享 registry 单例分析 + e2e 实跑核对 → 0 confirmed 缺陷）：**
 - **证伪 6 条**：executeCommandById 逐分支映射 Obsidian checkCallback 预检语义（available undefined→直接跑+true；===false→不跑+false，返回值不误导 `if(!exec)fallback`）· name thunk 全解析成 string · 纯读 registry + 触发 callback、无 fs 写无新竞态 · `list()` 排序不影响 find 命中/Record 键（功能正确，无 profiler 不调性能）· compat 只 import core + lazy 缓存闭包持全局单例 registry 永不陈旧（同 `_fileManager` 先例）· diff 纯加法未触 addCommand/fileManager，features 用 core AppHandle.commands（独立对象）不受影响。
-- **信息级（非缺陷，文档化）**：① CompatCommand 缺 checkCallback/editorCallback/icon、`hotkeys:[]`（Geode 已扁平化为 callback+available，不可逆重建）——插件几乎都走 executeCommandById 读 id/name，不受影响；② `commands` Record 用 plain `{}`，理论上 id 恰为 bare `__proto__` 会被原型 setter 吞——但 compat 注册 id 恒带 `manifest.id:` 前缀、且 executeCommandById 走 list().find 免疫，**实际不可达**（与 Obsidian 同用 plain Record，保真，不加固）。
+- **信息级（非缺陷，文档化）**：① CompatCommand 缺 checkCallback/editorCallback/icon、`hotkeys:[]`（ADKM 已扁平化为 callback+available，不可逆重建）——插件几乎都走 executeCommandById 读 id/name，不受影响；② `commands` Record 用 plain `{}`，理论上 id 恰为 bare `__proto__` 会被原型 setter 吞——但 compat 注册 id 恒带 `manifest.id:` 前缀、且 executeCommandById 走 list().find 免疫，**实际不可达**（与 Obsidian 同用 plain Record，保真，不加固）。
 
 **套件**：typecheck 0 · cargo check 0 · r113-e2e **10/10**（executeCommandById[plain+true / unknown+false / available=false 不跑+false / available=true 跑+true]·listCommands[含 seeded·name 全 string·thunk 解析·含 native 命令非空]·commands record[id 映射+string name·live 注销消失]）· r113-probe **10/10** 真 WKWebView 共享 registry · 回归 r23 22/22·r46 18/18·r112 16/16 · build exit 0 · 简化门 clean（toCompat 2 调用点=合法；纯加法工厂）。**后续缺口（compat 商业主轴）**：`commands` 余项（editorCommands/findCommand/removeCommand/executeCommand）· `MetadataCache.getTags()` Record 形态 · `registerEditorExtension` · `MarkdownView.getMode/getViewData` · `vault.modifyBinary` · `registerMarkdownPostProcessor`（Dataview 命脉）· `file-menu`/`editor-menu` 钩子。
 
@@ -2639,7 +2639,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 111 additions — compat 二进制 IO 桥接 readBinary/createBinary（插件 API 商业主轴）【As-built v0.108】
 
-> **状态：As-built（v0.108 交付，2026-06-20）。** Obsidian 兼容层（`compat/obsidian/vault.ts`）的二进制 IO 从「抛 gap」改为**桥接到 Geode core 原生二进制读写**——`Vault.readBinary/createBinary` + `DataAdapter.readBinary/writeBinary`（图片/PDF/Excalidraw 类插件普遍依赖）。core 二进制 IO（R11/R17 摄入）早已存在且桌面实测多轮（r101/r102/r104/r105），本轮只加 compat **桥接 surface**。**两根轴里这是插件 API 差距 = 商业主轴**（OBSIDIAN-COMPAT 缺口表，非 ROADMAP 原生候选池）。二进制**覆盖写仍是诚实 gap**（core 二进制写是 create-only：Rust `vault_write_binary` 用 `create_new(true)`，R17/R43 防 check-then-act 截断竞态）。
+> **状态：As-built（v0.108 交付，2026-06-20）。** Obsidian 兼容层（`compat/obsidian/vault.ts`）的二进制 IO 从「抛 gap」改为**桥接到 ADKM core 原生二进制读写**——`Vault.readBinary/createBinary` + `DataAdapter.readBinary/writeBinary`（图片/PDF/Excalidraw 类插件普遍依赖）。core 二进制 IO（R11/R17 摄入）早已存在且桌面实测多轮（r101/r102/r104/r105），本轮只加 compat **桥接 surface**。**两根轴里这是插件 API 差距 = 商业主轴**（OBSIDIAN-COMPAT 缺口表，非 ROADMAP 原生候选池）。二进制**覆盖写仍是诚实 gap**（core 二进制写是 create-only：Rust `vault_write_binary` 用 `create_new(true)`，R17/R43 防 check-then-act 截断竞态）。
 
 **契约（加性桥接；零改 core 公共签名）**：
 - `compat/obsidian/vault.ts`：新私有 helper **`toArrayBuffer(bytes: Uint8Array): ArrayBuffer`**（2 调用点=合法减法去重）——`new Uint8Array(len); copy.set(bytes); return copy.buffer`，把 adapter 字节**拷进全新 ArrayBuffer**（Memory adapter 的 `readBinary` 直返内部存储引用 → 不拷会把可变视图泄漏给插件；normalize byteOffset/SharedArrayBuffer）。
@@ -2672,7 +2672,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 109 additions — wikilink `[[note#^` 块引用补全（候选池 ㊹ 续 v1，收官 ㊹）【As-built v0.106】
 
-> **状态：As-built（v0.106 交付，2026-06-20）。** `[[<note>#^<query>` 触发该笔记块引用补全——**显示块文本预览**（按内容选，因 Geode 块 id 不透明）、插块 id → `[[note#^id]]`。块早已索引（`BlockRef{id,from,to}`，**无 text**）+ `[[note#^id]]` 早已 navigate（resolveSubpath）→ 本轮加补全 surface。**首个 async 补全源**（BlockRef 无 text → 须读笔记内容取预览）。**收官 ㊹**（alias R106 + heading R107 + attachment R108 + block R109）。
+> **状态：As-built（v0.106 交付，2026-06-20）。** `[[<note>#^<query>` 触发该笔记块引用补全——**显示块文本预览**（按内容选，因 ADKM 块 id 不透明）、插块 id → `[[note#^id]]`。块早已索引（`BlockRef{id,from,to}`，**无 text**）+ `[[note#^id]]` 早已 navigate（resolveSubpath）→ 本轮加补全 surface。**首个 async 补全源**（BlockRef 无 text → 须读笔记内容取预览）。**收官 ㊹**（alias R106 + heading R107 + attachment R108 + block R109）。
 
 **契约（加性；补全源返回类型加 Promise）**：
 - `cmExtensions.ts`：私有 `blockPreview(content, from, to)`（slice → 去尾部 `^id` marker → 折叠空白 → 80 截断）。新导出 **async** `wikilinkBlockTargets(app, typed, fromPath): Promise<Array<{id,text}> | null>`——`#` 后非 `^`→null；resolve note → `getMetadata.blocks` 过滤定界符 id → `await vault.read(target)`（try/catch→null）→ 每块 {id, preview}。补全源 block 子分支（`typed[hashIdx+1]==="^"`，在 heading 分支前）：返回 `wikilinkBlockTargets(...).then(...)` Promise——`from=过 #^`、`label=b.text||b.id`（按内容过滤）、`detail=^id`、`apply=applyLink(b.id)`（插 id）、`validFor:/^[^\[\]#]*$/`。补全源返回类型加 `| Promise<CompletionResult|null>`（CM 允许 async source）。
@@ -2933,7 +2933,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 **对抗评审（reviewer 6 维各独立 + skeptic verify，核 DOM 生命周期/复制正确性/匹配精度/事件协调/XSS/分层）→ 1 确认 MAJOR（已修）+ 1 minor（记 v1 gap）：**
 - **MAJOR（根因·已修）= mermaid/query source-fallback pre 误加按钮**：markdown.ts 把 mermaid/query fence 渲染成 `<div class="geode-mermaid"><pre class="geode-mermaid-source"><code>${src}</code></pre></div>`——**source pre 在 hydrateCodeCopy 同步跑时仍在 DOM**（async mermaid/query 渲染尚未 swap）→ 误给图表源加 Copy 按钮（瞬态闪现；若 mermaid 加载失败/渲染 error/query throw 则**永久**残留、复制的是图表源码）。**测试遮蔽=fixture 用了不真实的空 `<div class="geode-mermaid">`（无内层 pre）→ 平凡返 0**。**修=`pre.closest(".geode-mermaid, .geode-query")` 排除 + fixture 改真实输出 `div>pre.geode-*-source>code` 断言 0 + 加真 mermaid+js 渲染断言（仅 js 块得按钮=1）**。
 - **minor（v1 gap，记录不修）= note embed 内代码块无按钮**：`hydrateNote` 经 `await vault.read` 异步注入 embed HTML，在同步 hydrateCodeCopy 之后 → 转写笔记内的代码块拿不到按钮（false-negative，Obsidian 有）。同根因（hydrateCodeCopy 单次同步先于 async embed/mermaid/query settle）；v1 可接受，未来轮可在 embed hydration resolve 后重跑。
-- **PASS 维度**：setTimeout 在 detached btn 不抛、closures GC 安全；textContent 重组顺序 + 实体解码正确（Geode 阅读视图不做高亮、code 纯文本）；inline code（无 pre）排除；button `e.stopPropagation` 阻 onPreviewClick + 真 `<button type=button>`+aria-label 键盘可达；label 静态 tr()、textContent 读非写=无 XSS；codeCopy 仅 import @core/i18n（features→core 合法）；`--bg-secondary` 无基定义→`var(--bg-secondary, var(--code-bg))` 回退 load-bearing。
+- **PASS 维度**：setTimeout 在 detached btn 不抛、closures GC 安全；textContent 重组顺序 + 实体解码正确（ADKM 阅读视图不做高亮、code 纯文本）；inline code（无 pre）排除；button `e.stopPropagation` 阻 onPreviewClick + 真 `<button type=button>`+aria-label 键盘可达；label 静态 tr()、textContent 读非写=无 XSS；codeCopy 仅 import @core/i18n（features→core 合法）；`--bg-secondary` 无基定义→`var(--bg-secondary, var(--code-bg))` 回退 load-bearing。
 
 **验证（As-built）**：typecheck 0 · `r95-e2e` **12/12**（probe 匹配 + 真 clipboard 写[trim 尾换行] + Copied 反馈 + mermaid/query source 排除 + 真 mermaid+js 渲染仅 1 按钮）· `r95-probe` **8/8** 真 WKWebView · **r26-bytes 0 violations**（markdown.ts 未碰）· 回归 r26(12)/r25(17)/r75(16)/r55(15)/r94(14) 绿 · release build exit 0 · 简化门 clean（hydrateCodeCopy 2 用点[effect+probe]、label/code 闭包捕获不内联、无 ≥8 行重复）。
 
@@ -2982,7 +2982,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 ## Round 92 additions — Tab 缩进设置：Indent using tabs + Tab indent size（候选池第六梯队 ㊶ 续续 v1）【As-built v0.89】
 
-> **状态：As-built（v0.89 交付，2026-06-19）。** Obsidian Editor 两设置：「Indent using tabs」（默认 ON → Tab 插制表符；OFF → 空格）+「Tab indent size」（默认 4 = 一级缩进宽度）。**纯前端 view/edit 配置**（不写 .md、不动 markdown.ts/改写引擎；只改 Tab 键插入的字符）。**默认对齐 Obsidian = 故意翻转**（Geode 此前用 CM 默认 2 空格；先例 R87 翻转 breaks）——**不重写任何已存 .md**，仅未来 Tab 按键产出不同字符。CM 翻译走 Compartment 反应式 reconfigure，**镜像 R88 lineNumberCompartment**。
+> **状态：As-built（v0.89 交付，2026-06-19）。** Obsidian Editor 两设置：「Indent using tabs」（默认 ON → Tab 插制表符；OFF → 空格）+「Tab indent size」（默认 4 = 一级缩进宽度）。**纯前端 view/edit 配置**（不写 .md、不动 markdown.ts/改写引擎；只改 Tab 键插入的字符）。**默认对齐 Obsidian = 故意翻转**（ADKM 此前用 CM 默认 2 空格；先例 R87 翻转 breaks）——**不重写任何已存 .md**，仅未来 Tab 按键产出不同字符。CM 翻译走 Compartment 反应式 reconfigure，**镜像 R88 lineNumberCompartment**。
 
 **契约（冻结接口）**：
 - `core/appearance.ts`（**保持 core 纯净、不 import @codemirror**）：`tabIndentSize` Store<number>（默认 4，`readTabSize` 缺键→4）+ `indentUsingTabs` Store<boolean>（默认 true）+ `clampTabSize(n)`（1–8 整数 round，非有限→4，导出供 setter/reader/probe 共用）+ `setTabIndentSize`/`setIndentUsingTabs`（persist；size 存 `String(1..8)`）。
@@ -3068,7 +3068,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 - SettingsModal：行号 toggle（`settings-line-numbers-toggle`，镜像 spellcheck）+ 默认模式 segmented（`settings-newtab-reading/live/source`，镜像 theme 三态）+ i18n。probe `__geodeNewTabMode`。
 
 **对抗评审（reviewer 5 维各独立 + skeptic verify，深挖 gutter 共存 + 默认 mode 注入完整性）→ 0 confirmed critical/major + 2 minor（同根因，已修）+ 1 nit（已修）：**
-- **[minor 同根因 已修] 行号 gutter 沿用 CM 基础 light 主题硬编码色**：编辑器从未声明 `EditorView.darkTheme` facet → CM 按 light 处理 → 行号数字 `#6c6c6c` + active-line gutter 浅蓝块（`#e2f2ff`），与 Geode 暗色主题冲突、违反「颜色走 CSS 变量」铁律（此前 fold gutter 用自绘 chevron 无文字色故未暴露，本轮首个带文字+activeLine 背景的 gutter 才暴露）。**修=`editorTheme` 加 `.cm-lineNumbers .cm-gutterElement { color: var(--text-faint) }` + `.cm-activeLineGutter { background: transparent; color: var(--text-muted) }`**（一处修两条）。
+- **[minor 同根因 已修] 行号 gutter 沿用 CM 基础 light 主题硬编码色**：编辑器从未声明 `EditorView.darkTheme` facet → CM 按 light 处理 → 行号数字 `#6c6c6c` + active-line gutter 浅蓝块（`#e2f2ff`），与 ADKM 暗色主题冲突、违反「颜色走 CSS 变量」铁律（此前 fold gutter 用自绘 chevron 无文字色故未暴露，本轮首个带文字+activeLine 背景的 gutter 才暴露）。**修=`editorTheme` 加 `.cm-lineNumbers .cm-gutterElement { color: var(--text-faint) }` + `.cm-activeLineGutter { background: transparent; color: var(--text-muted) }`**（一处修两条）。
 - **[nit 已修]** r88-e2e 补行号 gutter 与 fold gutter 共存 + 行号最左断言。
 - **证伪其余**：gutter 渲染顺序正确（行号左 fold 右）；live↔source 与行号双 compartment 独立不互扰；preview→editor 往返行号初值按 Store 重播种、effect 守 `!view||!compartment` 不崩；多 pane 各自 useStore+effect 独立响应；默认 mode 注入点完整（graph/reopen/split/layout 各保留自身 mode）；`mode:"preview"` 新标签正确进阅读视图；无循环依赖；readTabMode 坏值全归 live；lineNumbers 非新依赖；R50/R11/R17/R29 未波及。
 
@@ -3293,7 +3293,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **关键设计（复用 R13 + 既有写路径，零新写机制）：**
 - **`core/blockId.ts`（新，纯逻辑）**：
-  - `blockRefAt(text, cursorOffset): { id, edit: {from,to,insert} | null } | null` — 定位光标所在块（段落近似：连续非空行向上下扩到空行/代码围栏边界），**复用 R13 frozen `BLOCK_MARKER_RE = /\s\^([A-Za-z0-9-]+)\s*$/`** 判末行是否已有 id（有→reuse，edit=null）；否则铸 id（collision-scan 全文 ids + retry）append ` ^id` 到末行行尾。**返 null（不可铸）**：空行 / 代码围栏内（standalone `^id` 行 Geode metadata 不索引=不可解析，故跳过）/ frontmatter 内（`parseFrontmatter().to` 守卫）。
+  - `blockRefAt(text, cursorOffset): { id, edit: {from,to,insert} | null } | null` — 定位光标所在块（段落近似：连续非空行向上下扩到空行/代码围栏边界），**复用 R13 frozen `BLOCK_MARKER_RE = /\s\^([A-Za-z0-9-]+)\s*$/`** 判末行是否已有 id（有→reuse，edit=null）；否则铸 id（collision-scan 全文 ids + retry）append ` ^id` 到末行行尾。**返 null（不可铸）**：空行 / 代码围栏内（standalone `^id` 行 ADKM metadata 不索引=不可解析，故跳过）/ frontmatter 内（`parseFrontmatter().to` 守卫）。
   - `mintBlockId(existing): string` — `(Math.random().toString(36)+Math.random().toString(36)).replace(/[^a-z0-9]/g,"").slice(0,6)`（6 位 base36，repo 既有 `Math.random().toString(36)` 惯用法 workspace.ts:44，零新依赖；碰撞 retry）。
 - **`features/editor/blockRefCommands.ts`（新）**：`copyBlockRef(app, view, embed)` — `blockRefAt(view.state.doc, cursor)` → null 则 notice「无可引用的块」；有 edit 则 `view.dispatch({changes: edit, userEvent:"input.blockid"})`（CM 事务→脏→autosave，**继承 R33/R40 B-class 写守卫 + getView 仅活动文件 DS-1**）；**链接经 `formatLink(metadata, path, path, {embed, subpath:"^"+id})`（评审 MAJOR 修，见下）→ null 则 notice「无安全链接」**（id 仍已铸入）→ `navigator.clipboard.writeText` + 自包含 notice。`registerBlockRefCommands(app, getView)` 注册 2 命令 `editor:copy-block-link`/`editor:copy-block-embed`（无默认热键，对齐 Obsidian）。
 - **`core/linkFormat.ts formatLink` 加 `opts.subpath`（R77 additive，R72 契约扩展）**：subpath（如 `^id`/heading）在 resolve-back 验证 + unsafe-char 守卫后的路径文本之后以 `#` 注入（wikilink `[[inner#sub]]` / markdown `[d](href#sub)`）；默认 undefined→空，**R72 既有行为零变**（r72-e2e 26/26 绿）。
@@ -3303,7 +3303,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 
 **文件所有权（单 owner）**：先 `core/blockId.ts` → `blockRefCommands.ts` → dict + i18n + App.tsx 接线 → editor.css notice + main.tsx 探针 + e2e/probe。**冻结不动**：markdown.ts `BLOCK_MARKER_RE`/strip、metadata.ts blocks 扫描/resolveSubpath、types.ts BlockRef。
 
-**⚠️ 已知延期（非缺陷，记 ㊴ 续）**：① **代码块/表格/列表项的块 id 不做**（代码块 standalone `^id` Geode metadata 不索引；段落近似对 list/table 是粗近似）；② 无 `[[#^` 补全里铸 id（v1 仅命令触发）；③ switcher 选块仍只列已有 id 的块（不铸）；④ embed `![[note#^id]]` 渲染由既有 R13 embeds 处理，本轮只产链接文本。
+**⚠️ 已知延期（非缺陷，记 ㊴ 续）**：① **代码块/表格/列表项的块 id 不做**（代码块 standalone `^id` ADKM metadata 不索引；段落近似对 list/table 是粗近似）；② 无 `[[#^` 补全里铸 id（v1 仅命令触发）；③ switcher 选块仍只列已有 id 的块（不铸）；④ embed `![[note#^id]]` 渲染由既有 R13 embeds 处理，本轮只产链接文本。
 
 **对抗评审（reviewer 7 lens 各独立 + skeptic-verify + 运行实例实测复现）→ 1 确认 MAJOR + 2 minor + 证伪 7：**
 - **CONFIRMED MAJOR = 块链接硬编码 basename `[[${name}#^${id}]]` 绕过 R72 `formatLink` 单一真值** → 三症状一根因（reviewer 在运行实例复现）：① **重复 basename**（`A/dup` + `B/dup`）→ 粘到别处解析到错笔记（块引用的根本用途是粘贴别处）；② **文件名含 `WIKILINK_UNSAFE=/[[\]#|^]/` 元字符**（macOS 合法 `Meeting [2024]`/`Q&A #notes`）→ 直接产损坏链接 `[[note]bracket#^id]]`/`[[meet #1#^id]]`；③ 忽略 R72 link-format 设置。**修 = 走 `formatLink(metadata, path, path, {embed, subpath:"^"+id})`**（resolve-back 验证 + unsafe 守卫 + 设置遵循；null→notice「无安全链接」，**`^id` 仍正确铸入活动文件**——铸入无缺陷，只是复制的链接文本要修）。**教训：任何「文件→链接」构造点必走 `formatLink` 单一真值（R72 注释明令），手拼 `[[basename]]` 必踩重复名/元字符/设置三坑**——这是 R72 单一真值契约的第 6 个构造点，新增即接。补 e2e：unsafe 文件名→不复制坏链（id 仍铸）+ unique→shortest。
@@ -3422,7 +3422,7 @@ export abstract class AbstractInputSuggest<T> extends PopoverSuggest<T> {
 **`core/linkFormat.ts`（新）= 全部「文件→链接」构造的单一真值：**
 - `linkUseMarkdown: Store<boolean>`（默认 false=wikilink）/ `linkPathFormat: Store<"shortest"|"relative"|"absolute">`（默认 "shortest"）+ `setLinkUseMarkdown`/`setLinkPathFormat`，localStorage 持久化（`geode.linkUseMarkdown`/`geode.linkPathFormat`），镜像 autoUpdateLinks/appearance 的 Store+setter+try/catch 模式。
 - `formatLink(metadata, targetPath, fromPath, opts?: {embed?, alias?}): string | null` — 唯一构造入口。读两个 Store 现算。**契约**：无安全、resolve-back 验证过的形式 → 返回 `null`，调用方**必须跳过**（绝不插入坏链，镜像 internalDropSnippet）。
-- **两道硬降级守卫**（Geode resolver 限制强加）：**(a)** wikilink + 相对 → 退最短（resolveLink 不能解析 `../`）；**(b)** embed → 永远 wikilink `![[..]]`（markdown `![](path)` 笔记/图片嵌入在 R71 不渲染，会静默不显示）。
+- **两道硬降级守卫**（ADKM resolver 限制强加）：**(a)** wikilink + 相对 → 退最短（resolveLink 不能解析 `../`）；**(b)** embed → 永远 wikilink `![[..]]`（markdown `![](path)` 笔记/图片嵌入在 R71 不渲染，会静默不显示）。
 - `wikilinkPath()`（内部，导出供潜在复用）：notes 用 resolveLink、附件用 resolveAttachment 验 resolve-back；最短=basename（解析回本文件）否则全路径；absolute=全路径；`WIKILINK_UNSAFE=/[[\]#|^]/` 命中→null。
 - `markdownHref()`（内部）：relative=`relativePath()`（始终 `./`/`../` 前缀，否则 resolveMarkdownLink 当 vault-root/basename）、absolute=全路径、shortest=basename（解析回）否则全路径；resolve-back 验证（resolveMarkdownLink）失败回退全路径否则 null；`encodeMdHref` 末步编码。
 - `encodeMdHref(path)`：`%` 先（避双编码）再 ` ()#?` → `%25 %20 %28 %29 %23 %3F`（沿用 R70 同集；`]` 不编码——href 组 `[^\s)]+` 容忍 `]`）。
@@ -3615,7 +3615,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 **features/explorer/Explorer.tsx**：dragstart `effectAllowed = "copyMove"`（原 "move"）。
 
 ### 已知偏差 / 待办（写给后续轮）
-- **wikilink-unsafe 名（`[ ] # | ^`）的文件拖入不插入**（返回 null）——同 ARCHITECTURE R17 wikilink 限制（全代码库 wikilink builder 共有）；未来若 Geode 支持 markdown 内链 `[name](path)` 可作 fallback（但 metadata 仅索引 wikilink，会失反链）。
+- **wikilink-unsafe 名（`[ ] # | ^`）的文件拖入不插入**（返回 null）——同 ARCHITECTURE R17 wikilink 限制（全代码库 wikilink builder 共有）；未来若 ADKM 支持 markdown 内链 `[name](path)` 可作 fallback（但 metadata 仅索引 wikilink，会失反链）。
 - **拖文件夹 dragover 显 copy 光标**（drop no-op）——cosmetic；修需文件夹 MIME 标记（契约变更），接受 nit。
 - **多文件拖拽**——explorer 单路径拖，故单插入；Obsidian 支持多选拖，未来若 explorer 多选拖再扩。
 
@@ -3683,7 +3683,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 
 > **状态：As-built（v0.60 交付,2026-06-14）。** 本轮含一个**faithfulness 纠正**和一个**功能**：
 > **㉔ Smart typography 出队 = 非 Obsidian 核心**：WebSearch + 官方确认弯引号/em-dash/省略号自动转换是社区插件（mgmeyers/obsidian-smart-typography），**非核心**——与 `{{date+3d}}`（社区 Templater）同类，按「复刻 Obsidian 核心」使命**不做**。**这是「先验证是不是核心功能」的 faithfulness 门**（继 Step 0 grep「是否已实现」之后的第二道前置核查；R60 候选池误登记把社区功能当核心，本轮第二例）。
-> **㉕ 多光标 = 2 行 foundation 解锁**：grep + derisk 确认 **真实缺口 = Geode 根本无法持有/渲染 >1 光标**（无 `allowMultipleSelections`、无 `drawSelection`）。命令早已全在 keymap：defaultKeymap `Mod-Alt-↑/↓` addCursorAbove/Below + `Escape` simplifySelection；searchKeymap `Mod-d` selectNextOccurrence + `Mod-Shift-l` selectSelectionMatches——皆因缺 foundation 而**静默 no-op**（R51「框架早给了，价值在解锁」同源）。**修 = buildEditorExtensions 加 4 个标准 CM6 扩展**：`EditorState.allowMultipleSelections.of(true)`（state 持多 range）+ `drawSelection()`（渲染每个 caret，原生只画一个）+ `rectangularSelection()`+`crosshairCursor()`（Alt-drag 列选）。**零新依赖、无 Rust、纯 view/selection 配置不碰写路径**。
+> **㉕ 多光标 = 2 行 foundation 解锁**：grep + derisk 确认 **真实缺口 = ADKM 根本无法持有/渲染 >1 光标**（无 `allowMultipleSelections`、无 `drawSelection`）。命令早已全在 keymap：defaultKeymap `Mod-Alt-↑/↓` addCursorAbove/Below + `Escape` simplifySelection；searchKeymap `Mod-d` selectNextOccurrence + `Mod-Shift-l` selectSelectionMatches——皆因缺 foundation 而**静默 no-op**（R51「框架早给了，价值在解锁」同源）。**修 = buildEditorExtensions 加 4 个标准 CM6 扩展**：`EditorState.allowMultipleSelections.of(true)`（state 持多 range）+ `drawSelection()`（渲染每个 caret，原生只画一个）+ `rectangularSelection()`+`crosshairCursor()`（Alt-drag 列选）。**零新依赖、无 Rust、纯 view/selection 配置不碰写路径**。
 > **Cmd+D 冲突的正确裁决**：`Mod+D` 被 `daily-note.ts` 占用（R33 拦截器先到）。一度以为要为 selectNextOccurrence 让位，**但 WebSearch 证实 select-next 是 Obsidian 社区插件非核心** → **保留 daily-note Mod+D 不动**（无 faithfulness 压力、避免跨 feature churn，R53）。selectNextOccurrence 按设计保持 shadowed。
 > 验证：typecheck 0 · `r63-e2e.mjs` **8/8**（drawSelection 渲染 3 光标 / addCursorBelow+Above / 多点同时编辑 / Escape clean-path 收起到 1）· `r63-probe.mjs` **4/4**（真 WKWebView：allowMultipleSelections 持 2-range=2，control 无 facet=1）· cargo release 真重建 · 回归 r35 25/r51 10/r34 15/r55 15 全绿（编辑器栈 + 块装饰 atomicRanges 不回退）。
 > **对抗评审（Workflow 3 lens + verify）抓到 1 个真实数据安全回归 → 已修**：interaction lens 确认 **fmField 的 Backspace 守卫只查 `selection.main`，而多光标可把一个 SECONDARY 空光标停在被保护的首行正文起点（blockTo+1）；`deleteCharBackward` 对每个 range 生效 → 副光标删掉 frontmatter 闭合 `---` 后的换行 → INT-3 frontmatter 损坏**。**这是本轮 foundation 引入的真回归**（R63 前无 allowMultipleSelections → 只有单 range → `.main` 即完整）。**修 = 守卫改查所有 range**（`selection.ranges.some(r => r.empty && r.head === end+1)`，单光标行为逐字等价）+ r63-e2e 加多光标 frontmatter 守卫用例锁死。其余 finding 非数据安全（markdown emphasis wrap + format/template 命令多光标下仅作用 `selection.main`——文本不丢、仅光标收起，预存行为，属未来「命令多光标化」polish）。**核心元教训**：**「无害的 foundation」会重新激活一个假设单光标的旧守卫**——凡开启 `allowMultipleSelections`，要 grep 所有读 `selection.main` 的**写/删路径守卫**（非纯读展示），逐个问「副光标停在这会绕过它吗」。对抗评审对「11 行启用标准扩展」这种看似 trivial 的改动**仍抓到真数据安全回归**，印证评审不可因 diff 小而省。**附（候选池失准）**：R60 把社区插件功能误登记为核心（㉔ smart typography、㉕ 的「Cmd+D select-next」）——「先 grep 是否已实现」之外还需「先核是不是 Obsidian 核心」（WebSearch/官方），两道前置门一起挡住「做 Obsidian 根本没有的东西」。
@@ -3696,15 +3696,15 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 
 ### 已知偏差 / 待办（写给后续轮）
 - **格式化/模板/附件命令在多光标下仅作用于主选区**（formatCommands 等读 `selection.main`）——预存行为，未本轮多光标化（Obsidian 会对所有选区生效）；属未来「编辑命令多光标感知」项，非本轮 scope。
-- **selectNextOccurrence（Mod-d）被 daily-note 命令 shadow**——按设计（select-next 非 Obsidian 核心；daily-note 是既有 Geode 绑定）。若未来要 select-next，需重绑 daily-note（用户/未来轮决策）。
-- **鼠标加光标（Cmd/Alt+click）未配 clickAddsSelectionRange**——Obsidian 核心多光标偏鼠标；Geode 走键盘优先（Mod-Alt-↑/↓）。鼠标点击加光标 + 与 Mod+click wikilink 导航协调属未来 polish。Alt-drag 列选已可用。
+- **selectNextOccurrence（Mod-d）被 daily-note 命令 shadow**——按设计（select-next 非 Obsidian 核心；daily-note 是既有 ADKM 绑定）。若未来要 select-next，需重绑 daily-note（用户/未来轮决策）。
+- **鼠标加光标（Cmd/Alt+click）未配 clickAddsSelectionRange**——Obsidian 核心多光标偏鼠标；ADKM 走键盘优先（Mod-Alt-↑/↓）。鼠标点击加光标 + 与 Mod+click wikilink 导航协调属未来 polish。Alt-drag 列选已可用。
 
 ## Round 62 additions — 专用「Outgoing Links 出链」侧栏面板（候选池第五梯队 ㉓）【As-built v0.59】
 
-> **状态：As-built（v0.59 交付,2026-06-14）。** 第五梯队 ㉓。**先 grep 现状（铁律）**：出链**数据 + 显示早已存在**——`metadata.getOutgoingLinks()` + `BacklinksPanel` 内嵌「出链」分区（R24 起）。真实缺口 = Obsidian 把 **Outgoing Links 作为独立核心插件面板**（与 Backlinks 分开、可独立打开/切换），Geode 只把它折叠进组合反链面板。**第 5 次「候选池缺口」实为「部分已实现」**（Setext R54 / Setext-dim R55 / `%%` R58 / 粘贴URL·callout R60 / ㉓ 出链 R62）。
-> **本轮 = 新增独立 Outgoing Links 右栏 tab**（镜像 OutlinePanel/BacklinksPanel 范式），复用现成 `getOutgoingLinks` 索引；**刻意不动组合 BacklinksPanel**（其出链分区是 Geode 既有便利 UX，重构组合面板哲学属未来项，非 ㉓ scope）→ 出链同时出现在两处 = 评审证伪为「可接受的 deliberate scoping」（Obsidian 用户也可同开 Backlinks + Outgoing Links 两栏）。**纯只读 view**，唯一写 = 点未解析链接 createAndOpen（与 BacklinksPanel 同款，评审数据安全 lens 证伪攻击面：`uniquePath`+`create` 不覆盖、路径守卫拦穿越、rejection 已 catch）。
+> **状态：As-built（v0.59 交付,2026-06-14）。** 第五梯队 ㉓。**先 grep 现状（铁律）**：出链**数据 + 显示早已存在**——`metadata.getOutgoingLinks()` + `BacklinksPanel` 内嵌「出链」分区（R24 起）。真实缺口 = Obsidian 把 **Outgoing Links 作为独立核心插件面板**（与 Backlinks 分开、可独立打开/切换），ADKM 只把它折叠进组合反链面板。**第 5 次「候选池缺口」实为「部分已实现」**（Setext R54 / Setext-dim R55 / `%%` R58 / 粘贴URL·callout R60 / ㉓ 出链 R62）。
+> **本轮 = 新增独立 Outgoing Links 右栏 tab**（镜像 OutlinePanel/BacklinksPanel 范式），复用现成 `getOutgoingLinks` 索引；**刻意不动组合 BacklinksPanel**（其出链分区是 ADKM 既有便利 UX，重构组合面板哲学属未来项，非 ㉓ scope）→ 出链同时出现在两处 = 评审证伪为「可接受的 deliberate scoping」（Obsidian 用户也可同开 Backlinks + Outgoing Links 两栏）。**纯只读 view**，唯一写 = 点未解析链接 createAndOpen（与 BacklinksPanel 同款，评审数据安全 lens 证伪攻击面：`uniquePath`+`create` 不覆盖、路径守卫拦穿越、rejection 已 catch）。
 > 验证：typecheck 0 · `r62-e2e.mjs` **14/14**（tab 开面板/resolved 进 Links·unresolved 进 Unresolved 红/计数 2:1/点击导航/命令重开/两种空态含真 no-active-file `ol-empty`）· `r62-probe.mjs` **5/5**（真 WKWebView：setRightPanel 持久化 + 真 fs metadata getOutgoingLinks resolved=[Alpha,Beta] unresolved=[Ghost Note]）· cargo release 真重建 · 回归 r30[allproperties]25/25 + r41[tags]21/21 面板切换不回退。
-> **对抗评审（Workflow 4 lens + verify）：19 finding → 7 确认（全 nit/minor，0 critical/major）+ 12 证伪**。确认修：① 别名链接 `[[a|b]]` 应显示 `b` 非 `a`（对齐 Geode 自身 `display = alias || target` 约定，阅读视图/live 都这么做）；② 用自有 `outgoinglinks.*` i18n 键替代借用 `backlinks.*`（与「Section 组件刻意复制」同一 self-containment 原则）；③ dict.panels.ts 命名空间头注释补全；④ e2e 补真 no-active-file `ol-empty` 用例；⑤ 本节（契约 As-built）。**证伪**：createAndOpen 数据安全（无穿越/无覆盖/已 catch）、subpath `[[a#h1]]`/`[[a#h2]]` 折叠成一行（Obsidian 也按目标笔记去重）、两栏冗余（deliberate）、命令名措辞、Unresolved 分区恒显。
+> **对抗评审（Workflow 4 lens + verify）：19 finding → 7 确认（全 nit/minor，0 critical/major）+ 12 证伪**。确认修：① 别名链接 `[[a|b]]` 应显示 `b` 非 `a`（对齐 ADKM 自身 `display = alias || target` 约定，阅读视图/live 都这么做）；② 用自有 `outgoinglinks.*` i18n 键替代借用 `backlinks.*`（与「Section 组件刻意复制」同一 self-containment 原则）；③ dict.panels.ts 命名空间头注释补全；④ e2e 补真 no-active-file `ol-empty` 用例；⑤ 本节（契约 As-built）。**证伪**：createAndOpen 数据安全（无穿越/无覆盖/已 catch）、subpath `[[a#h1]]`/`[[a#h2]]` 折叠成一行（Obsidian 也按目标笔记去重）、两栏冗余（deliberate）、命令名措辞、Unresolved 分区恒显。
 > **元收获**：候选池「缺口」第 5 次实为「部分已实现」——这次 Step 0 grep **救了大半轮**（直接发现 getOutgoingLinks + BacklinksPanel 出链分区已在，把 scope 从「从零做出链」收窄成「抽独立面板」）。「先 grep 现状」已从教训变成本轮**实际挡住返工**的流程。
 
 ### 契约（交付即实现，已纳评审修复）
@@ -3718,7 +3718,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 
 ### 已知偏差 / 待办（写给后续轮）
 - **出链显示在两处**（组合 BacklinksPanel 出链分区 + 新独立面板）——deliberate（不动既有组合面板）；真正的 Obsidian 偏差是「Backlinks 面板还带出链分区」，未来若做组合→拆分面板对齐再统一移除。
-- **行 label 显示 `alias || target` 的原始 target（含文件夹路径如 `Notes/Welcome`）**，未规整成 resolved basename——与 BacklinksPanel 出链分区一致（Geode 既有约定），属未来「出链行规整」polish 项。
+- **行 label 显示 `alias || target` 的原始 target（含文件夹路径如 `Notes/Welcome`）**，未规整成 resolved basename——与 BacklinksPanel 出链分区一致（ADKM 既有约定），属未来「出链行规整」polish 项。
 - **subpath 链接 `[[a#h1]]`/`[[a#h2]]` 按目标笔记折叠成一行**——与 Obsidian 一致（按目标去重），非缺陷。
 
 ## Round 61 additions — 图片嵌入尺寸 `![[img.png|200]]` / `|200x100`（候选池第五梯队 ㉒）【As-built v0.58】
@@ -3793,7 +3793,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 ## Round 55 additions — Live preview 表格（live tables，#⑱）【As-built v0.55】
 
 > **状态：As-built（v0.55 交付,2026-06-14）。** R32+ 候选池第四梯队 #⑱ live 渲染长尾。GFM 管道表格在 **live preview 渲染为真 `<table>`**（复用阅读视图 `renderMarkdownToHtml`）——
-> **Geode 首个 cursor-aware block-replace widget**（ARCHITECTURE R18/R19 标注的「块级跨行 replace 需 StateField」缺口的首次落地）。**零新依赖、无 Rust、纯 view 装饰不改文档**。
+> **ADKM 首个 cursor-aware block-replace widget**（ARCHITECTURE R18/R19 标注的「块级跨行 replace 需 StateField」缺口的首次落地）。**零新依赖、无 Rust、纯 view 装饰不改文档**。
 > **两个探明前的过时假设被 derisk 证伪**（动手前先测）：① Setext 标题 live **样式早已有**（lezer heading tag→cm-md-h1/2）、下划线 `===` 与 ATX `#` **同样是 `cm-md-h1 cm-md-mark`**（一致，无精修可做）→ 弃 Setext-dim；② 改取 live 表格。
 > **关键 CM 约束（踩坑）**：block-replace 装饰**必须经 StateField，不能经 ViewPlugin**（ViewPlugin 提供 block 装饰 → 初次 DocView update 时 `RangeSet.spans` **崩溃**，编辑器白屏）→ 镜像既有 frontmatter `fmField`（StateField + atomicRanges）。
 > 验证:typecheck 0 · `r55-e2e.mjs` **15/15**（4 纯检测/渲染 + 8 live widget[渲染/揭示/源码不变/无报错] + 3 nested-table guard）· `r55-probe.mjs` **6/6** · cargo release 真实重建 38s · 回归 r51/r52/r35/r33/r24/r29 不回退。
@@ -3842,7 +3842,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 
 > **状态：As-built（v0.53 交付,2026-06-14）。** R32+ 候选池第四梯队 #㉑（小众核心插件）。Obsidian「Unique note creator」核心插件：一条命令建一篇**时间戳命名**（Zettelkasten id）的新笔记,
 > 放可配置文件夹、可选模板、建后打开。**镜像 `core/dailyNote.ts`（R48 可配置日记）**——同款 Store/localStorage/effFolder/模板展开形状,但**去掉日期回解/日历/相对导航**（unique note 永不按 id 回访,故无 parseStamp/isUniquePath/monthGrid）。**零新依赖、无 Rust**。
-> **scope 决策（记一句）**：本轮原定候选池既定顺序的 #⑧ 余项 = stacked tabs。探明后发现**真正的 Obsidian stacked tabs = 内容级横向 cascade**（同时挂载所有 tab 的窗格、横向滚动），而 Geode 当前只渲染 active tab 内容 → 忠实实现需同时挂载多个 EditorPane = 大改 + 多编辑器 data-safety 重,超一轮干净交付；做「竖排 tab 条」minimal 版又不忠实。故 **#⑧ stacked tabs 留作专门大轮**,本轮取确定能一轮干净交付的忠实 #㉑ 项。
+> **scope 决策（记一句）**：本轮原定候选池既定顺序的 #⑧ 余项 = stacked tabs。探明后发现**真正的 Obsidian stacked tabs = 内容级横向 cascade**（同时挂载所有 tab 的窗格、横向滚动），而 ADKM 当前只渲染 active tab 内容 → 忠实实现需同时挂载多个 EditorPane = 大改 + 多编辑器 data-safety 重,超一轮干净交付；做「竖排 tab 条」minimal 版又不忠实。故 **#⑧ stacked tabs 留作专门大轮**,本轮取确定能一轮干净交付的忠实 #㉑ 项。
 > 验证:typecheck 0 · `r53-e2e.mjs` **11/11**（5 纯变换 + 5 live create[含**同 tick 竞态**] + 1 设置 UI 接线）· `r53-probe.mjs` **6/6** · cargo release 真实重建 37s · 回归 r48/r50/r44/r24 不回退。
 > **评审 1 真缺陷（minor）修 / 11 证伪**：同 tick 双触发原只建一篇（第二次 create 被 `create_new` 拒→catch 见文件已存在→静默打开第一篇而非 `X 1.md`）——非 data-loss（防覆盖原子性可靠）,但违反「每次必建新笔记」语义 → **createUniqueNote 改 collision-retry 循环**（reject 且文件已存在=竞态→重算 uniquePath 拿下一后缀；非竞态失败=路径仍缺→返 null；50 次封顶）+ 补 `Promise.all` 同 tick 双触发回归断言。
 
@@ -3955,7 +3955,7 @@ export function renameTagAcrossVault(deps: TagRewriteDeps, oldTag: string, newTa
 
 对抗评审 3 维（数据安全重点）× find→verify。确认并修复:
 
-1. **【major / 数据安全】坏 JSON 的 `snapshots.json` 被 `readList` 吞错回空 → record 用空 list 覆盖,静默删光其余有效快照**（`vault_write_config` 是裸 `fs::write` 非原子,Geode 自身崩溃/断电可产生截断 JSON;与 R45/R27「坏 JSON 拒写」契约不一致）。**修**：**写路径**与读路径分离容错——recordSnapshot 内对 `readConfig` 结果**显式 STRICT JSON.parse**,malformed 即 throw → enqueue catch（见 #3 日志）→ 跳过 writeConfig、保留磁盘原字节;`listSnapshots`/UI 仍用容错 `readList`。
+1. **【major / 数据安全】坏 JSON 的 `snapshots.json` 被 `readList` 吞错回空 → record 用空 list 覆盖,静默删光其余有效快照**（`vault_write_config` 是裸 `fs::write` 非原子,ADKM 自身崩溃/断电可产生截断 JSON;与 R45/R27「坏 JSON 拒写」契约不一致）。**修**：**写路径**与读路径分离容错——recordSnapshot 内对 `readConfig` 结果**显式 STRICT JSON.parse**,malformed 即 throw → enqueue catch（见 #3 日志）→ 跳过 writeConfig、保留磁盘原字节;`listSnapshots`/UI 仍用容错 `readList`。
 2. **【major / 数据丢失】restore 前未 flush 活动编辑器 → 脏 buffer 的未保存编辑既不被快照（restore 读磁盘非 buffer）、又在 restore 写盘后被脏 buffer 覆盖**。**修**：`restoreSnapshot` 加 `documents` 依赖,**`await documents.flushAll()`** 后再读当前+force 快照+写回（R47 flush-before-overwrite parity）——未保存编辑落盘并被快照,editor 非脏后 watcher 重载还原内容。
 3. **【minor】`enqueue` 静默吞所有 writeConfig/readConfig reject 无日志**（偏离 bookmarks/workspaces guarded 先例）。**修**：`enqueue` 包 `guarded` try/catch + `console.warn` 再 rethrow。
 4. **【minor】`lastSnapTs` 在 enqueue 外同步置位,写失败不回滚 → 节流窗口被毒化,60s 内真实变更跳过不重试**。**修**：`lastSnapTs.set` 移进 **写成功/dedup 分支**（失败→不置位→下次保存重试）。
@@ -4037,7 +4037,7 @@ export const dailyNoteTemplate: Store<string>; export function setDailyNoteTempl
 - **B（UI + i18n + 版本）**：`src/features/settings/SettingsModal.tsx` + `src/features/calendar/CalendarPanel.tsx`(反应式) + i18n dict + 版本三处。
 
 ### 已知偏差（写给后续轮）
-- **FORMAT 含 "/" 不支持**（Obsidian 允许格式建子文件夹;Geode basename 解析假设扁平日期名,format 子文件夹延后）。
+- **FORMAT 含 "/" 不支持**（Obsidian 允许格式建子文件夹;ADKM basename 解析假设扁平日期名,format 子文件夹延后）。
 - **改格式后旧格式的既存日记不被识别**（parseDailyStamp 只认当前格式;改格式 = 换命名空间,旧日记仍是文件但 isDailyNotePath/has-note 不再认——Obsidian 同款）。
 - **模板变量集 = `expandTemplate` 既有**（{{title}}/{{date}}/{{time}} 等;Obsidian daily-note 模板的 {{date:FORMAT}} 内联格式若 expandTemplate 不支持则按其能力）。
 
@@ -4099,8 +4099,8 @@ export async function mergeNotes(deps: LinkRewriteDeps, sourcePath: string, targ
 ## Round 46 additions — `obsidian://` URI 深链（零依赖 in-app 切片）【As-built v0.46】
 
 > **状态：As-built（v0.46 交付,2026-06-14）。** R32+ 候选池第三梯队 #⑮。`obsidian://open|new|search` 深链。**本轮做零依赖 in-app 切片**：纯 URI
-> 解析器 + 动作执行器 + 笔记内 `obsidian://` 链接点击在 Geode 内路由（开文件/标题/块、建笔记、搜索）。**🛑 OS 级 deep-link 延后（待用户拍板）**——
-> 点击 Geode 外的 `obsidian://` 链接唤起/聚焦 app 需 `tauri-plugin-deep-link` **新运行时依赖 = 硬边界#5**（Cargo.toml 现仅 dialog/updater/process,无 deep-link）→ 本轮不引入。
+> 解析器 + 动作执行器 + 笔记内 `obsidian://` 链接点击在 ADKM 内路由（开文件/标题/块、建笔记、搜索）。**🛑 OS 级 deep-link 延后（待用户拍板）**——
+> 点击 ADKM 外的 `obsidian://` 链接唤起/聚焦 app 需 `tauri-plugin-deep-link` **新运行时依赖 = 硬边界#5**（Cargo.toml 现仅 dialog/updater/process,无 deep-link）→ 本轮不引入。
 > 零依赖部分(解析器)即未来 OS handler 的可复用核。**零新依赖、无 Rust**。复用 `openWikilink(app, target, fromPath, subpath?)`(连 `#heading`/`#^block` reveal)。
 > 验证:typecheck 0 · `r46-e2e.mjs` **18/18** · `r46-probe.mjs` **9/9**（含 on-disk `obsidian://new` 建文件）· cargo release 真实重建 37s · 回归 r44/r43/r28/r24/r25/r33/r45 不回退。
 
@@ -4131,7 +4131,7 @@ export function parseObsidianUri(uri: string): ObsidianAction | null; // 非 obs
 
 **features/editor/obsidianUriHandler.ts（NEW）**：
 ```ts
-export async function handleObsidianUri(app: GeodeApp, uri: string): Promise<boolean>; // 处理了返回 true
+export async function handleObsidianUri(app: ADKMApp, uri: string): Promise<boolean>; // 处理了返回 true
 ```
 `parseObsidianUri(uri)` → switch（**已纳评审修复**）:
 - `open`:target = file **`||`** path（评审 #5:`||` 非 `??`,空串 fallthrough）,无→false;from = activeFile ?? "";**`app.metadata.resolveLink(target, from) === null` → return false**（评审 #1:只开既有、绝不建,不继承 openWikilink 的 create 语义）;subpath = heading ? "#"+heading : block ? "#^"+block : undefined;`await openWikilink(app, target, from, subpath)`;true。
@@ -4186,7 +4186,7 @@ export async function handleObsidianUri(app: GeodeApp, uri: string): Promise<boo
 **core/workspaces.ts（NEW，镜像 bookmarks.ts 持久化范式）**：
 ```ts
 export const WORKSPACES_CONFIG = "workspaces.json"; // readConfig/writeConfig 已相对 <vault>/.obsidian/ 解析(同 bookmarks 裸 "bookmarks.json");字面 ".obsidian/..." 会双套→写错文件
-export const workspacesStore: Store<Record<string, unknown>>; // name → Geode 布局(opaque,保留 Obsidian 原 entry)
+export const workspacesStore: Store<Record<string, unknown>>; // name → ADKM 布局(opaque,保留 Obsidian 原 entry)
 export function initWorkspaces(vault: Vault): Promise<void>;   // 读文件 → 填 store(parse `workspaces` map);main.tsx 在 vault 加载时调(镜像 bookmarks.init)
 export function listWorkspaceNames(): string[];               // store keys 排序
 export function getWorkspaceLayout(name: string): unknown | null;
@@ -4214,7 +4214,7 @@ applyLayout(raw: unknown, exists: (path: string) => boolean): void; // sanitizeS
 - **me（验证）**：`.calibration/r45-e2e.mjs`（模态端到端:save current→list→load→delete + 容错缺失文件 load）+ `.calibration/r45-probe.mjs`（`__geodeWorkspaces` capture→save→**磁盘 `.obsidian/workspaces.json` on-disk 验证** + list/del）。
 
 ### 已知偏差（写给后续轮）
-- **Obsidian 工作区 schema 未桥接**：存到 `.obsidian/workspaces.json` 同路径,但 per-workspace 布局值是 **Geode 形状**(非 Obsidian pane 树)。Geode 载入 Obsidian 原 entry → `sanitizeState` 回落默认(优雅降级,不崩);反之 Obsidian 载 Geode entry 亦不识。**path-compatible, schema-divergent**;全 schema 桥接延后。Obsidian 原 entry **非破坏性保留**(RMW blast from store,store 含原 entry)。
+- **Obsidian 工作区 schema 未桥接**：存到 `.obsidian/workspaces.json` 同路径,但 per-workspace 布局值是 **ADKM 形状**(非 Obsidian pane 树)。ADKM 载入 Obsidian 原 entry → `sanitizeState` 回落默认(优雅降级,不崩);反之 Obsidian 载 ADKM entry 亦不识。**path-compatible, schema-divergent**;全 schema 桥接延后。Obsidian 原 entry **非破坏性保留**(RMW blast from store,store 含原 entry)。
 - **不存 theme/fontSize/modal**（外观全局 + modal 是 session;Obsidian 工作区亦只存布局）。
 - **同名 save 覆盖**（Obsidian 同款）。
 
@@ -4259,7 +4259,7 @@ export function extractedContent(selectedText: string): string;
 export function extractReplacement(noteName: string, mode: ExtractMode): string;
 ```
 
-**features/editor/noteComposerCommands.ts（NEW）**：`registerComposerCommands(app: GeodeApp, getView: () => EditorView | null): Array<() => void>`。
+**features/editor/noteComposerCommands.ts（NEW）**：`registerComposerCommands(app: ADKMApp, getView: () => EditorView | null): Array<() => void>`。
 注册 `editor:extract-selection`（无默认键;`available = getView()!==null && !selection.empty`）。callback 流程（**create-before-edit**）:
 ① `view`+`activePath=workspace.getActiveFile()` 取真值;② `selected = doc.sliceString(from,to)`,**纯空白则 return**（评审 #5）;③ `name=deriveNoteName(selected)`;
 ④ `folder=parentPath(activePath)`、`notePath=vault.uniquePath(folder,name)`（碰撞 ` 1`/` 2` 后缀）;⑤ **`await vault.create(notePath, extractedContent(selected))`**——失败 catch+console.error+return（源不动）;
@@ -4317,7 +4317,7 @@ export function sameDay(a: Date, b: Date): boolean;
 export function monthGrid(year: number, month0: number): Date[][];  // 6×7,周日起,含相邻月填充,各 cell 本地午夜
 export function openOrCreateDailyNote(vault: Vault, workspace: Workspace, date: Date): Promise<void>; // 不存在则建 (folder+`# stamp\n\n`) 再 openFile;create 失败但文件已存在(竞态)仍 openFile
 ```
-（`Vault`/`Workspace` 从 core import;`openOrCreateDailyNote` 取显式 vault+workspace 参数 → plugin[AppHandle] 与 feature[GeodeApp] 都可调,解耦。）
+（`Vault`/`Workspace` 从 core import;`openOrCreateDailyNote` 取显式 vault+workspace 参数 → plugin[AppHandle] 与 feature[ADKMApp] 都可调,解耦。）
 
 **plugins/daily-note.ts**：`openToday` refactor 为 `openOrCreateDailyNote(app.vault, app.workspace, new Date())`;新增 `daily-note:next-day` / `daily-note:prev-day`（无默认键）——基准 `baseDate()` = 活动文件**经 `isDailyNotePath` 门控**确为真日记时取 `parseDailyStamp(activeFile)`、否则今天,`addDays(±1)` 后 openOrCreate。保留 `open-today`（Mod+D）。
 
@@ -4336,7 +4336,7 @@ export function openOrCreateDailyNote(vault: Vault, workspace: Workspace, date: 
 - **可配置日记设置 UI 延后**（格式/文件夹/模板写死 "Daily Notes/YYYY-MM-DD";#⑫ 另一半）。
 - **月历周日起**（非 locale-aware 周起点;Obsidian 可配周一起,延后）。
 - **有笔记标记按 fileExists 逐格查**（一个月 ≤42 格,vault.fileExists 是 cache 查,廉价）。
-- **create 真失败仅 console.error**（无 toast——Geode core 尚无 notice infra;评审 #4 残留,加 notice 超本轮范围）。
+- **create 真失败仅 console.error**（无 toast——ADKM core 尚无 notice infra;评审 #4 残留,加 notice 超本轮范围）。
 - **次/前日导航不保留来源文件夹**：只认 `DAILY_FOLDER` 下的真日记作基准,非默认布局（用户把日记组织进别处）下 next/prev 回落今天/写回 `Daily Notes`,非数据风险;可配置文件夹随 #⑫ 另一半再议。
 
 ## Round 42 additions — 回收站（本地 `.trash/` recoverable delete）【As-built v0.42】
@@ -4434,7 +4434,7 @@ SearchPanel 消费：`useStore(workspace.searchRequest)` → useEffect 非空时
 export const TAG_RE = /(^|[\s(])(#[A-Za-z0-9_\/\-一-鿿]*)$/;  // # + tag chars，行首/空白/( 后（同 metadata gate）
 export function tagTrigger(before: string): { query: string } | null;  // 命中→query(去 #)；inside [[ 抑制
 export function tagCandidates(tags: string[], query: string): string[]; // 空 query=按名升序;非空=fuzzy 打分
-export function tagCompletionSource(app: GeodeApp);  // getTagMap keys → tagCandidates → 插入 #tag
+export function tagCompletionSource(app: ADKMApp);  // getTagMap keys → tagCandidates → 插入 #tag
 ```
 触发：单个 `#` + 可选 tag 字符（`##`/`# `(heading) 不触发——多 `#` 或 `#`+空格不匹配;**已知 gap**：裸 `#` 起标题时
 闪一下标签列表,空格即关）。apply：替换 `#query` 段为 `#fulltag`。
@@ -4566,7 +4566,7 @@ className 加 `is-pinned` + 标题前渲染 `pin` 图标（指示,非按钮）�
 - **固定 tab 的关闭 X 淡显（hover 显），但仍可关闭**（R39 评审后:`.tab.is-pinned .tab-close` opacity 0.35 / hover 1，兼向 Obsidian「固定隐 X」靠拢，但不阻止关闭）。
 - **固定 tab 自身的 back/forward 仍可导航**（pin 只挡「外部 openFile 替换」,不挡 tab 自己的历史回放;`navigateBack`/`setTabLocation` 直改 filePath 绕过 openFile）——Obsidian 固定更严格;本轮取最小 pin 语义。具体翻车序列见 As-built。
 - **toggle 仅双击 + 命令**（无右键上下文菜单——避免引入菜单框架;双击 = Obsidian 手势）。
-- **graph tab 也可被固定**（双击/命令无 viewType 守卫）——Obsidian 本就允许固定任意 tab;Geode 内 graph 永不被 openFile 替换,故固定 graph 是 inert 指示（无害,不加守卫以保持 Obsidian「任意 tab 可固定」语义）。
+- **graph tab 也可被固定**（双击/命令无 viewType 守卫）——Obsidian 本就允许固定任意 tab;ADKM 内 graph 永不被 openFile 替换,故固定 graph 是 inert 指示（无害,不加守卫以保持 Obsidian「任意 tab 可固定」语义）。
 - **#⑧ 的 stack / linked-view 子特性未做**（入后续轮）。
 
 ### As-built（评审修复 + 教训）
@@ -4695,7 +4695,7 @@ h.from)`**（诚实锚 `from`,行为不变;block 仍用真实 `block.from/to`,�
 | `app:navigate-back` | Navigate back | `Mod+Alt+ArrowLeft`（mac Cmd+⌥←，win/linux Ctrl+Alt+←） |
 | `app:navigate-forward` | Navigate forward | `Mod+Alt+ArrowRight` |
 
-> **冲突解决**：`Mod+Alt+ArrowLeft/Right` 此前被 Geode 自创的 `focus-next/prev-pane` 占用，而 Obsidian 官方把这两个键
+> **冲突解决**：`Mod+Alt+ArrowLeft/Right` 此前被 ADKM 自创的 `focus-next/prev-pane` 占用，而 Obsidian 官方把这两个键
 > 给 navigate-back/forward。prime directive = 复刻 Obsidian → **navigate 拿 canonical 键，`focus-next/prev-pane`
 > 改为无默认键**（命令仍在面板，用户可自绑；Obsidian 本就无 pane-focus 默认键）。r32 套件只在测 `normalize`/`format`
 > 纯函数时用到 `Mod+Alt+ArrowRight` 字面量，不依赖 focus-pane 绑定 → 不回退。
@@ -4847,7 +4847,7 @@ private recentlyClosed: ClosedTab[] = [];   // most-recent LAST; cap RECENTLY_CL
 - **C（验证）**：`.calibration/r36-e2e.mjs` + `.calibration/r36-probe.mjs`（独占新建）。
 
 ### 已知偏差（写给后续轮）
-- **`app:new-tab` 急切建 `Untitled.md` 文件**（Obsidian Cmd+T 开空白 tab、不建文件）——Geode 标签页是文件支撑（`TabState` 无「空白 tab」视图），故复刻为「新 untitled 笔记 + 新 tab」。
+- **`app:new-tab` 急切建 `Untitled.md` 文件**（Obsidian Cmd+T 开空白 tab、不建文件）——ADKM 标签页是文件支撑（`TabState` 无「空白 tab」视图），故复刻为「新 untitled 笔记 + 新 tab」。
 - **TabBar「+」按钮仍调 `app:new-note`（替换活动 tab，pre-existing）**——本轮只补键盘快捷键（候选池 #⑤ = tab 快捷键），「+」repoint 列为余项。
 - **导航限活动 pane**（Obsidian 同样在当前 tab group 内循环；跨 pane 用 `focus-next/prev-pane`）。
 - **recentlyClosed session-only**（Obsidian 跨重启持久化）——避持久化栈的 stale-path 风险；重启清空。
@@ -5122,7 +5122,7 @@ Obsidian 拆成两个独立设定。本轮照此分两层实现，**职责边界
 > R32+ 候选池 #① = **头号缺口**（实测 Ctrl+P 开命令面板、
 > **Cmd+P 无反应**）。官方校准（obsidian.md help "Hotkeys"，2026-06-13 复核）：Obsidian
 > 热键语法用 **`Mod`** 作平台主修饰符——**macOS 解析为 ⌘（Cmd/metaKey），Windows/Linux 解析
-> 为 Ctrl**；`Ctrl` 永远指物理 Control（即使 mac），`Meta` 永远指 ⌘/Win 键。本轮把 Geode
+> 为 Ctrl**；`Ctrl` 永远指物理 Control（即使 mac），`Meta` 永远指 ⌘/Win 键。本轮把 ADKM
 > 命令层从「写死 Mod=Ctrl、三处拒 `metaKey`」改为镜像该语义。**纯键路由，零 vault 写**（data-safety
 > §B/§C 不适用；唯一持久化是既有 `geode.hotkeyOverrides` localStorage，形状不变）。
 
@@ -5203,7 +5203,7 @@ hotkey chip 把 raw `effective` 改走 `formatHotkey(effective)`；设置页 cap
 > **状态：契约冻结（2026-06-13）。** R25+ 候选池 #⑦（候选池**最后一项**）。官方校准
 > （obsidian.md core plugin "Slash commands"，2026-06-13 复核）：编辑器中行首或空白后键入
 > `/` 弹命令菜单、随输入过滤、Enter/点击执行所选命令并**删除 `/query` 文本**、Esc 关闭。
-> Obsidian 展示「编辑器情境」命令子集；**Geode 取舍 = 展示全部 `available()` 命令**（与命令
+> Obsidian 展示「编辑器情境」命令子集；**ADKM 取舍 = 展示全部 `available()` 命令**（与命令
 > 面板同口径，`available` 门控已隐藏情境不当命令——超集，记 As-built）。
 >
 > **🚧 分层关键决策**：R6 `EditorSuggest` 管线在 **`compat/obsidian/suggest.ts`**——而
@@ -5224,7 +5224,7 @@ hotkey chip 把 raw `effective` 改走 `formatHotkey(effective)`；设置页 cap
 ### Editor: `features/editor/slashCommands.ts`（新；ui/editor agent 所有）
 
 ```ts
-import type { GeodeApp } from "@app/AppContext"; // 或 core 的 App 类型（见 cmExtensions 现状）
+import type { ADKMApp } from "@app/AppContext"; // 或 core 的 App 类型（见 cmExtensions 现状）
 import type { Command } from "@core/types";
 import type { CompletionSource } from "@codemirror/autocomplete";
 
@@ -5238,10 +5238,10 @@ export function slashTrigger(before: string): { query: string } | null;
 
 /** 候选 = 全部 available()!==false 命令，按 fuzzyMatch(query, getCommandName) 降序；
  *  query 空 → 注册表顺序（list() 已按命令名字典序）。探针 + 源共用。 */
-export function slashCandidates(app: GeodeApp, query: string): Command[];
+export function slashCandidates(app: ADKMApp, query: string): Command[];
 
 /** CM6 补全源：追加进 cmExtensions 的 autocompletion override 数组。 */
-export function slashCommandSource(app: GeodeApp): CompletionSource;
+export function slashCommandSource(app: ADKMApp): CompletionSource;
   // const line = ctx.state.doc.lineAt(ctx.pos);
   // const before = ctx.state.sliceDoc(line.from, ctx.pos);
   // const m = SLASH_RE.exec(before); if (!m) return null;
@@ -5505,8 +5505,8 @@ keyCounts/values + 全局改名值字节保真 + case-only 实测）+ r29 19 / r
   ```
   `from` = 折叠起始行（标题行 / 列表父项行），`to` = 折叠末行；**无 type 标记**（heading/list/callout
   统一为行区间，apply 时由内容重新判定）；**编辑与阅读视图共享同一条 `FoldInfo`**。
-- **Geode 取舍**：**镜像 value 形状**（便于未来导入真实 vault），但**存 localStorage**（不写
-  vault `.md`／不写 `.obsidian` → 零新 vault 写路径，数据安全 B 类全免）。key 用 Geode 命名
+- **ADKM 取舍**：**镜像 value 形状**（便于未来导入真实 vault），但**存 localStorage**（不写
+  vault `.md`／不写 `.obsidian` → 零新 vault 写路径，数据安全 B 类全免）。key 用 ADKM 命名
   `geode.fold.<path>`（与 Explorer `EXPANDED_KEY` 同风格）。
 
 ### 决策核心 — `core/foldStore.ts`（**新建**，纯 TS，可 import `@codemirror/state`）
@@ -5565,7 +5565,7 @@ keyCounts/values + 全局改名值字节保真 + case-only 实测）+ r29 19 / r
 
 ### 显式偏差（记 ROADMAP 余项）
 
-- **阅读视图折叠不持久化、且不与编辑器共享 `FoldInfo`**：Obsidian 编辑/阅读共享一条 FoldInfo（行号）；Geode 阅读视图 DOM→源行映射需给标题 emit `data-line`（= **改 markdown.ts 字节管线**，违背本轮「不动字节」纪律）→ 本轮阅读视图折叠为**纯运行时视觉态**（re-render 复位），编辑器折叠持久化为行号态。未来如要共享需先在 markdown.ts 给 heading 加 `data-line`（过 r26-bytes 基线重快照）。
+- **阅读视图折叠不持久化、且不与编辑器共享 `FoldInfo`**：Obsidian 编辑/阅读共享一条 FoldInfo（行号）；ADKM 阅读视图 DOM→源行映射需给标题 emit `data-line`（= **改 markdown.ts 字节管线**，违背本轮「不动字节」纪律）→ 本轮阅读视图折叠为**纯运行时视觉态**（re-render 复位），编辑器折叠持久化为行号态。未来如要共享需先在 markdown.ts 给 heading 加 `data-line`（过 r26-bytes 基线重快照）。
 - **同文件多 pane**：各 pane 的 ViewPlugin 都 save 同一 path（幂等，last-writer-wins，内容一致）；A pane 折叠不实时同步到 B pane（重开才反映最新存盘——Obsidian 亦按 leaf 渲染）。
 - **行数漂移**：`foldRangesFromInfo` 越界段丢弃（文件外部变短）；不做内容级对账（Obsidian 用 `lines` 字段做更细的 reconcile，本轮仅做越界裁剪——fail-safe 方向：丢折叠态不丢内容）。
 
@@ -5993,7 +5993,7 @@ zip 降级）。
 > explorer 文件行 / backlinks·未链接·outgoing 源项）+ 修饰键规则 + 设置两项 + i18n +
 > compat `registerHoverLinkSource` 接通。
 > **显式偏差/延期**：plugin 自渲染的 `hoverPopover`/`HoverParent`（插件自己挂预览）
-> 保持 gap（Geode 全局 hover 已覆盖其 `a.internal-link`，插件被动受益——记缺口）；
+> 保持 gap（ADKM 全局 hover 已覆盖其 `a.internal-link`，插件被动受益——记缺口）；
 > graph 节点 hover 预览延期（图谱节点非 `a.internal-link`，按需驱动）；嵌入文件
 > （`![[x]]`）内的链接 hover 走同一委托自动受益；预览卡片内**再 hover**（嵌套预览）
 > 不做（单层，hover 卡片内链接点击 = 导航）。
@@ -6075,7 +6075,7 @@ export const HOVER_HIDE_DELAY = 120;
   `settings-page-preview` / `settings-page-preview-modifier`。
 - i18n：上述 + 节标题，en/zh（dict.views.ts，settings.* 归属）。
 - compat：`Plugin.registerHoverLinkSource(id, info)` 由 reportGap stub 升级为**真实
-  无操作登记**（记录 source id，返回——Geode 全局 hover 已覆盖插件渲染的
+  无操作登记**（记录 source id，返回——ADKM 全局 hover 已覆盖插件渲染的
   `a.internal-link`，无需插件参与）；`hoverPopover`/`HoverParent`（插件自挂预览）
   **保持 gap**（缺口表更新一行）。
 
@@ -6155,7 +6155,7 @@ r25-probe.js`（7 断言，重跑前删 `r25-results.md` + `__r25/`）。
 **显式延期/缺口**：块引用 `#^id` 子滚动——阅读视图 R15 reveal 同样只认 heading 序号
 （块标记 R13 剥离、无 DOM 锚），卡片停顶部 = 一致行为；补块滚动需给 markdown.ts 加块
 DOM 标记（动字节管线 → 须先重建 r18-diff，缓做）。插件自渲染 `hoverPopover`/
-`HoverParent` 保持缺口（Geode 全局 hover 已覆盖其 `a.internal-link`，插件被动受益）。
+`HoverParent` 保持缺口（ADKM 全局 hover 已覆盖其 `a.internal-link`，插件被动受益）。
 嵌套预览（卡内再 hover）不做。图谱节点 hover 延期。backlinks 片段按钮 hover 官方
 「可加」未加。
 
@@ -6171,7 +6171,7 @@ DOM 标记（动字节管线 → 须先重建 r18-diff，缓做）。插件自�
 > **R24 范围** = core/unlinkedMentions.ts 匹配引擎 + 链接改写引擎（R16 写纪律）+
 > BacklinksPanel「未链接提及」节（异步扫描 + 每条 Link + 每文件 Link all）+
 > i18n。compat 零改动（官方 Backlinks 插件 API 不在公开 d.ts，无缺口表条目）。
-> **显式偏差/延期**：Excluded files 模式（Geode 无该设置——扫全库除活动文件
+> **显式偏差/延期**：Excluded files 模式（ADKM 无该设置——扫全库除活动文件
 > 自身）；面板级 Collapse/Show-more-context/排序/搜索过滤工具栏（沿用既有 Section
 > 折叠模型，源文件按 path localeCompare 排序，片段取命中行）；点击提及只
 > openFile 不滚动到该 offset（subpath reveal 是 heading/block 锚点，明文 offset
@@ -6379,9 +6379,9 @@ SearchPanel 同款 per-file 同步匹配）。**性能优化采纳为后续候�
 > date/time 支持冒号后 Moment.js 格式令牌（`{{date:YYYY-MM-DD}}`）。
 > **R23 范围** = core/templates.ts 变量引擎 + 模板枚举 + 设置三项 + TemplateSelector
 > 选择器 modal + 四命令（insert-template / new-note-from-template / insert-date /
-> insert-time）。**「从模板新建笔记」是 Geode 显式扩展**（官方核心插件无此命令，
+> insert-time）。**「从模板新建笔记」是 ADKM 显式扩展**（官方核心插件无此命令，
 > 候选池口径"新建套模板"）。
-> **显式偏差/延期**：官方模板文件夹默认未设置——Geode 默认 `"templates"`（demo 可用性，
+> **显式偏差/延期**：官方模板文件夹默认未设置——ADKM 默认 `"templates"`（demo 可用性，
 > 空设置 = 未配置语义保留）；ribbon 按钮不做（命令面板 + 可自定义快捷键覆盖）；
 > 日记/Unique note creator 插件的 `{{date+Nd}}` 偏移语法不做（官方 Templates 页无此
 > 语法）；模板内嵌套变量（替换值再扫描）**显式不做**（单趟替换，见冻结语义）；
@@ -6434,7 +6434,7 @@ Hotkeys 设置页可自定义）
 
 - `editor:insert-template`（name `cmd.insertTemplate`）：`available` = 活动 tab 有
   filePath；callback：tab.mode === "preview" → `setTabMode(tab.id, "live")`（官方
-  "光标不在正文则插到上次光标位"的 Geode 对应口径 = 翻到可编辑模式，add-property
+  "光标不在正文则插到上次光标位"的 ADKM 对应口径 = 翻到可编辑模式，add-property
   先例）；`templatePickerMode.set("insert")` → `openModal("templates")`。
 - `app:new-note-from-template`（name `cmd.newNoteFromTemplate`）：无 available 门
   （不需要活动文件）；`templatePickerMode.set("create")` → `openModal("templates")`。
@@ -6932,7 +6932,7 @@ export function evaluateSearch(expr: SearchExpr, input: SearchInput): SearchOutc
    （`content:#todo` 搜正文字面 `#todo`，不退化为 tag 词；R21 评审修订）；
    `tag:` 操作数照常剥前导 `#`。
 3. **默认口径**：裸词 field="default" = **content ∪ basename**（任一命中即命中，
-   basename 命中参与排序加权——Geode R1 以来既有 UX，保留；与官方 content-only
+   basename 命中参与排序加权——ADKM R1 以来既有 UX，保留；与官方 content-only
    倾向的差异记显式偏差）。**例外：`line:` 作用域内 default 词只看行内 content**
    ——否则文件名命中会让同行约束对裸词退化（R21 评审上报后冻结）。文本默认
    大小写不敏感（官方同口径）；正则按书写形态（无隐式 `i`）。
@@ -7011,7 +7011,7 @@ Build+a+theme + Reference/CSS+variables/*，2026-06-12 WebFetch）：
   border/border-hover/border-focus/form-field/error）、`--text-normal/muted/faint/
   on-accent/accent/accent-hover/error/selection/highlight-bg`、`--interactive-
   normal/hover/accent/accent-hover`、`--accent-h/s/l`、`--caret-color`。
-- **关键事实（探查确认）**：Geode 调色板本就镜像 Obsidian 默认主题观感
+- **关键事实（探查确认）**：ADKM 调色板本就镜像 Obsidian 默认主题观感
   （#1e1e1e/#262626/#2a2a2a/#363636/#dadada 即 Obsidian dark base 色板），且
   `--text-normal/--text-muted/--text-faint/--text-on-accent/--text-highlight-bg`
   五个变量**直接同名**——桥接面小于预期。
@@ -7021,7 +7021,7 @@ Build+a+theme + Reference/CSS+variables/*，2026-06-12 WebFetch）：
 - **零新 npm 依赖**。Rust 新增一条通用命令 `vault_list_config_dir`（chief 落地，
   见下）；无其他 Rust 改动。
 - **三层结构**：① 变量桥（bridge）= 注入式样式表：Obsidian 基础变量默认值
-  （字面量 = Geode 现值，**零视觉变化承诺**）+ Geode 变量 repoint 到 Obsidian
+  （字面量 = ADKM 现值，**零视觉变化承诺**）+ ADKM 变量 repoint 到 Obsidian
   变量；② 类名对齐 = 常驻 DOM class 子集（不随开关增删，无主题 CSS 时惰性）；
   ③ 加载链 = appearance.json 读写 + theme.css / snippets 注入。
 - **总开关**（设置页 "Obsidian CSS"，默认 **开**）：localStorage
@@ -7032,9 +7032,9 @@ Build+a+theme + Reference/CSS+variables/*，2026-06-12 WebFetch）：
 - **CSS 信任口径（记录）**：theme.css/snippet 是用户自装的任意 CSS，可经
   url()/@import 发起网络请求——与社区插件同级信任（Obsidian 同口径），不消毒
   不拦截。路径安全由 Rust `safe_join_obsidian` 兜底（`.obsidian/` 禁越界）。
-- **主题色调跟随 Geode**：theme.css 同时带 .theme-dark/.theme-light 两套作用域，
-  body 类随 Geode 主题切换自动选边；appearance.json 的 `theme`（base 色调）与
-  `accentColor` 键**忽略**（Geode 自有主题/accent 设置，缺口记录）。
+- **主题色调跟随 ADKM**：theme.css 同时带 .theme-dark/.theme-light 两套作用域，
+  body 类随 ADKM 主题切换自动选边；appearance.json 的 `theme`（base 色调）与
+  `accentColor` 键**忽略**（ADKM 自有主题/accent 设置，缺口记录）。
 
 ### Rust: `vault_list_config_dir`（chief 已落地）
 
@@ -7115,7 +7115,7 @@ export function setObsidianSnippet(name: string, on: boolean): Promise<void>;
 拷贝；CSS 同步块成对注释 `/* OBSIDIAN-BRIDGE-PALETTE-BEGIN */` … `-END`，
 app.css 变量节加对应注释提示改动须同步）：
 
-| Obsidian 变量 | dark（= Geode 现值） | light |
+| Obsidian 变量 | dark（= ADKM 现值） | light |
 |---|---|---|
 | `--background-primary` | `#1e1e1e`（--bg-app） | `#f5f5f5` |
 | `--background-primary-alt` | `#1c1c1c`（--bg-input） | `#fafafa` |
@@ -7142,7 +7142,7 @@ app.css 变量节加对应注释提示改动须同步）：
 | `--background-modifier-error` | `#e06c75`（--danger） | `#d04848` |
 | `--caret-color` | `var(--interactive-accent)`（消费侧 cmExtensions `caretColor: var(--caret-color, var(--accent))`——桥开恒等 accent，主题覆写生效） | 同左 |
 
-**② Geode 变量 repoint**（`body` 作用域——元素级覆盖 html[data-theme] 定义，
+**② ADKM 变量 repoint**（`body` 作用域——元素级覆盖 html[data-theme] 定义，
 无环：桥默认值全为字面量）：`--bg-app: var(--background-primary)`、
 `--bg-panel: var(--background-secondary)`、`--bg-panel-alt:
 var(--background-secondary-alt)`、`--bg-input: var(--background-modifier-
@@ -7155,7 +7155,7 @@ var(--text-error)`、`--code-bg: var(--code-background)`、`--link-unresolved:
 var(--link-unresolved-color)`。**不 repoint**（无精确对应物，零视觉变化承诺
 优先，缺口记录）：`--bg-modal`、`--shadow-modal`、`--accent-muted`、
 `--callout-*`。
-**字体钩子**：`body { font-family: var(--font-text-theme, <Geode 现默认栈
+**字体钩子**：`body { font-family: var(--font-text-theme, <ADKM 现默认栈
 字面量>) }`（主题设 `--font-text-theme` 即生效；--font-interface/-monospace
 不接，记录）。
 
@@ -7198,7 +7198,7 @@ var(--link-unresolved-color)`。**不 repoint**（无精确对应物，零视觉
   R3 末战略口径）。
 - compat 插件注入的 styles.css 与本层共存：插件样式在前（loader 既有时序），
   主题在后——同特异性主题胜（Obsidian 实际加载序同向）。
-- 桥 repoint 后 Geode 变量经一层 var() 间接——DevTools 里追值多一跳（记录，
+- 桥 repoint 后 ADKM 变量经一层 var() 间接——DevTools 里追值多一跳（记录，
   非缺陷）。
 - E2E（浏览器）：开关恒等断言（无主题时桥开/关计算样式一致）、fixture 主题
   变量穿透（--background-primary → .editor-pane 计算背景）、dark/light 切换
@@ -7275,7 +7275,7 @@ Review: 4 维（变量桥与层叠 / 注入与路径安全 / 生命周期与并�
 - 已知限制（记录）：appearance.json 写入沿用 `vault_write_config` 非原子
   fs::write（崩溃窗口可留半文件；F-01 修复保证后续操作不会再放大为键丢失，
   原子化留 R21+）；桥变量 `--text-accent`/`--interactive-normal`/
-  `--interactive-hover` 等暂无 Geode 消费者（主题引用它们可正常解析——
+  `--interactive-hover` 等暂无 ADKM 消费者（主题引用它们可正常解析——
   仅作默认值面，与真实 Obsidian 的消费深度有差距，逐步对齐口径）。
 
 浏览器 E2E（dev :1420 + Playwright，.calibration/r20-e2e.mjs）33/33：恒等
@@ -7470,7 +7470,7 @@ Review: 4 维（管线正确性 / 注入安全 / 水合生命周期 / 分层契�
   队列兜底——该依赖现已在 hydrateMermaid 注释与本节显式化；升级 mermaid 或
   改用 mermaidAPI.render 时须复核）。
 
-桌面 release（v0.19.0 `geode.exe compat-vault`）实测结果见 OBSIDIAN-COMPAT R19
+桌面 release（v0.19.0 `adkm.exe compat-vault`）实测结果见 OBSIDIAN-COMPAT R19
 套件回归节。浏览器 E2E（dev :1420 + AppHandle 探针）：合法图 SVG 渲染 ✓、
 非法图 `.geode-mermaid-error` 保源码 ✓、`class A internal-link` 节点
 data-target + 点击 openWikilink 跳转 ✓、js fence 字节不变 ✓、mermaid chunk
@@ -7744,7 +7744,7 @@ features/editor/livePreview.ts：
   范围外）；真正嵌套 callout 自身首行可能同时带 quoteline + callout-line（只剥一层范围内，罕见）；
   `katex-css.d.ts` 登记入所有权表（CONTRACT-05，见上）。
 
-桌面 release（v0.18.0 `geode.exe compat-vault` 真实文件系统）：R18 双视图实测 17/17 全绿
+桌面 release（v0.18.0 `adkm.exe compat-vault` 真实文件系统）：R18 双视图实测 17/17 全绿
 （阅读 callout/`<mark>`/脚注 seq-id/inline+block KaTeX 0 error/注释隐藏/货币字面；live setext
 下划线完整/`foo $$x$$ bar` 不误渲染/嵌套 callout 外层 quote/`[[a==b==c]]` 完整/2 math widget
 KaTeX）；套件 5/5 + nldates 指令条 + reload 幂等 + 回声 suppressed4/external2 不回退；r17
@@ -7835,7 +7835,7 @@ export async function importAttachment(
 
 ```ts
 /** CM 扩展：EditorView.domEventHandlers({ paste, drop })。 */
-export function attachmentIngest(app: GeodeApp, getPath: () => string): Extension;
+export function attachmentIngest(app: ADKMApp, getPath: () => string): Extension;
 ```
 
 - **paste**：`clipboardData.items` 中 `kind === "file"` 且 type 以 `image/` 开头的
@@ -8051,7 +8051,7 @@ export async function renameWithLinkUpdate(
      **修订（chief，浏览器实测发现）**：判定按 target 形态走严格语义——含 "/" 的
      path-form target 仅当与 newFile **精确路径相等**（大小写不敏感）才算存活；
      resolveLink 的 basename 兜底会掩盖过期路径前缀（字节错了、Obsidian 打开即断，
-     虽然 Geode 导航碰巧能走）。basename-form 维持 lenient 判定。
+     虽然 ADKM 导航碰巧能走）。basename-form 维持 lenient 判定。
    - **新 target 文本（风格保持 + fileToLinktext 消歧）**：原 target 含 "/" → 新全
      路径（md 去 .md 后缀，附件含扩展名）；否则新 basename。生成后**消歧校验**：
      resolve(新 target, R) === newFile 不成立 → 退全路径再校验；仍不成立 → 该文件
@@ -8137,7 +8137,7 @@ R14 记录的缺口：target 为空的 `[[#Heading]]`/`[[#^id]]` 解析为当前
 ### 口径（零代码，记录）
 
 - 改写只针对 wikilink `[[...]]`/`![[...]]` 形态；markdown 标准链接 `[text](note.md)`
-  不在 Geode 解析面内（R1 起现状），不改写——缺口表记录。
+  不在 ADKM 解析面内（R1 起现状），不改写——缺口表记录。
 - `[[A.md]]` 带扩展名形态被改写后统一为不带 .md 的新形态（Obsidian linktext 规则）。
 - 重命名导致**其他文件的** basename 链接被新文件"劫持"（同名优先级变化）不处理
   ——Obsidian 同样不处理（basename 链接固有语义）。
@@ -8704,15 +8704,15 @@ closeMissingFileTabs(exists: (path: string) => boolean): number;
 与 R8 Command.name 同模式：
 
 ```ts
-// GeodePlugin:
+// ADKMPlugin:
 name: string | (() => string);
 description?: string | (() => string);
 // core/plugins.ts exports:
-export function getPluginName(p: GeodePlugin): string;
-export function getPluginDescription(p: GeodePlugin): string | undefined;
+export function getPluginName(p: ADKMPlugin): string;
+export function getPluginDescription(p: ADKMPlugin): string | undefined;
 ```
 
-- `isGeodePlugin` 校验放宽为 string|function；compat（manifest.name）与外部插件传
+- `isADKMPlugin` 校验放宽为 string|function；compat（manifest.name）与外部插件传
   字符串不受影响。显示点全部改经 getter：SettingsModal 插件名/描述/设置块标题/
   toggle aria-label（grep `plugin.name` 全仓确认无残留直读）。
 - 内置三插件 name/description 改 thunk，键 `plugin.*` 进 dict.app.ts（en/zh，
@@ -8864,7 +8864,7 @@ updater-security / data-safety / contract-layering dimensions returned ZERO find
   updater keypair therefore MUST have a password (regenerated; password in
   DISTRIBUTION.md, rotate before public release).
 - Desktop E2E verified the FULL chain (running 0.8.5 app → check → download → minisign
-  verify → NSIS passive install to %LOCALAPPDATA%\Geode → auto-relaunch as v0.9.0) plus
+  verify → NSIS passive install to %LOCALAPPDATA%\ADKM → auto-relaunch as v0.9.0) plus
   two negative cases: corrupted-encoding signature and validly-encoded-but-wrong
   signature both fail inline ("Invalid encoding in minisign data" / "The signature
   verification failed") with the app alive.
@@ -9539,7 +9539,7 @@ App shell (`app/App.tsx`):
 - `addSidebarPanel`'s disposer removes by object identity, not id.
 - `WorkspaceLeaf.openFile` maps `openState.state?.mode ?? openState.mode`
   ("source"/"preview") onto `setTabMode`; anything else keeps the live default.
-- `GeodePlugin.onUserEnable?()` exists on the core interface;
+- `ADKMPlugin.onUserEnable?()` exists on the core interface;
   `PluginManager.enable(id, { userAction: true })` (the SettingsModal toggle) calls it
   after a successful onload — the loader wrapper forwards to the obsidian instance
   (recent-files auto-mounts its view on user enable via `ensureSideLeaf`).
@@ -9665,7 +9665,7 @@ Internal layout is the implementor's choice within `src/compat/`; fixed points:
 - `loader.ts`: discover → validate manifest (missing id/name/version rejects; other gaps warn;
   minAppVersion > apiVersion warns, never blocks) → evaluate main.js as CommonJS
   (`exports.default ?? module.exports`, must be a constructor) → `new Ctor(appShim, manifest)`
-  → wrap as a GeodePlugin record `register(wrapper, "obsidian", { enabled, persistEnabled })`.
+  → wrap as a ADKMPlugin record `register(wrapper, "obsidian", { enabled, persistEnabled })`.
   Enabled state mirrors `.obsidian/community-plugins.json` (flat id array; preserve unknown ids
   on write). styles.css injected per plugin on enable, removed on disable.
 - require map: `obsidian` → shim; `@codemirror/state|view|language|commands|search|autocomplete`,
@@ -9687,7 +9687,7 @@ Internal layout is the implementor's choice within `src/compat/`; fixed points:
 
 ### Bootstrap wiring (main.tsx / App.tsx)
 
-`DocumentManager` is created in bootstrap and exposed as `app.documents` (AppHandle + GeodeApp);
+`DocumentManager` is created in bootstrap and exposed as `app.documents` (AppHandle + ADKMApp);
 its `flushAll` is registered as a workspace flusher. After `plugins.loadExternal(vault)` the shell
 calls `loadObsidianPlugins(app, vault)`; the reload-plugins command re-runs both.
 

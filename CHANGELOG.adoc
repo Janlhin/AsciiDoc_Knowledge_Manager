@@ -35,7 +35,7 @@
 === 不兼容变更
 
 * **交付形态**：VS Code 扩展（首期）+ 桌面应用（长期）→ **桌面应用即为首期**。原 §6「VS Code 插件设计」整章删除。
-* **实现策略**：从零构建核心引擎 → **以 Geode 为底座 fork 后增量扩展**。
+* **实现策略**：从零构建核心引擎 → **以 ADKM 为底座 fork 后增量扩展**。
 * **技术栈**：TypeScript + 待定桌面壳 → **Tauri 2 + React 19 + TypeScript 7 + CodeMirror 6 + vite-plus**。
 * **格式定位**：AsciiDoc 为核心、MD/TXT 附带 → **Markdown 与 AsciiDoc 双一等公民**。
 * **产品价值**：双向链接与关系图谱 → **跨格式引用完整性校验优先**。

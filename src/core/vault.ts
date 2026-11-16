@@ -689,7 +689,7 @@ Hub notes like [[Welcome]] grow bigger as more notes link to them.
 
 #guide
 `,
-  "Projects/Geode Roadmap.md": `# Geode Roadmap
+  "Projects/ADKM Roadmap.md": `# ADKM Roadmap
 
 ## Now
 - Core editing experience — see [[Markdown Syntax]]

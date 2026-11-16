@@ -19,7 +19,7 @@ export function reportGap(scope: string, api: string, detail?: string): void {
   if (warnedKeys.has(key)) return;
   warnedKeys.add(key);
   console.warn(
-    `[obsidian-compat] ${scope}: "${api}" is not implemented in Geode${detail ? ` — ${detail}` : ""}`,
+    `[obsidian-compat] ${scope}: "${api}" is not implemented in ADKM${detail ? ` — ${detail}` : ""}`,
   );
   pending.push({ scope, api, detail });
 }

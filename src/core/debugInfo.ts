@@ -25,7 +25,7 @@ export interface DebugInfoInput {
 export function buildDebugInfo(info: DebugInfoInput): string {
   const enabled = info.plugins.filter((p) => p.enabled);
   return [
-    "Geode debug info:",
+    "ADKM debug info:",
     `Version: ${info.version}`,
     `Platform: ${info.platform}`,
     `Locale: ${info.locale}`,

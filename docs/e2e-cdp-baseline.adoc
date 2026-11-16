@@ -20,7 +20,7 @@ node tests/e2e/run.mjs --prepare /tmp/geode-e2e-vault
 
 # 2) 用调试端口启动 release 版，指向该 vault
 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222 \
-  ./src-tauri/target/release/geode.exe /tmp/geode-e2e-vault
+  ./src-tauri/target/release/adkm.exe /tmp/geode-e2e-vault
 
 # 3) 另一个终端跑用例
 npm run test:e2e
