@@ -218,6 +218,13 @@ async function readZipEntries(file) {
 
 /** Write the fixture notes into a throwaway vault directory. */
 async function prepareVault(dir) {
+  // Start from a clean directory: the raw-binary case copies a 40 MB PDF, and a
+  // previous implementation let those copies accumulate until the backup ZIP hit
+  // the single-argument IPC limit and silently produced a 0-byte archive.
+  if (!/[\\/]e2e-vault/.test(dir)) {
+    throw new Error(`refusing to wipe a non-E2E directory: ${dir}`);
+  }
+  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "E2E-Note.md"), NOTE_A, "utf-8");
   writeFileSync(path.join(dir, "E2E-Other.md"), NOTE_B, "utf-8");
@@ -397,7 +404,7 @@ async function attach() {
   } catch {
     throw new Error(
       `CDP port ${port} is not open. Start the app first://n` +
-      `  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=${port} ./src-tauri/target/release/geode.exe "<vault>"\n` +
+      `  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=${port} ./src-tauri/target/release/adkm.exe "<vault>"\n` +
       `Then re-run: node tests/e2e/run.mjs --port=${port}`,
     );
   }
@@ -1064,9 +1071,15 @@ async function main() {
     return `${freshTabs} tab(s) in a fresh window; ${restored} restored after switching back`;
   });
 
-  // ---- 16. T-061: a large PDF must not be read during startup ------------
+  // ---- 16. Q-007/D-034: click-to-load by default, setting can switch to auto ----
   await runCase("pdf-startup-gate", async () => {
-    // earlier cases may have left the docs folder expanded — only toggle when closed
+    // A fresh profile has no override; Q-007 default must be onDemand.
+    await c.evaluate(`localStorage.removeItem("adkm.heavyLoadMode")`);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
+    const defaultMode = await c.evaluate(`localStorage.getItem("adkm.heavyLoadMode")`);
+    assert(defaultMode === null, `a fresh profile should have no override, got ${defaultMode}`);
+
     const smallVisible = () => c.evaluate(
       `!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]')`,
     );
@@ -1078,19 +1091,41 @@ async function main() {
 
     assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]'),
       "could not open scan-small.pdf");
-    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 15000,
-      "a small PDF still mounts (deferred past the boot paint)");
-
-    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
-      "could not open scan-big.pdf");    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 15000,
-      "the 40 MB PDF is gated behind a button");
-    const embeds = await c.evaluate(`document.querySelectorAll('[data-testid="attachment-pdf"]').length`);
-    assert(embeds === 0, `a gated PDF must not create an <embed> before the user asks (got ${embeds})`);
-
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 15000,
+      "the default onDemand mode gates a small PDF too");
     assert(await c.click('[data-testid="attachment-pdf-load"]'), "the gate has no load button");
     await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
       "clicking load mounts the PDF");
-    return "small PDF mounts after paint; a 40 MB PDF waits for an explicit load";
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not open scan-big.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 20000,
+      "the 40 MB PDF is gated in onDemand mode");
+
+    // Switch to auto through the REAL settings UI, then reload and reopen.
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "设置");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "settings command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid^="settings-section-"]')`, 8000, "settings modal");
+    assert(await c.click('[data-testid="settings-nav-startup"]'), "no startup nav item");
+    await c.waitFor(`!!document.querySelector('[data-testid="settings-section-startup"]')`, 8000,
+      "startup settings section");
+    assert(await c.click('[data-testid="settings-heavy-load-radio-auto"]'), "no auto radio in settings");
+    await c.key("Escape", "Escape", 27, 0);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`,
+      20000, "explorer restored after reload");
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not reopen scan-big.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
+      "auto mode mounts the 40 MB PDF without a click");
+
+    // Leave auto for the following EPUB/DOCX cases; the product default remains onDemand.
+    return "default onDemand gates PDFs; settings auto mounts the same 40 MB PDF";
   });
 
   // ---- 17. T-061: EPUB TOC + reading position survive a restart -----------
@@ -1127,6 +1162,11 @@ async function main() {
   // A restored large PDF used to block the renderer for 72+151 ms. The gate made
   // that zero; this case keeps it zero by summing animation-frame gaps during boot.
   await runCase("pdf-restore-no-stall", async () => {
+    // Q-007 default is auto; set onDemand explicitly so this case keeps guarding
+    // the click-to-load path instead of measuring an intentional auto load.
+    await c.evaluate(`localStorage.setItem("adkm.heavyLoadMode", "onDemand")`);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
     if (!(await c.evaluate(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`))) {
       await c.click('[data-testid="explorer-item"][data-path="docs"]');
       await sleep(500);
@@ -1159,6 +1199,10 @@ async function main() {
       return `boot blocked ${blocked} ms (${gaps.length} frames >50 ms); 40 MB PDF still behind the gate`;
     } finally {
       await c.call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+      // leave auto for the following EPUB/DOCX cases; onDemand is the product default
+      await c.evaluate(`localStorage.setItem("adkm.heavyLoadMode", "auto")`);
+      await c.call("Page.reload", { ignoreCache: false });
+      await sleep(2500);
     }
   });
 
