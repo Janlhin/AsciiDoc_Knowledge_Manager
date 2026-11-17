@@ -779,6 +779,51 @@ fn export_write_binary(path: String, data: String) -> CmdResult<()> {
         })
 }
 
+/// Chunked export (T-057 follow-up): a 440 MB archive sent as one base64
+/// argument silently landed as a 0-byte file. Begin/append/finish keeps each
+/// IPC message bounded and still uses a sibling temp + rename on finish.
+fn export_tmp_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let abs = Path::new(path);
+    if !abs.is_absolute() {
+        return Err(format!("export path must be absolute, got '{path}'"));
+    }
+    let mut tmp_name = abs.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+    tmp_name.push(".geode-export.tmp");
+    Ok(abs.with_file_name(tmp_name))
+}
+
+#[tauri::command(async)]
+fn export_begin_binary(path: String) -> CmdResult<()> {
+    let tmp = export_tmp_path(&path)?;
+    fs::write(&tmp, b"").map_err(|e| format!("export_begin_binary {path}: {e}"))
+}
+
+#[tauri::command(async)]
+fn export_append_binary(path: String, data: String) -> CmdResult<()> {
+    use base64::Engine as _;
+    use std::io::Write as _;
+    let tmp = export_tmp_path(&path)?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| format!("export_append_binary: bad base64: {e}"))?;
+    let mut f = fs::OpenOptions::new()
+        .append(true)
+        .open(&tmp)
+        .map_err(|e| format!("export_append_binary {path}: {e}"))?;
+    f.write_all(&bytes)
+        .map_err(|e| format!("export_append_binary {path}: {e}"))
+}
+
+#[tauri::command(async)]
+fn export_finish_binary(path: String) -> CmdResult<()> {
+    let tmp = export_tmp_path(&path)?;
+    let abs = Path::new(&path);
+    fs::rename(&tmp, abs).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("export_finish_binary {path}: {e}")
+    })
+}
+
 /// List backup archives in an ABSOLUTE directory, sorted by name (the timestamp
 /// is in the name, so name order is chronological). Only files matching the
 /// backup-name contract are returned; anything else in the folder is ignored.
@@ -1130,6 +1175,9 @@ fn main() {
             http_request,
             export_write,
             export_write_binary,
+            export_begin_binary,
+            export_append_binary,
+            export_finish_binary,
             export_list_backups,
             export_delete_backup,
             secret_set,

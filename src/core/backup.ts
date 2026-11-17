@@ -247,12 +247,23 @@ export function tauriBackupIO(): BackupIO {
   };
   return {
     writeBinary: async (absolutePath, bytes) => {
-      let binary = "";
-      const CHUNK = 0x8000;
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      // A whole-vault archive can be hundreds of MB. A single base64 argument of
+      // that size silently produced a 0-byte file in the real app (measured with
+      // a 440 MB fixture), so stream it in bounded chunks and append in Rust.
+      await invoke<void>("export_begin_binary", { path: absolutePath });
+      const CHUNK = 4 * 1024 * 1024;
+      for (let offset = 0; offset < bytes.length; offset += CHUNK) {
+        const end = Math.min(bytes.length, offset + CHUNK);
+        let binary = "";
+        for (let i = offset; i < end; i += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, end)));
+        }
+        await invoke<void>("export_append_binary", {
+          path: absolutePath,
+          data: btoa(binary),
+        });
       }
-      await invoke<void>("export_write_binary", { path: absolutePath, data: btoa(binary) });
+      await invoke<void>("export_finish_binary", { path: absolutePath });
     },
     listBackups: (dir) => invoke<string[]>("export_list_backups", { dir }),
     deleteBackup: (absolutePath) => invoke<void>("export_delete_backup", { path: absolutePath }),
