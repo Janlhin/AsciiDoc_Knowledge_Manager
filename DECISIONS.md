@@ -627,3 +627,15 @@
 - **工具**：`scripts/graph-scale-bench.ts`（`npm run bench:graph-scale`）、`scripts/graph-scale-webgl.html`（浏览器绘制对照，手工用静态服务器打开）。
 - **未做**：没有修改生产 `GraphView`；没有把 `RENDER_CAP` 从 3000 调到 800；没有做 GPU 力导原型；渲染测试不是 Tauri WebView2 内的直接测量。
 - **复审条件**：节点数 ≥2000 且实际绘制 >16ms，或用户明确要求 10 万级分析视图；先用同一套脚本复测再决定。
+
+## D-037 GPU 图谱原型：WebGL2 跑 10 万节点，但“跑满显卡”不是目标
+
+- **日期**：2026-11-17
+- **状态**：**原型完成；生产 GraphView 未替换**。
+- **背景**：用户要求把图谱换到 GPU，目标是 10 万节点级别。WebGPU 在当前 Edge/Chromium 中不可用（`navigator.gpu` 为 false），因此选择 **WebGL2 + RGBA32F 浮点纹理 ping-pong**。
+- **原型**：`scripts/graph-scale-webgl-layout.html`（静态页）。状态纹理存 `(x,y,vx,vy)`；片元着色器做近似力导（每节点 32 个随机斥力样本 + 最多 2 个边邻居 + 向心），顶点着色器从纹理取位置渲染点与边；无 CPU 每帧回读。
+- **实测（Edge Chromium，RTX 5080，1200×800，10 万节点/20 万边）**：**164.1 fps**，平均 **6.09ms/帧**，p95 **6.2ms**，>20ms 坏帧 0。GPU 采样：平均 **14%**、峰值 **49%**、显存峰值约 **2.3GB**（含 Edge）。
+- **结论**：GPU 能轻松撑住 10 万节点的**近似布局 + 渲染**；但显卡没有被跑满，因为图谱计算量本身不足以占满 5080，且 165fps 受 vsync 限制。**不应为了“跑满”人为增加无效计算**。
+- **精度/产品缺口（未做）**：32 个随机样本不是 Barnes-Hut，边与斥力的视觉质量与 d3-force 不等价；没有标签、点击拾取、拖拽、过滤、局部图、搜索与数据同步；没有接入生产 `GraphView`；没有 Tauri WebView2 内的直接 FPS 测量（Edge 与 WebView2 同为 Chromium/ANGLE，但非同一进程）。
+- **如果转生产**：需要先做空间网格/近邻查询（或 GPU 端 Barnes-Hut）、GPU 位置回读/拾取、标签 LOD、与 `GraphData`/筛选/局部图的接线、WebGL 失败回退；这是一轮独立特性，不是换 canvas。
+- **复审条件**：节点 ≥2000 且现有 Canvas 绘制 >16ms，或用户明确要“10 万级分析视图”；先用 `scripts/graph-scale-webgl-layout.html?n=100000&frames=600` 复测。
