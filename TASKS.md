@@ -13,7 +13,7 @@
 - **关键结论**：仓库**没有任何 Web Worker**；大文件链上**传输比解析更贵**——144 MB 二进制的 JS 侧解码实测 `atob` 106 ms + 逐字节循环 216 ms ≈ **322 ms**（中间字符串 2.01 亿字符），因为 `vault_read_binary` 走 base64 字符串 + 前端逐字节还原。
 - **分期**：P0-1 二进制 IPC 改原始字节（`tauri::ipc::Response`）；P0-2 EPUB/PPTX 解压移到 Rust；P0-3 备份 ZIP 移到 Rust；P1 docx/xlsx/asciidoctor/索引进 Worker；P2 图谱布局进 Worker + 采样。
 - **完成判据（每期各自）**：改前/改后同夹具的 rAF 帧间隔与阶段耗时；不得恶化 FCP；E2E 增加对应断言。
-- **状态**：**P0-1 已实施（D-031）；P1-3（AsciiDoc Worker）已实施（D-032）**。P0-2 因新增 `zip` crate 撞硬边界 #5、待用户放行；P0-3 / P1 其余项 / P2 未实施。见 `docs/main-thread-audit.adoc`。
+- **状态**：**P0-1（D-031）、P1-1/P1-2（D-033）、P1-3（D-032）已实施**。P0-2 因新增 `zip` crate 撞硬边界 #5、待用户放行；P0-3 / P2 未实施。见 `docs/main-thread-audit.adoc`。
 
 ### T-061 EPUB 阅读器补全：目录 + 翻页 + 阅读位置（D-030）
 

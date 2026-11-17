@@ -564,3 +564,19 @@
 - **验证**：`npm run verify` 0；`npx tauri build --no-bundle` 成功；真机 E2E **22/22**（`adoc-worker-offthread`：Worker active、HTML 一致）；`--self-check` OK。
 - **诚实缺口**：Worker 失败后的页内回退仍占主线程；转换总耗时未下降（47 vs 38 ms）；未做 docx/xlsx/索引的 Worker 化（P1 其余项）；EPUB/PPTX 解压仍在 JS 主线程（P0-2，待依赖授权）。
 - **复审条件**：若用户要的是**可测量的卡顿降低**而非 CPU 卸载，需先给出可复现的卡顿场景和基线，再决定是否值得继续搬；单纯把更多东西丢进 Worker 不自动等于更快。
+
+## D-033 DOCX/XLSX 解析进 Worker：CPU 卸载，不宣称提速
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-062 / P1-1 + P1-2）。
+- **决策**：DOCX 用 `docx.worker.ts` 持有 mammoth 的 `convertToHtml`；XLSX 用 `xlsx.worker.ts` 持有 SheetJS 的 `read` + `sheet_to_json`。两条都在组件侧保留 id 路由、Worker 失败回退页内解析；XLSX 的网格渲染与显式 Save（序列化）仍在主线程——前者依赖 DOM，后者是用户动作，不自动写盘的安全边界不变。
+- **背景**：用户要求「全场景支持多核」，并明确继续做。P0-2 仍需新增 `zip` crate、未获签字，故继续零新依赖的 P1。
+- **实测（同一构建、真机 CDP）**：DOCX Worker 46 ms vs 页内 9 ms、HTML 一致；XLSX Worker 25 ms vs 页内 18 ms、1 个 sheet、数据一致。**这些数字不证明提速**；测量目的是证明 CPU 工作确实发生在 Worker 且产出等价。小文件里启动/序列化开销会盖过解析成本。
+- **被否决的替代方案**：
+  - *把 x-data-spreadsheet 网格也搬进 Worker*：否决理由——它直接操作 DOM，无法在 Worker 运行；强行 OffscreenCanvas 等于换组件。
+  - *把 Save 序列化也搬进 Worker*：本轮不做——保存路径涉及 `vault.modifyBinary` 与显式用户意图，保持简单可审计；若未来量出保存卡顿再开独立片。
+  - *新增 zip crate 先做 P0-2*：仍因硬边界 #5 未获放行。
+- **影响范围**：`src/features/attachment/docx.worker.ts`（新增）、`xlsx.worker.ts`（新增）、`DocxPreview.tsx`、`XlsxPreview.tsx`、`src/main.tsx`（两个对照探针）、`tests/e2e/run.mjs`（新增 docx/xlsx 夹具与两条用例；新增 `--only=<case>` 过滤能力用于隔离用例）。
+- **验证**：`npm run verify` 0；`npx tauri build --no-bundle` 成功；真机 E2E **24/24**；`--self-check` 23/24 且 outline 用例按预期变红。
+- **诚实缺口**：Worker 启动与结构化克隆仍有成本；大文件的收益未被专门量化（夹具为 120 段 docx / 300 行 xlsx）；Save 序列化仍占主线程；docx/xlsx 两个 Worker 同时存在但未做并发压测。
+- **复审条件**：若用户提供真实大 docx/xlsx 并报告卡顿，先用 `--only` 单用例和对照探针量化，再决定是否扩大夹具或移动 Save。
