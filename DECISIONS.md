@@ -531,3 +531,19 @@
   - *引入第三方 EPUB 阅读器组件*：否决理由——新增运行期依赖需 Q-005 放行，且现方案的缺口只是 UI 与持久化，不需要换引擎。
 - **影响范围**：`src/core/epubNav.ts`（新增：拍平/比较/位置存取/百分比）、`src/features/attachment/EpubPreview.tsx`（重写：TOC、翻页、恢复、去抖保存）、`src/core/i18n/dict.views.ts`（4 键 en/zh）、`src/styles/app.scss`（工具栏/侧栏/高亮）、`tests/epubNav.test.ts`（9 用例）、`tests/epub-preview.test.tsx`（mock 补 `getVaultPath`）、`tests/e2e/run.mjs`（新增真实 EPUB 夹具 + 第 17 条 `epub-toc-progress`）。
 - **诚实缺口**：位置按**机器+库**保存，不跨设备；CFI 依赖文件不变，换文件后只能回到第一页；TOC 层级缩进但不折叠（超长目录要滚动）；未做字号/主题/分栏偏好（epub.js 支持，但属另一片）；未做"全书搜索"（需 `locations.generate()` 或自定义索引，成本已知）。**复审条件**：若用户要求跨设备接续或全书搜索，先评估把 EPUB 解压搬进 Rust（D-029 的技术方向）再谈位置与索引，否则又会回到主线程卡顿。
+
+## D-031 原始字节 IPC：把文件内容的 base64 搬运税移出主线程
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-062 / P0-1）。
+- **决策**：桌面端 `vault_read_binary` 改为返回 `tauri::ipc::Response`（原始字节；前端拿到 `ArrayBuffer` 后直接 `new Uint8Array`），`vault_write_binary` / `vault_modify_binary` 改为接收 Tauri 原始 body（`tauri::ipc::Request`），vault 路径与相对路径放在 header（base64 编码 UTF-8，兼容中文路径）。**只对这两条短路径字符串编码，绝不编码文件内容。**
+- **背景（实测）**：旧链路 Rust 先 base64 编码，前端 `atob` + 逐字节循环；144 MB 文件在页面上实测 `atob` 106 ms + 循环 216 ms ≈ **322 ms** 主线程时间，外加 201,326,592 字符中间字符串。用户要求「全场景支持多核」，这是所有大文件场景的共同前置。
+- **被采纳方案**：Tauri 2 官方 `ipc::Response` 与 raw `Request` body；Rust 仍用 `#[tauri::command(async)]`，文件 IO 留在 worker 线程。MemoryVaultAdapter 与所有上层调用签名不变。
+- **被否决的替代方案**：
+  - *只在 Worker 里跑 `atob` + 循环*：否决理由——仍要在 Rust 编码、仍多出 33% 字符串体积和复制；原始字节是更短的链路。
+  - *用 Tauri Channel 分块流式传输*：否决理由——本轮目标是替换编码方式而非重新设计分块协议；大文件的按需读取要等 P0-2（Rust 解压/分章）。
+  - *把 base64 编码也移到 Rust 的多线程运行时*：否决理由——前端解码依旧在主线程，解决不了核心成本。
+- **影响范围**：`src-tauri/src/main.rs`（3 个命令 + 2 个头部/body 辅助函数）、`src/core/vault.ts`（TauriVaultAdapter 的 `invokeBinary` 与 3 个方法）、`tests/e2e/run.mjs`（新增第 19 条 `raw-binary-ipc`：40 MB 文件 read→write→read 字节一致且主线程帧间隔为 0）。
+- **验证**：`npm run typecheck` 0；`cargo check` 0；`npm test` 193 passed；`npm run build` 0；`npx tauri build --no-bundle` 产出 `adkm.exe`；真机 E2E **21/21**（`raw-binary-ipc`：40 MB 拷贝 976 ms、主线程阻塞 0 ms）；`--self-check` OK。
+- **诚实缺口**：**这不是「全场景多核」的完成态**。本项只消除传输编码成本；EPUB/PPTX 解压仍在 JS 主线程（P0-2），备份 ZIP 仍由 JSZip 在主线程生成（P0-3），docx/xlsx/asciidoctor/索引解析仍在 JS 主线程（P1），图谱布局仍在 JS 主线程（P2）。
+- **复审条件**：若 raw `Request` 在其它平台（macOS WKWebView / iOS）不能保留 header 或 body，应把 header 改成 command 参数并改走 Channel，再重开本条。
