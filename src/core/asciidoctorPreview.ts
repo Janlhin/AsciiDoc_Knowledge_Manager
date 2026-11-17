@@ -12,23 +12,77 @@
  * code paths are never hit by `convert(source, ...)`.
  */
 
-interface AdocModule {
-  convert(source: string, options?: Record<string, unknown>): Promise<string> | string;
+/*
+ * P1-3: the converter module runs in a dedicated worker. One worker is enough:
+ * the editor only renders the ACTIVE preview and stale results are ignored by
+ * the caller; requests are routed by id so a slow conversion cannot answer the
+ * wrong request. On environments without Worker (unit tests / older webviews)
+ * we fall back to the original in-page dynamic import so previews still work.
+ */
+interface WorkerResponse {
+  id: number;
+  html?: string;
+  error?: string;
 }
 
-let modulePromise: Promise<AdocModule> | null = null;
+let worker: Worker | null = null;
+let workerBroken = false;
+let nextId = 1;
+const pending = new Map<number, { resolve: (html: string) => void; reject: (err: Error) => void }>();
 
-function loadAsciidoctor(): Promise<AdocModule> {
-  if (!modulePromise) {
-    modulePromise = import("@asciidoctor/core")
-      .then((m) => m as unknown as AdocModule)
-      .catch((err: unknown) => {
-        // allow a later retry after a transient chunk-load failure
-        modulePromise = null;
-        throw err;
-      });
+function ensureWorker(): Worker | null {
+  if (workerBroken) return null;
+  if (worker) return worker;
+  if (typeof Worker === "undefined") return null;
+  try {
+    worker = new Worker(new URL("./asciidoctor.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const req = pending.get(event.data.id);
+      if (!req) return;
+      pending.delete(event.data.id);
+      if (typeof event.data.html === "string") req.resolve(event.data.html);
+      else req.reject(new Error(event.data.error ?? "AsciiDoc worker returned no HTML"));
+    };
+    worker.onerror = () => {
+      // fail all in-flight conversions; subsequent calls use the in-page fallback
+      workerBroken = true;
+      worker?.terminate();
+      worker = null;
+      for (const req of pending.values()) req.reject(new Error("AsciiDoc worker failed"));
+      pending.clear();
+    };
+    return worker;
+  } catch {
+    workerBroken = true;
+    return null;
   }
-  return modulePromise;
+}
+
+async function convertInWorker(source: string): Promise<string> {
+  const w = ensureWorker();
+  if (!w) throw new Error("worker unavailable");
+  const id = nextId;
+  nextId += 1;
+  return new Promise<string>((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    w.postMessage({ id, source });
+  });
+}
+
+async function convertInPage(source: string): Promise<string> {
+  const mod = (await import("@asciidoctor/core")) as unknown as {
+    convert(source: string, options?: Record<string, unknown>): Promise<string> | string;
+  };
+  return String(await mod.convert(source, {
+    standalone: false,
+    safe: "secure",
+    attributes: {
+      showtitle: true,
+      outfilesuffix: ".adoc",
+      icons: "font",
+      sectanchors: false,
+    },
+  }));
 }
 
 function escapeAttr(value: string): string {
@@ -98,30 +152,32 @@ let lastSource: string | null = null;
 let lastHtml: string | null = null;
 
 /** Render one AsciiDoc source string into an HTML fragment for the reading view. */
-export async function renderAsciiDocPreview(source: string): Promise<AsciiDocPreviewResult> {
-  if (source === lastSource && lastHtml !== null) {
+export async function renderAsciiDocPreview(
+  source: string,
+  options: { forceInPage?: boolean; skipCache?: boolean } = {},
+): Promise<AsciiDocPreviewResult> {
+  if (!options.skipCache && source === lastSource && lastHtml !== null) {
     return { html: lastHtml, elapsedMs: 0 };
   }
   const t0 = performance.now();
-  const mod = await loadAsciidoctor();
-  const raw = await mod.convert(source, {
-    standalone: false,
-    // "secure" disables include:: and file-reading attributes. The browser
-    // build has node:fs externalized anyway, so include could never work here.
-    safe: "secure",
-    attributes: {
-      // show the `= Title` as an <h1> in the fragment (standalone:false omits it)
-      showtitle: true,
-      // keep .adoc targets instead of rewriting them to .html
-      outfilesuffix: ".adoc",
-      icons: "font",
-      sectanchors: false,
-    },
-  });
-  const html = localizeLinks(sanitizeHtml(String(raw)));
+  let raw: string;
+  try {
+    raw = options.forceInPage ? await convertInPage(source) : await convertInWorker(source);
+  } catch {
+    // Worker creation/module load can fail in restricted webviews; the preview
+    // must still render (with the old thread profile) rather than show an error.
+    raw = await convertInPage(source);
+  }
+  const html = localizeLinks(sanitizeHtml(raw));
   lastSource = source;
   lastHtml = html;
   return { html, elapsedMs: performance.now() - t0 };
+}
+
+/** True when conversions are currently handled by the off-thread worker.
+ *  Exposed for the perf probe so an E2E case can prove which path ran. */
+export function isAsciiDocWorkerActive(): boolean {
+  return worker !== null && !workerBroken;
 }
 
 /** True when the path should use the AsciiDoc reading-view pipeline. */

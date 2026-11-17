@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: twenty-one high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twenty-two high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -231,6 +231,18 @@ async function prepareVault(dir) {
   writeFileSync(path.join(dir, "docs", "partials", "intro.adoc"), DOC_INTRO, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-a.adoc"), DOC_CYCLE_A, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-b.adoc"), DOC_CYCLE_B, "utf-8");
+  // P1-3: a large AsciiDoc source for the worker-vs-main-thread probe. Kept
+  // generated (not committed as a fixture) because it is only a load shape.
+  writeFileSync(
+    path.join(dir, "docs", "big-preview.adoc"),
+    `= Large AsciiDoc\n\n` +
+      Array.from(
+        { length: 500 },
+        (_, i) =>
+          `== Section ${i}\n\nParagraph ${i}: *bold*, _italic_ and link:https://example.com[external] with \`code\`.\n\n- item one\n- item two\n\n`,
+      ).join(""),
+    "utf-8",
+  );
   // T-045 slice 2: Antora component versions, a valid id, an ambiguous id and
   // an unknown version. Descriptor files themselves are not indexable notes.
   for (const version of ["2.0", "2.1"]) {
@@ -1119,7 +1131,26 @@ async function main() {
     }
   });
 
-  // ---- 19. T-062/P0-1: raw-byte IPC round-trips a large binary ------------
+  // ---- 19. P1-3: AsciiDoc conversion runs off the main thread -------------
+  await runCase("adoc-worker-offthread", async () => {
+    const measure = async () => JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeAdocProbe !== "function") return { missing: true };
+      const source = "= Worker bench\\n\\n" + "== Section\\n\\nText *bold*.\\n\\n".repeat(500);
+      return JSON.stringify(await window.__geodeAdocProbe(source));
+    })()`));
+    const result = await measure();
+    assert(!result.missing, "the AsciiDoc worker probe is not installed");
+    // P1-3 is a CPU-offload change, not a wall-clock speedup: Asciidoctor yields
+    // internally, so a 5 ms timer is not measurably delayed on either path here.
+    // Prove instead that the Worker actually produced identical HTML.
+    assert(result.workerActive === true, "AsciiDoc conversion did not use the Worker");
+    assert(result.sameHtml === true, "Worker and in-page conversion produced different HTML");
+    assert(result.workerMs > 0 && result.inPageMs > 0,
+      `conversions did not run: ${JSON.stringify(result)}`);
+    return `Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, identical HTML, Worker active`;
+  });
+
+  // ---- 20. T-062/P0-1: raw-byte IPC round-trips a large binary ------------
   // Uses the always-on explorer-copy throat: readBinary → createBinary →
   // readBinary on REAL fs. The old base64 envelope added atob + a per-byte JS loop.
   await runCase("raw-binary-ipc", async () => {
@@ -1146,7 +1177,7 @@ async function main() {
     return `40 MB copy byte-identical in ${copy.ms} ms, ${blocked} ms main-thread gaps`;
   });
 
-  // ---- 19. T-061: TOC jumps really move the reader, and highlight follows --
+  // ---- 21. T-061: TOC jumps really move the reader, and highlight follows --
   await runCase("epub-reading-controls", async () => {
     assert(await c.click('[data-testid="explorer-item"][data-path="sample.epub"]'), "could not open sample.epub");
     await c.waitFor(`!!document.querySelector('[data-testid="epub-preview"]')`, 20000, "epub viewer mounted");
@@ -1183,7 +1214,7 @@ async function main() {
     return "TOC jumps 33/67/100 with matching highlight; next advances, prev responds";
   });
 
-  // ---- 20. T-061: a book without a nav document degrades honestly ----------
+  // ---- 22. T-061: a book without a nav document degrades honestly ----------
   await runCase("epub-no-nav", async () => {
     assert(await c.click('[data-testid="explorer-item"][data-path="sample-nonav.epub"]'),
       "could not open sample-nonav.epub");

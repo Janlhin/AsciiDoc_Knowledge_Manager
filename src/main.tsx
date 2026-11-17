@@ -1,3 +1,4 @@
+import { isAsciiDocWorkerActive, renderAsciiDocPreview } from "@core/asciidoctorPreview";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App, LAST_VAULT_KEY } from "@app/App";
@@ -1443,6 +1444,45 @@ async function bootstrap() {
     record: (path, content, ts) => { void recordSnapshot(vault, path, content, ts, true); },
     list: (path) => listSnapshots(vault, path),
     restore: (path, ts, now) => restoreSnapshot(vault, documents, path, ts, now),
+  };
+
+  // P1-3: compare the Worker path against the former in-page conversion on the
+  // SAME build, so an E2E regression test can prove the work moved off-thread.
+  const adocHost = globalThis as typeof globalThis & {
+    __geodeAdocProbe?: (source: string) => Promise<{
+      workerMs: number;
+      inPageMs: number;
+      workerBlockedMs: number;
+      inPageBlockedMs: number;
+      workerActive: boolean;
+      sameHtml: boolean;
+    }>;
+  };
+  adocHost.__geodeAdocProbe = async (source) => {
+    const measure = async (forceInPage: boolean) => {
+      // A 5 ms timer runs on the renderer thread; if conversion blocks that
+      // thread the timer fires late by roughly the conversion duration. More
+      // reliable here than rAF gaps, which WebView2 can idle arbitrarily.
+      const t0 = performance.now();
+      const timer = new Promise<number>((resolve) => {
+        setTimeout(() => resolve(performance.now() - t0), 5);
+      });
+      const result = await renderAsciiDocPreview(source, { forceInPage, skipCache: true });
+      const ms = performance.now() - t0;
+      const timerDelay = await timer;
+      return { ms, blocked: Math.max(0, timerDelay - 5), html: result.html };
+    };
+    const worker = await measure(false);
+    const workerActive = isAsciiDocWorkerActive();
+    const inPage = await measure(true);
+    return {
+      workerMs: Math.round(worker.ms),
+      inPageMs: Math.round(inPage.ms),
+      workerBlockedMs: Math.round(worker.blocked),
+      inPageBlockedMs: Math.round(inPage.blocked),
+      workerActive,
+      sameHtml: worker.html === inPage.html,
+    };
   };
 
   // T-057 off-disk backup probe: drives the REAL zip → Rust write → prune path so
