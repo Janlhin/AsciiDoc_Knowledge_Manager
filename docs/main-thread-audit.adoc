@@ -86,8 +86,8 @@
 | `searchIndex` / `metadata` 全量重建
 | 主线程（按文件 `await` 交错，但正则扫描在主线）
 | 库越大越明显
-| **P1-4** Worker（只回传结构化结果）
-| 中
+| **P1-4 不做**（T-026 实测：索引重建非热点，Worker 反而会序列化大字符串）
+| —
 
 | `GraphView`（d3-force）
 | 主线程逐帧 tick
@@ -125,7 +125,7 @@
 
 === P1：解析进 Worker
 
-W-1 `DocxPreview`（mammoth）、W-2 `XlsxPreview`（SheetJS 解析部分）、W-3 `asciidoctorPreview`、W-4 索引重建。
+W-1 `DocxPreview`（mammoth）、W-2 `XlsxPreview`（SheetJS 解析部分）、W-3 `asciidoctorPreview`；W-4 索引重建**不做**——T-026 实测索引重建非主线程热点，Worker 化反而要序列化大字符串。
 统一做法：`new Worker(new URL("./x.worker.ts", import.meta.url), { type: "module" })` + `postMessage` 传输 `ArrayBuffer`（零拷贝），Worker 只回传结构化数据（不要回 DOM 片段以外的重对象）。
 风险：mammoth 的浏览器构建对 DOM 有依赖，需在 Worker 里实测；不行则退回 Rust（`docx-rs`）。
 
