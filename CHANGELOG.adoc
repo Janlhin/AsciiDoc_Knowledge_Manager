@@ -23,6 +23,8 @@
 
 === 新增
 
+* **AsciiDoc 转换移入 Web Worker（T-062 / D-032，P1-3）**：`@asciidoctor/core` 的 `convert()` 现在由独立 Worker 执行，主线程只保留 HTML 清理与站内链接改写；Worker 失败自动回退页内转换，预览不会中断。E2E 新增 `adoc-worker-offthread`：同一构建中分别跑两条路径，断言 Worker 被实际使用且产出 HTML 与页内一致。**实测：1000 节文档 Worker 47ms / 页内 38ms，主线程定时器延迟约 1ms / 0ms——本项是 CPU 卸载，不是可测的提速**。全套 E2E 22/22。
+
 * **原始字节 IPC（T-062 / D-031，P0-1）**：桌面端文件读取不再走 base64 字符串 + 前端逐字节解码——144 MB 文件此前仅解码就占主线程约 322 ms。现在 Rust `vault_read_binary` 返回 `tauri::ipc::Response`（`ArrayBuffer`），`vault_write_binary` / `vault_modify_binary` 接收原始 body，路径由 UTF-8 base64 header 传递；上层 `readBinary` / `createBinary` / `modifyBinary` 签名不变。新增 E2E `raw-binary-ipc`：40 MB 文件读→写→读字节完全一致，主线程帧间隔 0 ms。全量 E2E 21/21。**这不是全场景多核的完成态**：解压、解析、备份压缩与图谱布局仍待后续阶段。
 
 * **EPUB 阅读器补全：目录、翻页、阅读位置（T-061 / D-030）**：原来的 EPUB 预览只有 83 行、只调 `display()`——**没有目录、没有进度**，每本书永远从第一页打开，跳转一关就丢（EPUB 此前在 E2E 里零覆盖，所以没人发现）。现在有工具栏（目录 / 上一页 / 百分比 / 下一页）、按层级缩进的目录侧栏、当前章高亮、方向键翻页；阅读位置按 `{cfi, index, percent}` 去抖保存，重启后回到原处，CFI 失效时回退第一页。百分比用 spine 索引计算（O(1)），刻意不用 `locations.generate()`——那会为了进度条把 50MB 的书在主线程数秒。

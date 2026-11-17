@@ -547,3 +547,20 @@
 - **验证**：`npm run typecheck` 0；`cargo check` 0；`npm test` 193 passed；`npm run build` 0；`npx tauri build --no-bundle` 产出 `adkm.exe`；真机 E2E **21/21**（`raw-binary-ipc`：40 MB 拷贝 976 ms、主线程阻塞 0 ms）；`--self-check` OK。
 - **诚实缺口**：**这不是「全场景多核」的完成态**。本项只消除传输编码成本；EPUB/PPTX 解压仍在 JS 主线程（P0-2），备份 ZIP 仍由 JSZip 在主线程生成（P0-3），docx/xlsx/asciidoctor/索引解析仍在 JS 主线程（P1），图谱布局仍在 JS 主线程（P2）。
 - **复审条件**：若 raw `Request` 在其它平台（macOS WKWebView / iOS）不能保留 header 或 body，应把 header 改成 command 参数并改走 Channel，再重开本条。
+
+## D-032 AsciiDoc 转换进 Worker：CPU 卸载，不宣称卡顿改善
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-062 / P1-3）。
+- **决策**：新增 `src/core/asciidoctor.worker.ts`，由专用 Web Worker 持有 `@asciidoctor/core` 并执行 `convert(source, options)`；主线程只做 `sanitizeHtml` + `localizeLinks` 两个轻量字符串处理。Worker 不可用或失败时自动回退到原来的页内动态 import，保证预览不中断。
+- **背景**：用户要求「全场景支持多核」。P0-1 已完成原始字节 IPC；P0-2（EPUB 解压进 Rust）因新增 `zip` crate 撞硬边界 #5、未获放行而暂缓，故先做零新依赖的 P1-3。
+- **实测（同一 release）**：E2E 夹具（5000 节）Worker 47 ms vs 页内 38 ms；独立探针（1000 节）启动的 5 ms 定时器在两条路径上的延迟约 1 ms / 0 ms。**结论：`@asciidoctor/core` 自身会把转换切成异步片段，主线程并未被长时间堵住；本项的价值是把 CPU 时间移到独立线程，不是消除用户可感知的卡顿，也不宣称更快。** 早期用 rAF 帧间隔做判据时该环境下出现 0ms/0ms 的不可判别结果，已改为「Worker 实际产出且 HTML 与页内一致」的断言。
+- **被采纳方案**：单 Worker + id 路由；`isAsciiDocWorkerActive()` 暴露给探针；`renderAsciiDocPreview(source, { forceInPage, skipCache })` 仅供对照探针使用，其它调用点保持原签名。
+- **被否决的替代方案**：
+  - *把 sanitize/localize 也搬进 Worker*：否决理由——它们只是两次字符串替换，跨线程回传反而增加传输；且主线程 DOM 更新仍必需。
+  - *Worker 池按硬件并发数创建多个转换器*：否决理由——编辑器一次只渲染活动预览，没有并发请求；池会徒增内存与复杂度。
+  - *新增 `zip` crate 先做 P0-2*：否决理由——撞硬边界 #5，未获用户签字，不自行放行。
+- **影响范围**：`src/core/asciidoctor.worker.ts`（新增）、`src/core/asciidoctorPreview.ts`（Worker 桥 + 回退 + 探针参数）、`src/main.tsx`（`__geodeAdocProbe`）、`tests/e2e/run.mjs`（第 19 条 `adoc-worker-offthread` + 大文档夹具）。
+- **验证**：`npm run verify` 0；`npx tauri build --no-bundle` 成功；真机 E2E **22/22**（`adoc-worker-offthread`：Worker active、HTML 一致）；`--self-check` OK。
+- **诚实缺口**：Worker 失败后的页内回退仍占主线程；转换总耗时未下降（47 vs 38 ms）；未做 docx/xlsx/索引的 Worker 化（P1 其余项）；EPUB/PPTX 解压仍在 JS 主线程（P0-2，待依赖授权）。
+- **复审条件**：若用户要的是**可测量的卡顿降低**而非 CPU 卸载，需先给出可复现的卡顿场景和基线，再决定是否值得继续搬；单纯把更多东西丢进 Worker 不自动等于更快。
