@@ -1268,6 +1268,20 @@ export class TauriVaultAdapter implements VaultAdapter {
     return invoke<T>(cmd, args);
   }
 
+  /**
+   * T-062 / P0-1: send a raw byte body (no base64/JSON envelope). The vault and
+   * file path travel in headers as base64 so arbitrary UTF-8 names survive; only
+   * these two short strings are encoded, never the file content.
+   */
+  private async invokeBinary(cmd: string, data: Uint8Array, vault: string, path: string): Promise<void> {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke<void>(
+      cmd,
+      data,
+      { headers: { "x-adkm-vault": this.toBase64(new TextEncoder().encode(vault)), "x-adkm-path": this.toBase64(new TextEncoder().encode(path)) } },
+    );
+  }
+
   async pickVaultFolder(): Promise<string | null> {
     const { open } = await import("@tauri-apps/plugin-dialog");
     const picked = await open({ directory: true, multiple: false, title: "Open vault folder" });
@@ -1283,11 +1297,10 @@ export class TauriVaultAdapter implements VaultAdapter {
   }
 
   async readBinary(path: string): Promise<Uint8Array> {
-    const b64 = await this.invoke<string>("vault_read_binary", { vault: this.root, path });
-    const bin = atob(b64);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
+    // P0-1: Tauri returns raw bytes as an ArrayBuffer. The previous base64 string
+    // cost 106 ms (atob) + 216 ms (per-byte loop) for a 144 MB file on this machine.
+    const buf = await this.invoke<ArrayBuffer>("vault_read_binary", { vault: this.root, path });
+    return new Uint8Array(buf);
   }
 
   /** chunked btoa — String.fromCharCode(...whole) overflows the arg stack on large buffers */
@@ -1301,11 +1314,11 @@ export class TauriVaultAdapter implements VaultAdapter {
   }
 
   async writeBinary(path: string, data: Uint8Array): Promise<void> {
-    await this.invoke("vault_write_binary", { vault: this.root, path, data: this.toBase64(data) });
+    await this.invokeBinary("vault_write_binary", data, this.root, path);
   }
 
   async modifyBinary(path: string, data: Uint8Array): Promise<void> {
-    await this.invoke("vault_modify_binary", { vault: this.root, path, data: this.toBase64(data) });
+    await this.invokeBinary("vault_modify_binary", data, this.root, path);
   }
 
   async writeFile(path: string, content: string): Promise<void> {

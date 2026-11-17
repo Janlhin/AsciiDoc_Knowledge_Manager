@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: twenty high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twenty-one high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -1117,6 +1117,33 @@ async function main() {
     } finally {
       await c.call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     }
+  });
+
+  // ---- 19. T-062/P0-1: raw-byte IPC round-trips a large binary ------------
+  // Uses the always-on explorer-copy throat: readBinary → createBinary →
+  // readBinary on REAL fs. The old base64 envelope added atob + a per-byte JS loop.
+  await runCase("raw-binary-ipc", async () => {
+    if (!(await c.evaluate(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`))) {
+      await c.click('[data-testid="explorer-item"][data-path="docs"]');
+      await sleep(500);
+    }
+    const result = await c.evaluate(`(async () => {
+      const gaps = [];
+      let prev = performance.now();
+      let live = true;
+      (function tick() { const now = performance.now(); if (now - prev > 50) gaps.push(Math.round(now - prev)); prev = now; if (live) requestAnimationFrame(tick); })();
+      const t0 = performance.now();
+      const out = await window.__geodeExplorerCopy("docs/scan-big.pdf");
+      const ms = Math.round(performance.now() - t0);
+      live = false;
+      return JSON.stringify({ ...out, ms, gaps });
+    })()`);
+    const copy = JSON.parse(result);
+    assert(copy.sameBytes === true, `raw-byte copy must be byte-identical: ${JSON.stringify(copy)}`);
+    assert(copy.len === 40 * 1024 * 1024, `unexpected copy length ${copy.len}`);
+    const blocked = copy.gaps.reduce((s, ms) => s + ms, 0);
+    assert(blocked < 200, `raw-byte copy blocked ${blocked} ms across ${copy.gaps.length} frames`);
+    return `40 MB copy byte-identical in ${copy.ms} ms, ${blocked} ms main-thread gaps`;
   });
 
   // ---- 19. T-061: TOC jumps really move the reader, and highlight follows --

@@ -191,28 +191,50 @@ fn vault_read(vault: String, path: String) -> CmdResult<String> {
     fs::read_to_string(&abs).map_err(|e| format!("read {path}: {e}"))
 }
 
-// async — file IO must stay off the main thread (R6 lesson); images can be MBs
+// async — file IO must stay off the main thread (R6 lesson); images can be MBs.
+// T-062/P0-1: raw bytes via ipc::Response. The old base64 String made a 144 MB
+// file cost ~322 ms of extra main-thread work in JS (atob + per-byte loop).
 #[tauri::command(async)]
-fn vault_read_binary(vault: String, path: String) -> CmdResult<String> {
-    use base64::Engine as _;
+fn vault_read_binary(vault: String, path: String) -> CmdResult<tauri::ipc::Response> {
     let abs = safe_join(&vault, &path)?;
     let bytes = fs::read(&abs).map_err(|e| format!("read {path}: {e}"))?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Decode a base64 header (UTF-8 path) sent alongside a raw IPC body.
+fn binary_path_header(request: &tauri::ipc::Request, name: &str) -> CmdResult<String> {
+    use base64::Engine as _;
+    let raw = request
+        .headers()
+        .get(name)
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| format!("missing {name} header"))?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(raw.as_bytes())
+        .map_err(|e| format!("bad {name} header: {e}"))?;
+    String::from_utf8(bytes).map_err(|e| format!("bad {name} UTF-8: {e}"))
+}
+
+/// Extract the raw byte body from a binary write command.
+fn raw_body<'a>(request: &'a tauri::ipc::Request<'a>) -> CmdResult<&'a [u8]> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes),
+        _ => Err("binary write requires a raw ArrayBuffer body".into()),
+    }
 }
 
 // async — file IO off the main thread (R6 lesson); pasted images can be MBs.
 // Mirror of vault_read_binary; NEW files only (ingestion path never overwrites).
 #[tauri::command(async)]
-fn vault_write_binary(vault: String, path: String, data: String) -> CmdResult<()> {
-    use base64::Engine as _;
+fn vault_write_binary(request: tauri::ipc::Request) -> CmdResult<()> {
     use std::io::Write as _;
+    let vault = binary_path_header(&request, "x-adkm-vault")?;
+    let path = binary_path_header(&request, "x-adkm-path")?;
+    let bytes = raw_body(&request)?;
     let abs = safe_join(&vault, &path)?;
     if let Some(parent) = abs.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("mkdir parents for {path}: {e}"))?;
     }
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(data.as_bytes())
-        .map_err(|e| format!("decode {path}: {e}"))?;
     // R17 (review fix): create_new is the exclusivity authority. The earlier
     // exists()-check + shared tmp + rename was check-then-act: two concurrent
     // imports of the same name passed the check together, clobbered each
@@ -261,16 +283,15 @@ fn atomic_write(abs: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
 // vault_write_binary (create-only, exclusivity via create_new), this REPLACES an existing
 // binary file (Obsidian modifyBinary, R120) via the atomic create-or-overwrite helper.
 #[tauri::command(async)]
-fn vault_modify_binary(vault: String, path: String, data: String) -> CmdResult<()> {
-    use base64::Engine as _;
+fn vault_modify_binary(request: tauri::ipc::Request) -> CmdResult<()> {
+    let vault = binary_path_header(&request, "x-adkm-vault")?;
+    let path = binary_path_header(&request, "x-adkm-path")?;
+    let bytes = raw_body(&request)?;
     let abs = safe_join(&vault, &path)?;
     if let Some(parent) = abs.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("mkdir parents for {path}: {e}"))?;
     }
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(data.as_bytes())
-        .map_err(|e| format!("decode {path}: {e}"))?;
-    atomic_write(&abs, &bytes).map_err(|e| format!("write {path}: {e}"))
+    atomic_write(&abs, bytes).map_err(|e| format!("write {path}: {e}"))
 }
 
 #[tauri::command(async)]
