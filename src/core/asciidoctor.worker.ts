@@ -62,3 +62,5 @@ ctx.onmessage = (event) => {
     }
   })();
 };
+
+export {};

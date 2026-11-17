@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: twenty-two high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twenty-four high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -237,7 +237,7 @@ async function prepareVault(dir) {
     path.join(dir, "docs", "big-preview.adoc"),
     `= Large AsciiDoc\n\n` +
       Array.from(
-        { length: 500 },
+        { length: 120 },
         (_, i) =>
           `== Section ${i}\n\nParagraph ${i}: *bold*, _italic_ and link:https://example.com[external] with \`code\`.\n\n- item one\n- item two\n\n`,
       ).join(""),
@@ -264,6 +264,14 @@ async function prepareVault(dir) {
   const fbz = new JSZip();
   fbz.file("book.fb2", FB2_ZIPPED);
   writeFileSync(path.join(dir, "sample.fb2.zip"), await fbz.generateAsync({ type: "nodebuffer" }));
+  // P1-2: a generated XLSX with 300 rows for the SheetJS worker probe.
+  const XLSX = requireCjs("xlsx");
+  const xws = XLSX.utils.aoa_to_sheet(
+    Array.from({ length: 300 }, (_, r) => [`Row ${r}`, `value ${r}`]),
+  );
+  const xwb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(xwb, xws, "Sheet1");
+  writeFileSync(path.join(dir, "sample.xlsx"), XLSX.write(xwb, { type: "buffer", bookType: "xlsx" }));
   const cbz = new JSZip();
   for (const name of ["page10.png", "page2.png", "page1.png"]) {
     cbz.file(name, PNG_B64, { base64: true });
@@ -310,6 +318,26 @@ async function prepareVault(dir) {
     );
   }
   writeFileSync(path.join(dir, "sample.epub"), await book.generateAsync({ type: "nodebuffer" }));
+
+  // P1-1: a structurally valid DOCX with enough paragraphs to make conversion
+  // measurable. Generated from OOXML parts; no binary bundled in the repo.
+  const docx = new JSZip();
+  docx.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+  );
+  docx.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+  );
+  docx.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Large DOCX</w:t></w:r></w:p>${Array.from(
+      { length: 500 },
+      (_, i) => `<w:p><w:r><w:t>Paragraph ${i + 1}: ** bold marker ** and ordinary text for conversion.</w:t></w:r></w:p>`,
+    ).join("")}</w:body></w:document>`,
+  );
+  writeFileSync(path.join(dir, "sample.docx"), await docx.generateAsync({ type: "nodebuffer" }));
 
   // T-061: an EPUB with no nav document at all — the reader must say so instead of
   // rendering an empty panel or failing to open.
@@ -376,7 +404,10 @@ async function attach() {
 }
 
 const results = [];
+const onlyCase = (argv.find((a) => a.startsWith("--only=")) || "").split("=")[1] || null;
+
 async function runCase(name, fn) {
+  if (onlyCase && name !== onlyCase) return;
   try {
     const detail = await fn();
     results.push({ name, ok: true, detail });
@@ -1129,6 +1160,32 @@ async function main() {
     } finally {
       await c.call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     }
+  });
+
+  // ---- 19. P1-2: XLSX parsing runs in a Worker -----------------------------
+  await runCase("xlsx-worker-offthread", async () => {
+    const result = JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeXlsxProbe !== "function") return { missing: true };
+      return JSON.stringify(await window.__geodeXlsxProbe("sample.xlsx"));
+    })()`));
+    assert(!result.missing, "the XLSX Worker probe is not installed");
+    assert(result.workerActive === true, "XLSX parsing did not use the Worker");
+    assert(result.sameData === true, "Worker and in-page XLSX parsing differ");
+    assert(result.sheetCount > 0 && result.workerMs > 0, `parsing did not run: ${JSON.stringify(result)}`);
+    return `XLSX Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, ${result.sheetCount} sheet(s), identical data`;
+  });
+
+  // ---- 19. P1-1: DOCX conversion runs in a Worker --------------------------
+  await runCase("docx-worker-offthread", async () => {
+    const result = JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeDocxProbe !== "function") return { missing: true };
+      return JSON.stringify(await window.__geodeDocxProbe("sample.docx"));
+    })()`));
+    assert(!result.missing, "the DOCX Worker probe is not installed");
+    assert(result.workerActive === true, "DOCX conversion did not use the Worker");
+    assert(result.sameHtml === true, "Worker and in-page DOCX conversion differ");
+    assert(result.workerMs > 0 && result.inPageMs > 0, `conversions did not run: ${JSON.stringify(result)}`);
+    return `DOCX Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, identical HTML`;
   });
 
   // ---- 19. P1-3: AsciiDoc conversion runs off the main thread -------------

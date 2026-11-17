@@ -78,6 +78,88 @@ function sheetToAoa(sheet: any): unknown[][] {
   return aoa;
 }
 
+/*
+ * P1-2: SheetJS parsing runs in a Worker; only the x-data-spreadsheet grid and
+ * the explicit Save serialization stay on the main thread (DOM / user action).
+ */
+interface WorkerResponse {
+  id: number;
+  sheets?: unknown[];
+  error?: string;
+}
+
+let worker: Worker | null = null;
+let workerBroken = false;
+let nextId = 1;
+const pending = new Map<number, { resolve: (sheets: unknown[]) => void; reject: (err: Error) => void }>();
+
+function ensureWorker(): Worker | null {
+  if (workerBroken) return null;
+  if (worker) return worker;
+  if (typeof Worker === "undefined") return null;
+  try {
+    worker = new Worker(new URL("./xlsx.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const req = pending.get(event.data.id);
+      if (!req) return;
+      pending.delete(event.data.id);
+      if (Array.isArray(event.data.sheets)) req.resolve(event.data.sheets);
+      else req.reject(new Error(event.data.error ?? "XLSX worker returned no sheets"));
+    };
+    worker.onerror = () => {
+      workerBroken = true;
+      worker?.terminate();
+      worker = null;
+      for (const req of pending.values()) req.reject(new Error("XLSX worker failed"));
+      pending.clear();
+    };
+    return worker;
+  } catch {
+    workerBroken = true;
+    return null;
+  }
+}
+
+async function parseInWorker(bytes: Uint8Array): Promise<unknown[]> {
+  const w = ensureWorker();
+  if (!w) throw new Error("worker unavailable");
+  const id = nextId;
+  nextId += 1;
+  return new Promise<unknown[]>((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    w.postMessage({ id, bytes });
+  });
+}
+
+async function parseInPage(bytes: Uint8Array): Promise<unknown[]> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(bytes, { type: "array" });
+  return wb.SheetNames.map((name: string) =>
+    aoaToSheet(
+      name,
+      XLSX.utils.sheet_to_json(wb.Sheets[name], {
+        header: 1,
+        raw: false,
+        defval: "",
+        blankrows: false,
+      }) as unknown[][],
+    ),
+  );
+}
+
+export function isXlsxWorkerActive(): boolean {
+  return worker !== null && !workerBroken;
+}
+
+export async function parseXlsx(bytes: Uint8Array, options: { forceInPage?: boolean } = {}): Promise<unknown[]> {
+  if (options.forceInPage) return parseInPage(bytes);
+  try {
+    return await parseInWorker(bytes);
+  } catch {
+    return parseInPage(bytes);
+  }
+}
+
 export function XlsxPreview({ path }: { path: string }) {
   const app = useApp();
   const t = useI18n();
@@ -96,19 +178,7 @@ export function XlsxPreview({ path }: { path: string }) {
     void (async () => {
       try {
         const bytes = await app.vault.readBinary(path);
-        const XLSX = await import("xlsx");
-        const wb = XLSX.read(bytes, { type: "array" });
-        const data = wb.SheetNames.map((name: string) =>
-          aoaToSheet(
-            name,
-            XLSX.utils.sheet_to_json(wb.Sheets[name], {
-              header: 1,
-              raw: false,
-              defval: "",
-              blankrows: false,
-            }) as unknown[][],
-          ),
-        );
+        const data = await parseXlsx(bytes);
         const el = containerRef.current;
         if (!el) return;
         const Spreadsheet = (await import("x-data-spreadsheet")).default as new (
