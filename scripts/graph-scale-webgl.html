@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Q-011 graph render spike</title></head>
+<body style="margin:0;background:#111;color:#eee;font:13px monospace">
+<canvas id="c" width="1200" height="800" style="width:1200px;height:800px"></canvas>
+<canvas id="c2" width="1200" height="800" style="width:1200px;height:800px"></canvas>
+<pre id="out"></pre>
+<script>
+/**
+ * Q-011 spike: render-only comparison at the same node/edge counts.
+ * Synthetic positions, no d3 layout, no labels. WebGL draws points + LINES;
+ * Canvas2D is the current production primitive (fillRect/moveTo/lineTo).
+ * gl.finish() makes the timing an upper bound rather than a queue submission.
+ */
+const sizes = [1000, 10000, 50000, 100000];
+const canvas = document.getElementById("c");
+const canvas2d = document.getElementById("c2");
+const out = document.getElementById("out");
+
+function make(n) {
+  let x = 0x9e3779b9 >>> 0;
+  const rand = () => {
+    x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+    return x / 0x100000000;
+  };
+  const pos = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) {
+    pos[i * 2] = rand() * 2 - 1;
+    pos[i * 2 + 1] = rand() * 2 - 1;
+  }
+  const edgeCount = n * 2;
+  const lines = new Float32Array(edgeCount * 4);
+  for (let i = 0; i < edgeCount; i++) {
+    const a = Math.floor(rand() * n);
+    const b = Math.floor(rand() * n);
+    lines[i * 4] = pos[a * 2]; lines[i * 4 + 1] = pos[a * 2 + 1];
+    lines[i * 4 + 2] = pos[b * 2]; lines[i * 4 + 3] = pos[b * 2 + 1];
+  }
+  return { n, pos, lines, edgeCount };
+}
+
+function compile(gl, type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+function webglBench(g) {
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+  if (!gl) throw new Error("WebGL unavailable");
+  const vs = compile(gl, gl.VERTEX_SHADER, "attribute vec2 a; void main(){ gl_Position=vec4(a,0.0,1.0); gl_PointSize=1.5; }");
+  const fs = compile(gl, gl.FRAGMENT_SHADER, "precision mediump float; void main(){ gl_FragColor=vec4(0.55,0.48,0.96,1.0); }");
+  const p = gl.createProgram();
+  gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  gl.useProgram(p);
+  const loc = gl.getAttribLocation(p, "a");
+  gl.enableVertexAttribArray(loc);
+
+  const pointBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, pointBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, g.pos, gl.STATIC_DRAW);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const lineBuf = gl.createBuffer();
+  const draw = () => {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.07, 0.07, 0.07, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, g.lines, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.LINES, 0, g.edgeCount * 2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointBuf);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.POINTS, 0, g.n);
+    gl.finish();
+  };
+  draw(); // warm-up / allocation
+  const samples = [];
+  for (let i = 0; i < 5; i++) {
+    const t = performance.now();
+    draw();
+    samples.push(performance.now() - t);
+  }
+  samples.sort((a, b) => a - b);
+  return { ms: samples[2], samples };
+}
+
+function canvas2dBench(g) {
+  const ctx = canvas2d.getContext("2d");
+  if (!ctx) throw new Error("2D canvas unavailable");
+  const draw = () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, canvas2d.width, canvas2d.height);
+    ctx.strokeStyle = "#695bcf";
+    ctx.beginPath();
+    for (let i = 0; i < g.edgeCount; i++) {
+      ctx.moveTo((g.lines[i * 4] + 1) * 600, (g.lines[i * 4 + 1] + 1) * 400);
+      ctx.lineTo((g.lines[i * 4 + 2] + 1) * 600, (g.lines[i * 4 + 3] + 1) * 400);
+    }
+    ctx.stroke();
+    ctx.fillStyle = "#a99cf5";
+    for (let i = 0; i < g.n; i++) {
+      ctx.fillRect((g.pos[i * 2] + 1) * 600, (g.pos[i * 2 + 1] + 1) * 400, 2, 2);
+    }
+  };
+  draw(); // warm-up
+  const t = performance.now();
+  draw();
+  return { ms: performance.now() - t };
+}
+
+(async () => {
+  const results = [];
+  for (const n of sizes) {
+    const g = make(n);
+    const webgl = webglBench(g);
+    const canvas2d = canvas2dBench(g);
+    const row = { n, edges: g.edgeCount, webglMs: Math.round(webgl.ms * 10) / 10, canvas2dMs: Math.round(canvas2d.ms * 10) / 10 };
+    results.push(row);
+    out.textContent += JSON.stringify(row) + "\n";
+    window.__benchResult = results;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  window.__benchDone = true;
+})().catch((e) => { window.__benchError = String(e); window.__benchDone = true; });
+</script>
+</body>
+</html>

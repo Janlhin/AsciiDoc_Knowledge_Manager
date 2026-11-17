@@ -39,6 +39,7 @@
     "test": "vitest run",
     "test:e2e": "node tests/e2e/run.mjs --port=9222",
     "verify": "npm run typecheck && npm run typecheck:scripts && npm run verify:commands && npm test && npm run build",
+    "bench:graph-scale": "node scripts/graph-scale-bench.ts",
     "profile:hotspots": "node scripts/profile-hotspots.ts",
     "profile:bigfile": "node scripts/profile-bigfile.ts",
     "verify:block-scan": "node scripts/verify-block-scan.ts",

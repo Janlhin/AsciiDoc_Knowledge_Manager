@@ -610,3 +610,20 @@
 - **影响范围**：`src/core/backup.ts`、`src-tauri/src/main.rs`（3 个新命令 + 注册）、`tests/e2e/run.mjs`（清空夹具）。
 - **诚实缺口**：仍未把 ZIP 压缩本身搬到 Rust（P0-3）；分块写入有多次 IPC 往返，440MB 备份约 15.5 秒；未做备份中断/磁盘满的故障注入。
 - **复审条件**：若备份继续做大（多 GB）或需要进度条，应直接改用 Rust `zip` crate 流式写盘（需硬边界 #5 放行）。
+
+## D-036 Q-011 spike：WebGL 能画 10 万，布局不能交互
+
+- **日期**：2026-11-17
+- **状态**：**spike 完成；生产改造未做，待 Q-011 最终选择**。
+- **问题**：用户问 WebGL 理论上能否支撑 10 万节点。需要区分“绘制”与“力导布局”，并用本机数据判断是否值得换架构。
+- **实测环境**：Windows 本机；布局为 Node 26 + d3-force（与 GraphView 同一组 force：link/charge/center/radial/collide，alphaDecay 0.03）；渲染为 Edge Chromium 1200×800，WebGL points+LINES vs Canvas2D，无标签。
+- **布局实测（合成图，约 2 边/节点）**：
+  - 1k 节点 / 2k 边：build 0.8ms，首次 tick 8.3ms，平均 2.8ms，227 tick **settled**，约 637ms。
+  - 10k / 20k：build 4.3ms，首次 50ms，平均 **42.5ms**，227 tick settled，约 **9.66s**。
+  - 50k / 100k：首次 386ms，平均 406ms，15s 仅 38 tick，**未 settled**。
+  - 100k / 200k：首次 **1026.8ms**，平均 **924.7ms**，15s 仅 17 tick，**未 settled**。
+- **渲染实测**：1k/10k/50k/100k 节点下，WebGL **0.0/0.1/0.4/0.6ms**，Canvas2D **0.6/2.0/9.1/16.7ms**（均无标签）。
+- **结论**：WebGL 只解决光栅化；10 万节点的 d3-force 布局是分钟级，不能 60fps 交互。以当前 419 节点/88 边的真实图谱，Canvas2D 已足够，**不应换 WebGL**。若未来要做 10 万级，必须先换布局（Worker/GPU/预计算）并加聚类/LOD/搜索，不能只换渲染器。
+- **工具**：`scripts/graph-scale-bench.ts`（`npm run bench:graph-scale`）、`scripts/graph-scale-webgl.html`（浏览器绘制对照，手工用静态服务器打开）。
+- **未做**：没有修改生产 `GraphView`；没有把 `RENDER_CAP` 从 3000 调到 800；没有做 GPU 力导原型；渲染测试不是 Tauri WebView2 内的直接测量。
+- **复审条件**：节点数 ≥2000 且实际绘制 >16ms，或用户明确要求 10 万级分析视图；先用同一套脚本复测再决定。
