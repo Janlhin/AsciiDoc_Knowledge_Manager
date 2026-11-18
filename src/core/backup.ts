@@ -186,7 +186,20 @@ export type BackupResult =
  * Build and write one archive. Never throws: a failure comes back as `{ok:false}`
  * so callers can surface it instead of dying in a promise.
  */
+let backupRunning = false;
+
 export async function runBackup(
+  vault: Vault,
+  io: BackupIO,
+  opts: { dir: string | null; keep: number; now: number },
+): Promise<BackupResult> {
+  if (backupRunning) return { ok: false, reason: "io", message: "A backup is already running" };
+  backupRunning = true;
+  try { return await runBackupOnce(vault, io, opts); }
+  finally { backupRunning = false; }
+}
+
+async function runBackupOnce(
   vault: Vault,
   io: BackupIO,
   opts: { dir: string | null; keep: number; now: number },
@@ -211,7 +224,7 @@ export async function runBackup(
     }
 
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    const name = backupFileName(opts.now);
+    const name = backupFileName(opts.now).replace(/\.zip$/, `-${crypto.randomUUID()}.zip`);
     await io.writeBinary(joinPath(dir, name), bytes);
 
     // The listing already contains the archive we just wrote; only add the name
@@ -250,20 +263,25 @@ export function tauriBackupIO(): BackupIO {
       // A whole-vault archive can be hundreds of MB. A single base64 argument of
       // that size silently produced a 0-byte file in the real app (measured with
       // a 440 MB fixture), so stream it in bounded chunks and append in Rust.
-      await invoke<void>("export_begin_binary", { path: absolutePath });
-      const CHUNK = 4 * 1024 * 1024;
-      for (let offset = 0; offset < bytes.length; offset += CHUNK) {
-        const end = Math.min(bytes.length, offset + CHUNK);
-        let binary = "";
-        for (let i = offset; i < end; i += 0x8000) {
-          binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, end)));
+      const session = await invoke<string>("export_begin_binary", { path: absolutePath, expectedBytes: bytes.length });
+      try {
+        const CHUNK = 4 * 1024 * 1024;
+        for (let offset = 0; offset < bytes.length; offset += CHUNK) {
+          const end = Math.min(bytes.length, offset + CHUNK);
+          let binary = "";
+          for (let i = offset; i < end; i += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, end)));
+          }
+          await invoke<void>("export_append_binary", {
+            session,
+            data: btoa(binary),
+          });
         }
-        await invoke<void>("export_append_binary", {
-          path: absolutePath,
-          data: btoa(binary),
-        });
+        await invoke<void>("export_finish_binary", { session });
+      } catch (err) {
+        try { await invoke<void>("export_abort_binary", { session }); } catch { /* preserve original export error */ }
+        throw err;
       }
-      await invoke<void>("export_finish_binary", { path: absolutePath });
     },
     listBackups: (dir) => invoke<string[]>("export_list_backups", { dir }),
     deleteBackup: (absolutePath) => invoke<void>("export_delete_backup", { path: absolutePath }),

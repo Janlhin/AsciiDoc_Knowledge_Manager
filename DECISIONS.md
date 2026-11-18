@@ -639,3 +639,13 @@
 - **精度/产品缺口（未做）**：32 个随机样本不是 Barnes-Hut，边与斥力的视觉质量与 d3-force 不等价；没有标签、点击拾取、拖拽、过滤、局部图、搜索与数据同步；没有接入生产 `GraphView`；没有 Tauri WebView2 内的直接 FPS 测量（Edge 与 WebView2 同为 Chromium/ANGLE，但非同一进程）。
 - **如果转生产**：需要先做空间网格/近邻查询（或 GPU 端 Barnes-Hut）、GPU 位置回读/拾取、标签 LOD、与 `GraphData`/筛选/局部图的接线、WebGL 失败回退；这是一轮独立特性，不是换 canvas。
 - **复审条件**：节点 ≥2000 且现有 Canvas 绘制 >16ms，或用户明确要“10 万级分析视图”；先用 `scripts/graph-scale-webgl-layout.html?n=100000&frames=600` 复测。
+
+
+## D-038 Owned chunked backup sessions (local proposal, 2026-11-17)
+
+- Scope: fix the PR #2 shared-temporary-file race; no new dependency or backup scheduler.
+- Every export owns an exclusively created sibling file; opaque session IDs replace path-based append/finish. Finish checks both successful-append count and actual file length, syncs data and publishes without replacing any existing file. Abort removes only the owned temporary file.
+- Windows uses its native no-replacement move; non-Windows uses a same-directory hard link, failing safely on unsupported filesystems. Non-Windows execution and real desktop IPC remain unverified.
+- The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
+- Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
+- Verification recorded in TASKS and the external review receipt; not published or merged.
