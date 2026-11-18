@@ -171,11 +171,11 @@ describe("runBackup", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.name).toBe("adkm-backup-20261116-121930.zip");
+    expect(result.name).toMatch(/^adkm-backup-20261116-121930-[0-9a-f-]+\.zip$/);
     expect(result.documents).toBe(2);
     expect(result.configFiles).toBe(2);
 
-    const bytes = written.get("D:\\bk/adkm-backup-20261116-121930.zip");
+    const bytes = written.get(`D:\\bk/${result.name}`);
     expect(bytes).toBeInstanceOf(Uint8Array);
     const zip = await JSZip.loadAsync(bytes!);
     const entries = Object.keys(zip.files).filter((k) => !zip.files[k]!.dir).sort();
@@ -216,5 +216,53 @@ describe("runBackup", () => {
     });
     expect(result.ok).toBe(true);
     expect(deleted.map((p) => p.split("/").pop())).toEqual(["adkm-backup-20261114-000000.zip"]);
+  });
+});
+
+
+describe("backup concurrency and failures", () => {
+  const opts = { dir: "D:/bk", keep: 1, now: new Date(2026, 10, 17, 12).getTime() };
+  it("rejects overlap before a second read and releases the guard afterwards", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const first = makeVault({ "a.md": "first" });
+    const read = vi.spyOn(first, "read").mockImplementation(async () => { await gate; return "first"; });
+    const second = makeVault({ "b.md": "second" });
+    const secondRead = vi.spyOn(second, "read");
+    const a = makeIO(); const b = makeIO();
+    const pending = runBackup(first, a.io, opts);
+    expect(read).toHaveBeenCalledOnce();
+    try {
+      expect(await runBackup(second, b.io, opts)).toMatchObject({ ok: false, reason: "io" });
+      expect(secondRead).not.toHaveBeenCalled();
+      expect(b.io.writeBinary).not.toHaveBeenCalled();
+    } finally { release(); await pending; }
+    const retried = await runBackup(second, b.io, opts);
+    expect(retried.ok).toBe(true);
+  });
+
+  it("never lists or prunes after a failed write and permits retry", async () => {
+    const { io, deleted, written } = makeIO(["adkm-backup-20261116-000000.zip"]);
+    vi.mocked(io.writeBinary).mockRejectedValueOnce(new Error("chunk failed"));
+    const vault = makeVault({ "a.md": "new" });
+    expect(await runBackup(vault, io, opts)).toMatchObject({ ok: false, reason: "io" });
+    expect(io.listBackups).not.toHaveBeenCalled();
+    expect(deleted).toEqual([]);
+    expect((await runBackup(vault, io, opts)).ok).toBe(true);
+    expect(written.size).toBe(1);
+  });
+
+  it("keeps sequential same-second snapshots distinct and readable", async () => {
+    const { io, written } = makeIO();
+    const a = await runBackup(makeVault({ "a.md": "first" }), io, { ...opts, keep: 10 });
+    const b = await runBackup(makeVault({ "a.md": "second" }), io, { ...opts, keep: 10 });
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    expect(a.name).not.toBe(b.name);
+    expect(written.size).toBe(2);
+    for (const [result, text] of [[a, "first"], [b, "second"]] as const) {
+      const zip = await JSZip.loadAsync(written.get(`D:/bk/${result.name}`)!, { checkCRC32: true });
+      expect(await zip.file("a.md")!.async("string")).toBe(text);
+    }
   });
 });

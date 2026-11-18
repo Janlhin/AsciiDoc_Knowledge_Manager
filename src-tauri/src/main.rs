@@ -15,6 +15,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod binary_export;
 mod features;
 use tauri::{Emitter, Manager};
 
@@ -779,49 +780,32 @@ fn export_write_binary(path: String, data: String) -> CmdResult<()> {
         })
 }
 
-/// Chunked export (T-057 follow-up): a 440 MB archive sent as one base64
-/// argument silently landed as a 0-byte file. Begin/append/finish keeps each
-/// IPC message bounded and still uses a sibling temp + rename on finish.
-fn export_tmp_path(path: &str) -> Result<std::path::PathBuf, String> {
-    let abs = Path::new(path);
-    if !abs.is_absolute() {
-        return Err(format!("export path must be absolute, got '{path}'"));
-    }
-    let mut tmp_name = abs.file_name().map(|n| n.to_os_string()).unwrap_or_default();
-    tmp_name.push(".geode-export.tmp");
-    Ok(abs.with_file_name(tmp_name))
+/// Chunked backup sessions are owned by the backend, not a shared path.
+fn binary_exports() -> &'static Mutex<binary_export::Exports> {
+    static EXPORTS: std::sync::OnceLock<Mutex<binary_export::Exports>> = std::sync::OnceLock::new();
+    EXPORTS.get_or_init(|| Mutex::new(binary_export::Exports::default()))
 }
 
 #[tauri::command(async)]
-fn export_begin_binary(path: String) -> CmdResult<()> {
-    let tmp = export_tmp_path(&path)?;
-    fs::write(&tmp, b"").map_err(|e| format!("export_begin_binary {path}: {e}"))
+fn export_begin_binary(path: String, expected_bytes: u64) -> CmdResult<String> {
+    binary_exports().lock().map_err(|e| e.to_string())?.begin(PathBuf::from(path), expected_bytes)
 }
 
 #[tauri::command(async)]
-fn export_append_binary(path: String, data: String) -> CmdResult<()> {
-    use base64::Engine as _;
-    use std::io::Write as _;
-    let tmp = export_tmp_path(&path)?;
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(data)
-        .map_err(|e| format!("export_append_binary: bad base64: {e}"))?;
-    let mut f = fs::OpenOptions::new()
-        .append(true)
-        .open(&tmp)
-        .map_err(|e| format!("export_append_binary {path}: {e}"))?;
-    f.write_all(&bytes)
-        .map_err(|e| format!("export_append_binary {path}: {e}"))
+fn export_append_binary(session: String, data: String) -> CmdResult<()> {
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| e.to_string())?;
+    binary_exports().lock().map_err(|e| e.to_string())?.append(&session, &bytes)
 }
 
 #[tauri::command(async)]
-fn export_finish_binary(path: String) -> CmdResult<()> {
-    let tmp = export_tmp_path(&path)?;
-    let abs = Path::new(&path);
-    fs::rename(&tmp, abs).map_err(|e| {
-        let _ = fs::remove_file(&tmp);
-        format!("export_finish_binary {path}: {e}")
-    })
+fn export_finish_binary(session: String) -> CmdResult<()> {
+    binary_exports().lock().map_err(|e| e.to_string())?.finish(&session)
+}
+
+#[tauri::command(async)]
+fn export_abort_binary(session: String) -> CmdResult<()> {
+    binary_exports().lock().map_err(|e| e.to_string())?.abort(&session);
+    Ok(())
 }
 
 /// List backup archives in an ABSOLUTE directory, sorted by name (the timestamp
@@ -1178,6 +1162,7 @@ fn main() {
             export_begin_binary,
             export_append_binary,
             export_finish_binary,
+            export_abort_binary,
             export_list_backups,
             export_delete_backup,
             secret_set,

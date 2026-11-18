@@ -560,3 +560,11 @@
 | T-039 | 2026-11-15 | 持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` **1859.7 → 6.8 ms**（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms |
 | T-042 | 2026-11-15 | 命令补齐复核：**原判断不成立并已纠正**。实测 ADKM 175 条（非 101，旧正则漏了批量注册）、Obsidian 制品静态可提取 169 条（热键页 280 含动态/插件命令）、ID 字面差集 114 条（非 179）——其中约 70 条是**命名不同但功能已有**、约 40 条是**能力缺失**（Canvas/Bases/同步/发布/多窗口，由 T-043/T-044/T-048 覆盖或排除）。本轮落地：`docs/command-gap-matrix.adoc`（可复现取证 + 功能域矩阵）、补 4 条真命令（`app:set-reading-view/set-live-preview/set-source-mode/toggle-default-new-pane-mode`，均有 `available` + 真实 callback + en/zh 文案）、`scripts/verify-command-registry.ts` 并入 `npm run verify`（查重复 ID / i18n 缺失 / 无 callback，防审计 §11 的「假完成」）。**未凑数注册空命令，未改已有 ID 以免破坏用户热键绑定** |
 | Q-005 | 2026-11-15 | **已决（D-024）**：① 放行新增运行期依赖，但按「先搜寻，后自研」评估后只引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 Kindle 家族只读预览（T-055）；CBR/HEIC/DJVU/TIFF 等仍不引入，需再次单独放行。② 维持 D-022 的**编辑能力冻结**：保留 Excel 显式保存，不执行「连保存也移除」的彻底只读。决策依据与依赖登记见 `DECISIONS.md` D-024、`MANIFEST.md` |
+
+
+## PR #2 backup-session follow-up (2026-11-17, local)
+
+- Problem: same-second backup runs share a destination and multi-call temporary file.
+- Plan: owned export sessions, exact-length finish, explicit abort, per-renderer backup guard and random archive suffix. No new dependency.
+- Acceptance: deterministic native temporary-directory tests for interleaving, abort, incomplete finish, existing destination and byte preservation; frontend tests for overlap, retries and no pruning on write failure; npm run verify and native compile/check. Desktop IPC/runtime behavior reported separately.
+- Status: implemented locally; npm run verify exits 0 (202 passed, one expected failure, one skipped); seven native temporary-directory tests pass; cargo check --locked exits 0 on Windows. Isolated Windows desktop IPC run also passed: multi-chunk backup, overlap rejection, failure cleanup/retry, racing publication (DOCX response was checked in the combined validation tree, not this backup-only branch). Binary archive bytes match; text follows existing LF normalization. Non-Windows execution remains unverified. Not published. DOCX correction remains a separate set of files.
