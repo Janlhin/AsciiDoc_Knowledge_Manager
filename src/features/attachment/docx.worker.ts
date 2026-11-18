@@ -5,10 +5,7 @@
  * That parse is CPU-bound and belongs off the renderer thread. The caller keeps
  * rendering (dangerouslySetInnerHTML) on the main thread.
  */
-interface ConversionRequest {
-  id: number;
-  buffer: ArrayBuffer;
-}
+import type { DocxConversionRequest } from "./docxWorkerProtocol";
 
 interface ConversionResponse {
   id: number;
@@ -36,15 +33,15 @@ function loadMammoth(): Promise<MammothModule> {
 
 const ctx = self as unknown as {
   postMessage(message: ConversionResponse): void;
-  onmessage: ((event: MessageEvent<ConversionRequest>) => void) | null;
+  onmessage: ((event: MessageEvent<DocxConversionRequest>) => void) | null;
 };
 
 ctx.onmessage = (event) => {
-  const { id, buffer } = event.data;
+  const { id, arrayBuffer } = event.data;
   void (async () => {
     try {
       const mammoth = await loadMammoth();
-      const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+      const result = await mammoth.convertToHtml({ arrayBuffer });
       ctx.postMessage({ id, html: result.value });
     } catch (err) {
       ctx.postMessage({ id, error: err instanceof Error ? err.message : String(err) });

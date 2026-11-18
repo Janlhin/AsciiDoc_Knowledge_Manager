@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
+import type { DocxConversionRequest } from "./docxWorkerProtocol";
 
 /**
  * DOCX preview (ADKM L4) — mammoth converts the .docx OOXML package to semantic
@@ -62,7 +63,7 @@ async function convertInWorker(arrayBuffer: ArrayBuffer): Promise<string> {
   nextId += 1;
   return new Promise<string>((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    w.postMessage({ id, arrayBuffer });
+    w.postMessage({ id, arrayBuffer } satisfies DocxConversionRequest);
   });
 }
 
