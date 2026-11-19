@@ -4,6 +4,7 @@ import { Icon } from "@app/icons";
 import { confirmAction } from "@core/confirm";
 import { clearSettingsSection, peekSettingsSection } from "@core/settingsNav";
 import { setStartupMode, startupMode, type StartupMode } from "@core/startup";
+import { heavyLoadMode, setHeavyLoadMode, type HeavyLoadMode } from "@core/heavyLoad";
 import {
   READABLE_LINE_WIDTH_MAX,
   READABLE_LINE_WIDTH_MIN,
@@ -394,6 +395,7 @@ export function SettingsModal() {
 function StartupSection() {
   const t = useI18n();
   const mode = useStore(startupMode);
+  const loadMode = useStore(heavyLoadMode);
   const options: Array<{ value: StartupMode; label: string; desc: string }> = [
     { value: "restore", label: t("settings.startup.restore"), desc: t("settings.startup.restoreDesc") },
     { value: "fresh", label: t("settings.startup.fresh"), desc: t("settings.startup.freshDesc") },
@@ -430,6 +432,37 @@ function StartupSection() {
       </div>
       <div className="setting-desc" data-testid="settings-startup-hint">
         {t("settings.startup.hint")}
+      </div>
+      <h3 className="settings-subheader" data-testid="settings-subheader-heavy-load">
+        {t("settings.heavyLoadHeading")}
+      </h3>
+      <div
+        className="settings-card"
+        role="radiogroup"
+        aria-label={t("settings.heavyLoadHeading")}
+      >
+        {([
+          { value: "auto", label: "settings.heavyLoad.auto", desc: "settings.heavyLoad.autoDesc" },
+          { value: "onDemand", label: "settings.heavyLoad.onDemand", desc: "settings.heavyLoad.onDemandDesc" },
+        ] as Array<{ value: HeavyLoadMode; label: "settings.heavyLoad.auto" | "settings.heavyLoad.onDemand"; desc: "settings.heavyLoad.autoDesc" | "settings.heavyLoad.onDemandDesc" }>).map((opt) => (
+          <label
+            key={opt.value}
+            className={`setting-item setting-item-choice${loadMode === opt.value ? " is-selected" : ""}`}
+            data-testid={`settings-heavy-load-${opt.value}`}
+          >
+            <input
+              type="radio"
+              name="settings-heavy-load-mode"
+              checked={loadMode === opt.value}
+              onChange={() => setHeavyLoadMode(opt.value)}
+              data-testid={`settings-heavy-load-radio-${opt.value}`}
+            />
+            <div className="setting-info">
+              <div className="setting-name">{t(opt.label)}</div>
+              <div className="setting-desc">{t(opt.desc)}</div>
+            </div>
+          </label>
+        ))}
       </div>
     </>
   );

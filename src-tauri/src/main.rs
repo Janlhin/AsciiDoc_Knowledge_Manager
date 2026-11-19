@@ -15,6 +15,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod binary_export;
 mod features;
 use tauri::{Emitter, Manager};
 
@@ -779,6 +780,34 @@ fn export_write_binary(path: String, data: String) -> CmdResult<()> {
         })
 }
 
+/// Chunked backup sessions are owned by the backend, not a shared path.
+fn binary_exports() -> &'static Mutex<binary_export::Exports> {
+    static EXPORTS: std::sync::OnceLock<Mutex<binary_export::Exports>> = std::sync::OnceLock::new();
+    EXPORTS.get_or_init(|| Mutex::new(binary_export::Exports::default()))
+}
+
+#[tauri::command(async)]
+fn export_begin_binary(path: String, expected_bytes: u64) -> CmdResult<String> {
+    binary_exports().lock().map_err(|e| e.to_string())?.begin(PathBuf::from(path), expected_bytes)
+}
+
+#[tauri::command(async)]
+fn export_append_binary(session: String, data: String) -> CmdResult<()> {
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| e.to_string())?;
+    binary_exports().lock().map_err(|e| e.to_string())?.append(&session, &bytes)
+}
+
+#[tauri::command(async)]
+fn export_finish_binary(session: String) -> CmdResult<()> {
+    binary_exports().lock().map_err(|e| e.to_string())?.finish(&session)
+}
+
+#[tauri::command(async)]
+fn export_abort_binary(session: String) -> CmdResult<()> {
+    binary_exports().lock().map_err(|e| e.to_string())?.abort(&session);
+    Ok(())
+}
+
 /// List backup archives in an ABSOLUTE directory, sorted by name (the timestamp
 /// is in the name, so name order is chronological). Only files matching the
 /// backup-name contract are returned; anything else in the folder is ignored.
@@ -1130,6 +1159,10 @@ fn main() {
             http_request,
             export_write,
             export_write_binary,
+            export_begin_binary,
+            export_append_binary,
+            export_finish_binary,
+            export_abort_binary,
             export_list_backups,
             export_delete_backup,
             secret_set,

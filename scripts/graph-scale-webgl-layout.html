@@ -1,0 +1,295 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Q-011 WebGL2 GPU graph</title></head>
+<body style="margin:0;background:#111;color:#eee;font:13px monospace">
+<canvas id="c" width="1200" height="800" style="width:1200px;height:800px"></canvas>
+<pre id="out">starting…</pre>
+<script>
+/**
+ * Q-011 GPU prototype: WebGL2 ping-pong float textures.
+ *
+ * - State texture: RGBA32F (x, y, vx, vy), one texel per node.
+ * - Update pass: fragment shader approximates forces (K random repulsion
+ *   samples + up to two link neighbours + centering). It is deliberately NOT
+ *   d3-force/Barnes-Hut: GPU all-pairs at 100k is impossible, and a spatial
+ *   index is the next design step if this prototype is promoted.
+ * - Render pass: points use gl_VertexID; edges use a GPU buffer of endpoint ids
+ *   and fetch positions from the same state texture. No CPU readback/frame.
+ */
+const canvas = document.getElementById("c");
+const out = document.getElementById("out");
+const N = Number(new URLSearchParams(location.search).get("n") || 100000);
+const EDGES = N * 2;
+const K = 32;
+const FRAMES = Number(new URLSearchParams(location.search).get("frames") || 120);
+
+function fail(msg) {
+  out.textContent = "ERROR: " + msg;
+  window.__gpuBenchError = String(msg);
+  window.__gpuBenchDone = true;
+  throw new Error(msg);
+}
+
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, powerPreference: "high-performance" });
+if (!gl) fail("WebGL2 unavailable");
+if (!gl.getExtension("EXT_color_buffer_float")) fail("EXT_color_buffer_float unavailable");
+
+function shader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) fail(gl.getShaderInfoLog(s));
+  return s;
+}
+function program(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) fail(gl.getProgramInfoLog(p));
+  return p;
+}
+
+const texW = Math.ceil(Math.sqrt(N));
+const texH = Math.ceil(N / texW);
+const texSize = texW * texH;
+
+const updateProg = program(
+  `#version 300 es
+  in vec2 aPos;
+  void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`,
+  `#version 300 es
+  precision highp float;
+  precision highp int;
+  uniform sampler2D uState;
+  uniform sampler2D uNeighbors;
+  uniform ivec2 uTexSize;
+  uniform uint uCount;
+  uniform uint uFrame;
+  uniform float uDt;
+  uniform float uRepel;
+  uniform float uLink;
+  uniform float uCenter;
+  out vec4 outState;
+
+  uint hash(uint x) {
+    x ^= x >> 16; x *= 0x7feb352dU;
+    x ^= x >> 15; x *= 0x846ca68bU;
+    x ^= x >> 16; return x;
+  }
+  vec2 at(uint i) {
+    ivec2 c = ivec2(int(i) % uTexSize.x, int(i) / uTexSize.x);
+    return texelFetch(uState, c, 0).xy;
+  }
+
+  void main() {
+    ivec2 c = ivec2(gl_FragCoord.xy);
+    uint i = uint(c.y) * uint(uTexSize.x) + uint(c.x);
+    vec4 s = texelFetch(uState, c, 0);
+    if (i >= uCount) { outState = s; return; }
+
+    vec2 p = s.xy;
+    vec2 v = s.zw;
+
+    // Approximate long-range repulsion: K deterministic samples per node.
+    for (int k = 0; k < ${K}; k++) {
+      uint j = hash(i * 747796405U + uint(k) * 2891336453U + uFrame) % uCount;
+      if (j == i) continue;
+      vec2 d = p - at(j);
+      float d2 = dot(d, d) + 0.0008;
+      v += (d / d2) * uRepel * uDt;
+    }
+
+    // Link attraction: two endpoints are packed into RGBA32F.
+    vec4 nb = texelFetch(uNeighbors, c, 0);
+    if (nb.x >= 0.0) v += (at(uint(nb.x)) - p) * uLink * uDt;
+    if (nb.y >= 0.0) v += (at(uint(nb.y)) - p) * uLink * uDt;
+
+    v -= p * uCenter * uDt;
+    v *= 0.985;
+    p += v * uDt;
+    p = clamp(p, vec2(-1.2), vec2(1.2));
+    outState = vec4(p, v);
+  }`,
+);
+
+const pointProg = program(
+  `#version 300 es
+  uniform sampler2D uState;
+  uniform ivec2 uTexSize;
+  uniform int uCount;
+  void main() {
+    int i = gl_VertexID;
+    if (i >= uCount) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); gl_PointSize = 0.0; return; }
+    ivec2 c = ivec2(i % uTexSize.x, i / uTexSize.x);
+    vec2 p = texelFetch(uState, c, 0).xy;
+    gl_Position = vec4(p, 0.0, 1.0);
+    gl_PointSize = 1.5;
+  }`,
+  `#version 300 es
+  precision mediump float;
+  out vec4 fragColor;
+  void main() { fragColor = vec4(0.62, 0.53, 0.98, 1.0); }`,
+);
+
+const lineProg = program(
+  `#version 300 es
+  in float aIndex;
+  uniform sampler2D uState;
+  uniform ivec2 uTexSize;
+  void main() {
+    int i = int(aIndex);
+    ivec2 c = ivec2(i % uTexSize.x, i / uTexSize.x);
+    vec2 p = texelFetch(uState, c, 0).xy;
+    gl_Position = vec4(p, 0.0, 1.0);
+  }`,
+  `#version 300 es
+  precision mediump float;
+  out vec4 fragColor;
+  void main() { fragColor = vec4(0.30, 0.26, 0.62, 0.55); }`,
+);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+const quadVao = gl.createVertexArray();
+gl.bindVertexArray(quadVao);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+const state = new Float32Array(texSize * 4);
+const neighbors = new Float32Array(texSize * 4).fill(-1);
+const edgeIds = new Float32Array(EDGES * 2);
+let seed = 0x9e3779b9 >>> 0;
+const rand = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 0x100000000; };
+for (let i = 0; i < N; i++) {
+  const angle = rand() * Math.PI * 2;
+  const radius = 0.2 + rand() * 0.9;
+  state[i * 4] = Math.cos(angle) * radius;
+  state[i * 4 + 1] = Math.sin(angle) * radius;
+}
+for (let e = 0; e < EDGES; e++) {
+  const a = Math.floor(rand() * N);
+  const b = Math.floor(rand() * N);
+  edgeIds[e * 2] = a;
+  edgeIds[e * 2 + 1] = b;
+  // Keep at most two link neighbours per node for the update shader.
+  for (const [from, to] of [[a, b], [b, a]]) {
+    const base = from * 4;
+    if (neighbors[base] < 0) neighbors[base] = to;
+    else if (neighbors[base + 1] < 0) neighbors[base + 1] = to;
+  }
+}
+
+function texture(data) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texW, texH, 0, gl.RGBA, gl.FLOAT, data);
+  return t;
+}
+const stateTex = [texture(state), texture(new Float32Array(state.length))];
+const neighborTex = texture(neighbors);
+const fbo = gl.createFramebuffer();
+
+function setUniforms(p, src, dst) {
+  gl.useProgram(p);
+  gl.uniform1i(gl.getUniformLocation(p, "uState"), 0);
+  gl.uniform1i(gl.getUniformLocation(p, "uNeighbors"), 1);
+  gl.uniform2i(gl.getUniformLocation(p, "uTexSize"), texW, texH);
+  gl.uniform1ui(gl.getUniformLocation(p, "uCount"), N);
+  gl.uniform1f(gl.getUniformLocation(p, "uDt"), 0.012);
+  gl.uniform1f(gl.getUniformLocation(p, "uRepel"), 0.0016);
+  gl.uniform1f(gl.getUniformLocation(p, "uLink"), 0.35);
+  gl.uniform1f(gl.getUniformLocation(p, "uCenter"), 0.012);
+  if (src !== undefined) {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src);
+  }
+  if (dst !== undefined) {
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, dst);
+  }
+}
+
+let frame = 0;
+let cur = 0;
+function step() {
+  gl.useProgram(updateProg);
+  gl.bindVertexArray(quadVao);
+  setUniforms(updateProg, stateTex[cur], neighborTex);
+  gl.uniform1ui(gl.getUniformLocation(updateProg, "uFrame"), frame++);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, stateTex[1 - cur], 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) fail("simulation FBO incomplete");
+  gl.viewport(0, 0, texW, texH);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  cur = 1 - cur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+const lineBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
+gl.bufferData(gl.ARRAY_BUFFER, edgeIds, gl.STATIC_DRAW);
+const lineVao = gl.createVertexArray();
+gl.bindVertexArray(lineVao);
+const lineLoc = gl.getAttribLocation(lineProg, "aIndex");
+gl.enableVertexAttribArray(lineLoc);
+gl.vertexAttribPointer(lineLoc, 1, gl.FLOAT, false, 0, 0);
+
+function draw() {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0.07, 0.07, 0.07, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  gl.useProgram(lineProg);
+  gl.uniform1i(gl.getUniformLocation(lineProg, "uState"), 0);
+  gl.uniform2i(gl.getUniformLocation(lineProg, "uTexSize"), texW, texH);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, stateTex[cur]);
+  gl.bindVertexArray(lineVao);
+  gl.drawArrays(gl.LINES, 0, EDGES * 2);
+
+  gl.useProgram(pointProg);
+  gl.uniform1i(gl.getUniformLocation(pointProg, "uState"), 0);
+  gl.uniform2i(gl.getUniformLocation(pointProg, "uTexSize"), texW, texH);
+  gl.uniform1i(gl.getUniformLocation(pointProg, "uCount"), N);
+  gl.bindVertexArray(null);
+  gl.drawArrays(gl.POINTS, 0, N);
+}
+
+const renderer = gl.getParameter(gl.RENDERER);
+const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+const gpuName = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : renderer;
+const samples = [];
+let last = performance.now();
+let warm = 0;
+function loop(now) {
+  const dt = now - last;
+  last = now;
+  step();
+  draw();
+  if (warm++ > 30) samples.push(dt);
+  if (samples.length < FRAMES) requestAnimationFrame(loop);
+  else {
+    const sorted = [...samples].sort((a, b) => a - b);
+    const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+    window.__gpuBenchResult = {
+      nodes: N, edges: EDGES, gpu: gpuName, samples: samples.length,
+      fps: Math.round(1000 / avg * 10) / 10,
+      avgFrameMs: Math.round(avg * 100) / 100,
+      p95FrameMs: Math.round(sorted[Math.floor(sorted.length * 0.95)] * 100) / 100,
+      badFrames: samples.filter((v) => v > 20).length,
+    };
+    out.textContent = JSON.stringify(window.__gpuBenchResult, null, 2);
+    window.__gpuBenchDone = true;
+  }
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

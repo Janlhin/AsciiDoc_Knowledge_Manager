@@ -547,3 +547,105 @@
 - **验证**：`npm run typecheck` 0；`cargo check` 0；`npm test` 193 passed；`npm run build` 0；`npx tauri build --no-bundle` 产出 `adkm.exe`；真机 E2E **21/21**（`raw-binary-ipc`：40 MB 拷贝 976 ms、主线程阻塞 0 ms）；`--self-check` OK。
 - **诚实缺口**：**这不是「全场景多核」的完成态**。本项只消除传输编码成本；EPUB/PPTX 解压仍在 JS 主线程（P0-2），备份 ZIP 仍由 JSZip 在主线程生成（P0-3），docx/xlsx/asciidoctor/索引解析仍在 JS 主线程（P1），图谱布局仍在 JS 主线程（P2）。
 - **复审条件**：若 raw `Request` 在其它平台（macOS WKWebView / iOS）不能保留 header 或 body，应把 header 改成 command 参数并改走 Channel，再重开本条。
+
+## D-032 AsciiDoc 转换进 Worker：CPU 卸载，不宣称卡顿改善
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-062 / P1-3）。
+- **决策**：新增 `src/core/asciidoctor.worker.ts`，由专用 Web Worker 持有 `@asciidoctor/core` 并执行 `convert(source, options)`；主线程只做 `sanitizeHtml` + `localizeLinks` 两个轻量字符串处理。Worker 不可用或失败时自动回退到原来的页内动态 import，保证预览不中断。
+- **背景**：用户要求「全场景支持多核」。P0-1 已完成原始字节 IPC；P0-2（EPUB 解压进 Rust）因新增 `zip` crate 撞硬边界 #5、未获放行而暂缓，故先做零新依赖的 P1-3。
+- **实测（同一 release）**：E2E 夹具（5000 节）Worker 47 ms vs 页内 38 ms；独立探针（1000 节）启动的 5 ms 定时器在两条路径上的延迟约 1 ms / 0 ms。**结论：`@asciidoctor/core` 自身会把转换切成异步片段，主线程并未被长时间堵住；本项的价值是把 CPU 时间移到独立线程，不是消除用户可感知的卡顿，也不宣称更快。** 早期用 rAF 帧间隔做判据时该环境下出现 0ms/0ms 的不可判别结果，已改为「Worker 实际产出且 HTML 与页内一致」的断言。
+- **被采纳方案**：单 Worker + id 路由；`isAsciiDocWorkerActive()` 暴露给探针；`renderAsciiDocPreview(source, { forceInPage, skipCache })` 仅供对照探针使用，其它调用点保持原签名。
+- **被否决的替代方案**：
+  - *把 sanitize/localize 也搬进 Worker*：否决理由——它们只是两次字符串替换，跨线程回传反而增加传输；且主线程 DOM 更新仍必需。
+  - *Worker 池按硬件并发数创建多个转换器*：否决理由——编辑器一次只渲染活动预览，没有并发请求；池会徒增内存与复杂度。
+  - *新增 `zip` crate 先做 P0-2*：否决理由——撞硬边界 #5，未获用户签字，不自行放行。
+- **影响范围**：`src/core/asciidoctor.worker.ts`（新增）、`src/core/asciidoctorPreview.ts`（Worker 桥 + 回退 + 探针参数）、`src/main.tsx`（`__geodeAdocProbe`）、`tests/e2e/run.mjs`（第 19 条 `adoc-worker-offthread` + 大文档夹具）。
+- **验证**：`npm run verify` 0；`npx tauri build --no-bundle` 成功；真机 E2E **22/22**（`adoc-worker-offthread`：Worker active、HTML 一致）；`--self-check` OK。
+- **诚实缺口**：Worker 失败后的页内回退仍占主线程；转换总耗时未下降（47 vs 38 ms）；未做 docx/xlsx/索引的 Worker 化（P1 其余项）；EPUB/PPTX 解压仍在 JS 主线程（P0-2，待依赖授权）。
+- **复审条件**：若用户要的是**可测量的卡顿降低**而非 CPU 卸载，需先给出可复现的卡顿场景和基线，再决定是否值得继续搬；单纯把更多东西丢进 Worker 不自动等于更快。
+
+## D-033 DOCX/XLSX 解析进 Worker：CPU 卸载，不宣称提速
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-062 / P1-1 + P1-2）。
+- **决策**：DOCX 用 `docx.worker.ts` 持有 mammoth 的 `convertToHtml`；XLSX 用 `xlsx.worker.ts` 持有 SheetJS 的 `read` + `sheet_to_json`。两条都在组件侧保留 id 路由、Worker 失败回退页内解析；XLSX 的网格渲染与显式 Save（序列化）仍在主线程——前者依赖 DOM，后者是用户动作，不自动写盘的安全边界不变。
+- **背景**：用户要求「全场景支持多核」，并明确继续做。P0-2 仍需新增 `zip` crate、未获签字，故继续零新依赖的 P1。
+- **实测（同一构建、真机 CDP）**：DOCX Worker 46 ms vs 页内 9 ms、HTML 一致；XLSX Worker 25 ms vs 页内 18 ms、1 个 sheet、数据一致。**这些数字不证明提速**；测量目的是证明 CPU 工作确实发生在 Worker 且产出等价。小文件里启动/序列化开销会盖过解析成本。
+- **被否决的替代方案**：
+  - *把 x-data-spreadsheet 网格也搬进 Worker*：否决理由——它直接操作 DOM，无法在 Worker 运行；强行 OffscreenCanvas 等于换组件。
+  - *把 Save 序列化也搬进 Worker*：本轮不做——保存路径涉及 `vault.modifyBinary` 与显式用户意图，保持简单可审计；若未来量出保存卡顿再开独立片。
+  - *新增 zip crate 先做 P0-2*：仍因硬边界 #5 未获放行。
+- **影响范围**：`src/features/attachment/docx.worker.ts`（新增）、`xlsx.worker.ts`（新增）、`DocxPreview.tsx`、`XlsxPreview.tsx`、`src/main.tsx`（两个对照探针）、`tests/e2e/run.mjs`（新增 docx/xlsx 夹具与两条用例；新增 `--only=<case>` 过滤能力用于隔离用例）。
+- **验证**：`npm run verify` 0；`npx tauri build --no-bundle` 成功；真机 E2E **24/24**；`--self-check` 23/24 且 outline 用例按预期变红。
+- **诚实缺口**：Worker 启动与结构化克隆仍有成本；大文件的收益未被专门量化（夹具为 120 段 docx / 300 行 xlsx）；Save 序列化仍占主线程；docx/xlsx 两个 Worker 同时存在但未做并发压测。
+- **复审条件**：若用户提供真实大 docx/xlsx 并报告卡顿，先用 `--only` 单用例和对照探针量化，再决定是否扩大夹具或移动 Save。
+
+## D-034 重内容默认点击加载，设置可切自动
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（Q-007 结案）。
+- **决策**：恢复会话时，PDF/EPUB/Office/CBZ 等重内容**默认“点击后加载”**：只恢复标签，显示“加载内容”按钮，点击前不读取文件。设置 → 启动行为新增“恢复的附件”单选，可切为**自动加载**（包括 32MB 以上的 PDF）。设置保存在机器本地 `localStorage`，不写入用户库。
+- **背景**：原实现只对 32MB 以上 PDF 做体积闸，EPUB/Office 全部自动加载；用户库有 14 本 PDF（多为 20–144MB）与 8 本 EPUB，明确要求默认点击、可改自动。
+- **被采纳方案**：新增 `core/heavyLoad.ts`（`auto` / `onDemand`，缺省/损坏值归一为 `onDemand`）；`AttachmentView` 在 onDemand 下统一闸住 PDF 与 `formatPreviewer` 的格式；auto 下取消 32MB 体积闸，仅保留 PDF 两帧延迟以避开首绘。
+- **被否决的替代方案**：
+  - *保留 32MB PDF 闸并让 auto 只作用于 EPUB*：否决理由——用户库里多数扫描书 >32MB，自动模式将名不副实。
+  - *把设置写进 `.obsidian` 跟随库*：否决理由——启动性能是机器属性，跨设备同步会互相覆盖；与 D-027 的会话语义一致。
+  - *onDemand 只闸 PDF*：否决理由——用户明确要求“重内容”，EPUB/Office/CBZ 的解压同样是大开销。
+- **真实库测试（只读复制到临时库，原库未改）**：22 本（14 PDF + 8 EPUB，合计 757,674,358 字节）。onDemand：22/22 在 3–11ms 显示占位，零文件读取。auto：22/22 成功挂载，最慢 697ms（PDF），EPUB 均 <100ms。重启后 22 个标签恢复；实测**只有当前标签挂载**（1 个 attachment-view），其余按需挂载——所以“22 标签恢复”不等于“22 本同时进内存”。
+- **影响范围**：`src/core/heavyLoad.ts`（新增）、`src/features/attachment/AttachmentView.tsx`、`src/features/settings/SettingsModal.tsx`、`src/core/i18n/dict.views.ts`、`tests/heavyLoad.test.ts`、`tests/e2e/run.mjs`。
+- **验证**：`npm run verify` 0（19 个测试文件）；`npx tauri build --no-bundle` 成功；相关 E2E 用例通过；真实库记录见 `.workbuddy/tmp/real-books-*.json`（临时副本已清理）。
+- **诚实缺口**：真实库测试使用的是**副本**，不是应用直接指向原库；22 标签重启只挂载当前标签，未验证“22 本同时渲染”的极端场景；onDemand 下切换标签仍需一次点击；PDF 大小阈值不再作为闸门，Q-008 因此失效。
+- **复审条件**：若用户要求“恢复时预加载前 N 个标签”或“仅大文件点击”，需重新定义策略；本次只实现二态开关。
+
+## D-035 备份分块写入：修掉大库静默产出 0 字节归档
+
+- **日期**：2026-11-17
+- **状态**：**已实施**（T-057 回归修复）。
+- **问题**：真实库全量测试时，440MB 夹具让备份产出**0 字节 ZIP，但命令仍返回 ok:true**——这是静默数据丢失，不能留。
+- **根因**：`tauriBackupIO.writeBinary` 把整个归档编成一个 base64 参数（440MB → 约 590MB 字符串）。实测该单参数路径在 Tauri IPC 上失效，Rust 侧收到空数据并成功写了空文件；现有 ZIP 读取测试只有在归档非空时才会发现。
+- **决策**：`export_write_binary` 保留兼容，但备份改用 **begin / append / finish** 三个窄命令，前端按 **4MB** 分块 base64 传输；Rust 追加写入 sibling temp，finish 时 rename，失败保持原子性与旧语义。
+- **同时修正测试污染**：`prepareVault` 现在先校验目录名包含 `e2e-vault` 再清空；`raw-binary-ipc` 每轮复制 40MB PDF 曾让夹具累积到 440MB，正是它触发了这条缺陷。
+- **验证**：同一 440MB 夹具，分块后生成 **461,536,071 字节** ZIP，`JSZip.loadAsync` 可读 40 个文件条目；完整 E2E **24/24**；`--self-check` 23/24（outline 按预期红）；`npm run verify` 0；`npx tauri build --no-bundle` 成功。
+- **影响范围**：`src/core/backup.ts`、`src-tauri/src/main.rs`（3 个新命令 + 注册）、`tests/e2e/run.mjs`（清空夹具）。
+- **诚实缺口**：仍未把 ZIP 压缩本身搬到 Rust（P0-3）；分块写入有多次 IPC 往返，440MB 备份约 15.5 秒；未做备份中断/磁盘满的故障注入。
+- **复审条件**：若备份继续做大（多 GB）或需要进度条，应直接改用 Rust `zip` crate 流式写盘（需硬边界 #5 放行）。
+
+## D-036 Q-011 spike：WebGL 能画 10 万，布局不能交互
+
+- **日期**：2026-11-17
+- **状态**：**spike 完成；生产改造未做，待 Q-011 最终选择**。
+- **问题**：用户问 WebGL 理论上能否支撑 10 万节点。需要区分“绘制”与“力导布局”，并用本机数据判断是否值得换架构。
+- **实测环境**：Windows 本机；布局为 Node 26 + d3-force（与 GraphView 同一组 force：link/charge/center/radial/collide，alphaDecay 0.03）；渲染为 Edge Chromium 1200×800，WebGL points+LINES vs Canvas2D，无标签。
+- **布局实测（合成图，约 2 边/节点）**：
+  - 1k 节点 / 2k 边：build 0.8ms，首次 tick 8.3ms，平均 2.8ms，227 tick **settled**，约 637ms。
+  - 10k / 20k：build 4.3ms，首次 50ms，平均 **42.5ms**，227 tick settled，约 **9.66s**。
+  - 50k / 100k：首次 386ms，平均 406ms，15s 仅 38 tick，**未 settled**。
+  - 100k / 200k：首次 **1026.8ms**，平均 **924.7ms**，15s 仅 17 tick，**未 settled**。
+- **渲染实测**：1k/10k/50k/100k 节点下，WebGL **0.0/0.1/0.4/0.6ms**，Canvas2D **0.6/2.0/9.1/16.7ms**（均无标签）。
+- **结论**：WebGL 只解决光栅化；10 万节点的 d3-force 布局是分钟级，不能 60fps 交互。以当前 419 节点/88 边的真实图谱，Canvas2D 已足够，**不应换 WebGL**。若未来要做 10 万级，必须先换布局（Worker/GPU/预计算）并加聚类/LOD/搜索，不能只换渲染器。
+- **工具**：`scripts/graph-scale-bench.ts`（`npm run bench:graph-scale`）、`scripts/graph-scale-webgl.html`（浏览器绘制对照，手工用静态服务器打开）。
+- **未做**：没有修改生产 `GraphView`；没有把 `RENDER_CAP` 从 3000 调到 800；没有做 GPU 力导原型；渲染测试不是 Tauri WebView2 内的直接测量。
+- **复审条件**：节点数 ≥2000 且实际绘制 >16ms，或用户明确要求 10 万级分析视图；先用同一套脚本复测再决定。
+
+## D-037 GPU 图谱原型：WebGL2 跑 10 万节点，但“跑满显卡”不是目标
+
+- **日期**：2026-11-17
+- **状态**：**原型完成；生产 GraphView 未替换**。
+- **背景**：用户要求把图谱换到 GPU，目标是 10 万节点级别。WebGPU 在当前 Edge/Chromium 中不可用（`navigator.gpu` 为 false），因此选择 **WebGL2 + RGBA32F 浮点纹理 ping-pong**。
+- **原型**：`scripts/graph-scale-webgl-layout.html`（静态页）。状态纹理存 `(x,y,vx,vy)`；片元着色器做近似力导（每节点 32 个随机斥力样本 + 最多 2 个边邻居 + 向心），顶点着色器从纹理取位置渲染点与边；无 CPU 每帧回读。
+- **实测（Edge Chromium，RTX 5080，1200×800，10 万节点/20 万边）**：**164.1 fps**，平均 **6.09ms/帧**，p95 **6.2ms**，>20ms 坏帧 0。GPU 采样：平均 **14%**、峰值 **49%**、显存峰值约 **2.3GB**（含 Edge）。
+- **结论**：GPU 能轻松撑住 10 万节点的**近似布局 + 渲染**；但显卡没有被跑满，因为图谱计算量本身不足以占满 5080，且 165fps 受 vsync 限制。**不应为了“跑满”人为增加无效计算**。
+- **精度/产品缺口（未做）**：32 个随机样本不是 Barnes-Hut，边与斥力的视觉质量与 d3-force 不等价；没有标签、点击拾取、拖拽、过滤、局部图、搜索与数据同步；没有接入生产 `GraphView`；没有 Tauri WebView2 内的直接 FPS 测量（Edge 与 WebView2 同为 Chromium/ANGLE，但非同一进程）。
+- **如果转生产**：需要先做空间网格/近邻查询（或 GPU 端 Barnes-Hut）、GPU 位置回读/拾取、标签 LOD、与 `GraphData`/筛选/局部图的接线、WebGL 失败回退；这是一轮独立特性，不是换 canvas。
+- **复审条件**：节点 ≥2000 且现有 Canvas 绘制 >16ms，或用户明确要“10 万级分析视图”；先用 `scripts/graph-scale-webgl-layout.html?n=100000&frames=600` 复测。
+
+
+## D-038 Owned chunked backup sessions (local proposal, 2026-11-17)
+
+- Scope: fix the PR #2 shared-temporary-file race; no new dependency or backup scheduler.
+- Every export owns an exclusively created sibling file; opaque session IDs replace path-based append/finish. Finish checks both successful-append count and actual file length, syncs data and publishes without replacing any existing file. Abort removes only the owned temporary file.
+- Windows uses its native no-replacement move; non-Windows uses a same-directory hard link, failing safely on unsupported filesystems. Non-Windows execution and real desktop IPC remain unverified.
+- The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
+- Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
+- Verification recorded in TASKS and the external review receipt; not published or merged.

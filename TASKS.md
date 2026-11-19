@@ -6,6 +6,39 @@
 
 ## 待办
 
+### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
+
+- **提出**：2026-11-19
+- **范围**：**只做 ADKM 本仓库**，其他项目不适用。
+- **盘点**：受版本控制的 `.md` 共 **40** 个——根目录 6（`AGENTS.md`、`CLAUDE.md`、`DECISIONS.md`、`MANIFEST.md`、`README.md`、`TASKS.md`）、`docs/` 18、`demo-vault/` 7、`.claude/` 6、`.calibration/`、`archive/`、`compat-fixtures/` 各 1。
+- **目标**：白名单之外全部迁为 `.adoc`，正文、`xref:`/相对链接与所有引用方同步更新，最终仓库文档只有一个源格式。
+- **白名单（先假定保留，动之前逐一确认工具是否认 `.adoc`）**：`AGENTS.md`、`CLAUDE.md`（智能体约定的固定文件名）；`.claude/`（命令定义）；`demo-vault/`、`compat-fixtures/`（测试载荷，改动需同步断言）；GitHub 社区文件（若有）。
+- **做法**：按批推进（`docs/` → 根目录 → 台账/决策），每批一个独立提交；每批先把「文件 → 引用方」列清，改完引用再进下一批。
+- **完成判据**：① `git ls-files '*.md'` 只剩白名单，且与白名单清单逐项一致；② 已迁移路径的旧 `.md` 引用在 `git grep` 中为 0（白名单除外）；③ `npm run verify` 退出码 0；④ 抽 3 篇转换后的 `.adoc` 在应用内渲染正常（人工目检一次）。
+- **当前状态**：**未开工**。下一步先出引用清单并确认白名单，再定批次与是否需要转换脚本。
+
+### T-063 大规模图谱 GPU 视图（待开工，生产 GraphView 未替换）
+
+- **提出**：2026-11-17
+- **背景**：Q-011 的两轮实测已经把边界分清——真实库 419 节点用 Canvas2D 足够（draw 0.4ms）；d3-force 到 10 万节点约 925ms/tick，不能交互；WebGL2 原型在 10 万节点/20 万边做到 **164.1fps / 6.09ms 帧**，但只是独立页面，没有标签、拾取、拖拽、过滤与真实数据接线。
+- **目标**：做一个**独立的大规模图谱视图**（不是把现有 `GraphView` 简单换 canvas），面向 10 万节点级的浏览与分析。
+- **待办拆解**：
+  1. 先决定入口与定位：独立“GPU 图谱/分析视图”，还是只在 `totalNodes > 3000` 时自动切换；不改普通图谱的交互语义。
+  2. 接入真实 `GraphData`：节点/边、解析态、标签、过滤、局部图、当前选中/锚点。
+  3. 布局：把随机采样升级为空间网格/近邻查询（或 GPU 端 Barnes-Hut）；保留可重复基准，不以“看起来能动”作为验收。
+  4. 交互：GPU 拾取、hover、点击打开、拖拽、pan/zoom、框选；标签只在缩放/hover 时出现（LOD）。
+  5. 回退与能力检测：WebGL2 不可用、上下文丢失、显存不足时明确降级，不得白屏。
+  6. 测试：10 万合成图 60fps 基线 + 真实库 419 节点不回归；`npm run verify` 0；E2E 覆盖入口、渲染、点击、回退。
+- **完成判据**：① 10 万节点/20 万边在目标机器 ≥60fps，p95 帧 ≤20ms；② 419 节点真实库与原 GraphView 功能/视觉无回归；③ 交互五件套（hover/点击/拖拽/缩放/过滤）可验收；④ WebGL 失败有可见降级；⑤ `npm run verify` 与 E2E 通过。
+- **当前状态**：**未开工**。原型见 `scripts/graph-scale-webgl-layout.html`，数据见 D-036/D-037；生产 `GraphView` 仍是 Canvas2D + d3-force，`RENDER_CAP` 仍 3000。
+- **替代收口**：若不做 GPU 生产视图，则 Q-011 按“当前规模不换 WebGL”结案，并把默认 cap 从 3000 收到 800–1000，保留“显示全部”。
+
+### T-064 PR #2 合并收口（待评审）
+
+- **提出**：2026-11-17
+- **内容**：PR #2 目前包含 Worker 解析、Q-007 重内容加载设置、备份分块修复与 Q-011 基准；CI 通过后仍需 1 个批准评审，未使用管理员绕过。
+- **完成判据**：PR #2 合并到 `main`；合并后在 `main` 跑 `npm run verify` 0、`npx tauri build --no-bundle` 成功、E2E 24/24（或记录环境差异）；删除/保留临时基准脚本的决定记录在案。
+
 ### T-062 主线程成本审计与搬迁（提案，待实施）
 
 - **提出**：2026-11-16
@@ -13,7 +46,7 @@
 - **关键结论**：仓库**没有任何 Web Worker**；大文件链上**传输比解析更贵**——144 MB 二进制的 JS 侧解码实测 `atob` 106 ms + 逐字节循环 216 ms ≈ **322 ms**（中间字符串 2.01 亿字符），因为 `vault_read_binary` 走 base64 字符串 + 前端逐字节还原。
 - **分期**：P0-1 二进制 IPC 改原始字节（`tauri::ipc::Response`）；P0-2 EPUB/PPTX 解压移到 Rust；P0-3 备份 ZIP 移到 Rust；P1 docx/xlsx/asciidoctor/索引进 Worker；P2 图谱布局进 Worker + 采样。
 - **完成判据（每期各自）**：改前/改后同夹具的 rAF 帧间隔与阶段耗时；不得恶化 FCP；E2E 增加对应断言。
-- **状态**：**P0-1 已实施（2026-11-17，D-031）**；原始字节 IPC 已完成并通过真机 E2E（40 MB 字节一致、主线程 0 ms 帧间隔）。P0-2 / P0-3 / P1 / P2 未实施，见 Q-009 与 `docs/main-thread-audit.adoc`。
+- **状态**：**P0-1（D-031）、P1-1/P1-2（D-033）、P1-3（D-032）已实施**；**P1-4 不做**（T-026 实测：索引重建非热点，Worker 会序列化大字符串）；P0-2 因新增 `zip` crate 撞硬边界 #5、待用户放行；P0-3 未实施。Q-011 已完成基准与 GPU 原型（D-036/D-037），生产 T-063 待决。见 `docs/main-thread-audit.adoc`。
 
 ### T-061 EPUB 阅读器补全：目录 + 翻页 + 阅读位置（D-030）
 
@@ -61,6 +94,7 @@
 - **完成判据**：① `npx vitest run tests/backup.test.ts` 退出码 0（15 用例：路径安全、命名契约、条目筛选、保留策略、ZIP 内容、拒绝库内目标）；② `npm run typecheck` 0；③ `npm run verify` 0；④ 真机 `npm run test:e2e` **14/14**（新增 `offdisk-backup`：真实写出 ZIP、断言含原稿与 `.obsidian/`、拒绝库内目标、`keep=1` 只剩一份），`--self-check` 通过；⑤ 章程修订注、D-026、`docs/backup-guide.adoc`、README、CHANGELOG 同步。
 - **解决**：**首片完成（2026-11-16）**。详见 `DECISIONS.md` D-026 与 `docs/backup-guide.adoc`。
 - **仍缺（下一片）**：设置界面里没有「备份」分区（当前只能靠命令面板两条命令）；无定时、无增量、无加密；不解决多机并发覆盖。
+- **回归修复（2026-11-17，D-035）**：440MB 库曾静默产出 0 字节归档；改为 begin/append/finish 分块写入，实测 461,536,071 字节且可读。
 
 ### T-056 编辑恢复覆盖全部可编辑文本 + 冗余边界（D-025）
 
@@ -449,11 +483,11 @@
 | Q-004 | 2026-11-15 | 应用标识改名（`productName` / `identifier`）与数据目录迁移：新 identifier 用什么前缀、`package.json` 的 name 是否同步改 | **待定**。方案已定，参数未定；仓库名已改为 `AsciiDoc_Knowledge_Manager` |
 | Q-005 | 2026-11-15 | B 档格式（MOBI/AZW3/DJVU/CBR/HEIC/TIFF…）是否放行新增运行期依赖，以及是否要求「连 Excel 保存也移除」的彻底只读 | **已决（2026-11-15）**：①放行并引入 1 个 MIT 依赖、落地 Kindle 家族只读预览（T-055 / D-024）；②按 D-022 维持「编辑能力冻结」，**保留** Excel 显式保存、不移除。其余 B 档格式仍需再次单独放行 |
 | Q-006 | 2026-11-16 | 本地多盘冗余走哪条路（应用内是否要提供跨盘副本） | **已决（2026-11-16）**：走「应用内可选备份到用户指定目录」（原方案 C 的加强版）——T-057 / D-026。不再要求用户自己去配系统备份；应用提供命令「选择备份文件夹 / 立即备份」，目标可指向另一块盘、网络盘或网盘同步目录。**自研同步引擎仍不做**（T-048 有效）。原方案 A（系统备份）从「推荐」降为「可与本功能叠加的补充」，B（库外快照根）因与本功能重叠而不做 |
-| Q-007 | 2026-11-16 | 恢复会话时，重内容（PDF / EPUB / Office / CBZ）是**自动加载**还是**点击加载** | **待定**。现状：PDF 已按体积闸（>32MB 点击加载）处理，其余格式自动加载。三条候选见下方「Q-007–Q-012 待定方案」；建议统一为点击加载（启动最干净，代价是每本书多点一次） |
-| Q-008 | 2026-11-16 | PDF 自动加载阈值定多少（现为 32 MB） | **待定**。实测：21 MB 真实扫描书 → 首绘后 59 ms 卡顿；60 MB → 72+151 ms；144 MB 已拦截。建议降到 8 MB（用户库 14 本 PDF 中 11 本 >20 MB，8 MB 以上一律点击加载）。若 Q-007 选「统一点击加载」，本条作废 |
+| Q-007 | 2026-11-16 | 恢复会话时，重内容（PDF / EPUB / Office / CBZ）是**自动加载**还是**点击加载** | **已决（2026-11-17）**：默认**点击加载**，设置 → 启动行为可切**自动加载**（D-034）。真实库 22 本验证：onDemand 3–11ms 全部占位；auto 全部挂载，最慢 697ms |
+| Q-008 | 2026-11-16 | PDF 自动加载阈值定多少（现为 32 MB） | **已失效（2026-11-17）**：Q-007 改为默认点击加载后，不再按体积分档；32MB 体积闸已从 `auto` 模式移除，改由 onDemand 统一拦截（D-034） |
 | Q-009 | 2026-11-16 | 主线程搬迁顺序：先 P0-1（原始字节 IPC）还是先 P0-2（EPUB 解压进 Rust） | **已决（2026-11-17）**：先 P0-1，已实施（D-031）；40 MB 真机闭环字节一致、主线程阻塞 0 ms。下一阶段待定：P0-2 EPUB 解压进 Rust / P0-3 备份 ZIP 进 Rust / P1 Worker 解析 |
 | Q-010 | 2026-11-16 | 是否做「窗口就绪后再显示」（隐藏窗口 → 首帧就绪 → show） | **待定**。可消除 WebView2 初始化那段空白/闪变，代价是窗口出现更晚+需要失败兜底（否则可能不出现）。本轮只修了首帧颜色（T-059），未动窗口生命周期 |
-| Q-011 | 2026-11-16 | 关系图谱的规模治理参数（节点上限 / 采样 / 是否上 WebGL） | **待定**。d3-force 在主线程逐帧 tick；建议先做节点上限 + 可见时才布局，WebGL 只在节点上千时再评估。实测尚未做（缺大图谱夹具） |
+| Q-011 | 2026-11-16 | 关系图谱的规模治理参数（节点上限 / 采样 / 是否上 WebGL） | **GPU 原型完成（2026-11-17，D-036/D-037）**：10 万节点/20 万边 WebGL2 近似布局+渲染 **164fps / 6.09ms 帧**，GPU 平均 14%、峰值 49%；d3-force 100k 单 tick 约 925ms。生产 GraphView 未替换；当前 cap 仍 3000。下一步需决定是否做“大规模 GPU 分析视图”（非普通图谱）。 |
 | Q-012 | 2026-11-16 | 是否检查库目录是否被 OneDrive 接管（占位文件会导致读取触发下载、打开变慢） | **待定**。库在 `Desktop\Blueprint`，属常见被 OneDrive 接管的路径；检查是只读的（看 `attrib`/重解析点），不改任何文件 |
 | Q-013 | 2026-11-16 | 备份功能是否补定时 / 增量 / 加密（T-057 的已知缺口） | **待定（低优先）**。当前只有手动命令 + 全量 ZIP + 保留 N 份；定时需要设置界面，加密需要密钥管理，增量需要 base 快照 |
 
@@ -526,3 +560,11 @@
 | T-039 | 2026-11-15 | 持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` **1859.7 → 6.8 ms**（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms |
 | T-042 | 2026-11-15 | 命令补齐复核：**原判断不成立并已纠正**。实测 ADKM 175 条（非 101，旧正则漏了批量注册）、Obsidian 制品静态可提取 169 条（热键页 280 含动态/插件命令）、ID 字面差集 114 条（非 179）——其中约 70 条是**命名不同但功能已有**、约 40 条是**能力缺失**（Canvas/Bases/同步/发布/多窗口，由 T-043/T-044/T-048 覆盖或排除）。本轮落地：`docs/command-gap-matrix.adoc`（可复现取证 + 功能域矩阵）、补 4 条真命令（`app:set-reading-view/set-live-preview/set-source-mode/toggle-default-new-pane-mode`，均有 `available` + 真实 callback + en/zh 文案）、`scripts/verify-command-registry.ts` 并入 `npm run verify`（查重复 ID / i18n 缺失 / 无 callback，防审计 §11 的「假完成」）。**未凑数注册空命令，未改已有 ID 以免破坏用户热键绑定** |
 | Q-005 | 2026-11-15 | **已决（D-024）**：① 放行新增运行期依赖，但按「先搜寻，后自研」评估后只引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 Kindle 家族只读预览（T-055）；CBR/HEIC/DJVU/TIFF 等仍不引入，需再次单独放行。② 维持 D-022 的**编辑能力冻结**：保留 Excel 显式保存，不执行「连保存也移除」的彻底只读。决策依据与依赖登记见 `DECISIONS.md` D-024、`MANIFEST.md` |
+
+
+## PR #2 backup-session follow-up (2026-11-17, local)
+
+- Problem: same-second backup runs share a destination and multi-call temporary file.
+- Plan: owned export sessions, exact-length finish, explicit abort, per-renderer backup guard and random archive suffix. No new dependency.
+- Acceptance: deterministic native temporary-directory tests for interleaving, abort, incomplete finish, existing destination and byte preservation; frontend tests for overlap, retries and no pruning on write failure; npm run verify and native compile/check. Desktop IPC/runtime behavior reported separately.
+- Status: implemented locally; npm run verify exits 0 (202 passed, one expected failure, one skipped); seven native temporary-directory tests pass; cargo check --locked exits 0 on Windows. Isolated Windows desktop IPC run also passed: multi-chunk backup, overlap rejection, failure cleanup/retry, racing publication (DOCX response was checked in the combined validation tree, not this backup-only branch). Binary archive bytes match; text follows existing LF normalization. Non-Windows execution remains unverified. Not published. DOCX correction remains a separate set of files.

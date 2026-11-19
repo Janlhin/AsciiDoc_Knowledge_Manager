@@ -7,28 +7,26 @@
  * editable CM buffer / autosave path (which is how clicking a .png used to corrupt it on
  * edit). Pure read; the blob holds the whole file in memory (fine for typical attachments).
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useStore } from "@core/store";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
+import { heavyLoadMode } from "@core/heavyLoad";
 import { mediaKind, mediaMime, fileExtension } from "@core/attachments";
 import { formatPreviewer } from "./formatPreview";
 import { ImageReader } from "./ImageReader";
 import type { TabState } from "@core/types";
 
 /**
- * T-061: PDF is the one attachment kind whose mount cost lands on the STARTUP path.
- * `<embed>` needs the whole file as a blob, so restoring a 60 MB PDF produced a
- * measured 151 ms + 72 ms main-thread stall right after first paint (rAF-gap probe on
- * the release build). Two-part fix:
- *   - every PDF waits two frames (past the boot paint) before it starts reading;
- *   - PDFs above this size are not read at all until the user asks, so a restored
- *     scanned book costs nothing at launch. Browsers gate plugin content the same way.
+ * T-061 / Q-007: PDF used to gate files over 32 MB, but the user's real vault is
+ * made of 20-144 MB scans and they chose auto-loading as the default. The size
+ * gate now belongs to the explicit `onDemand` setting (D-034); in `auto` mode a
+ * restored PDF still waits two frames so boot paint is never blocked.
  */
-const PDF_AUTO_LOAD_BYTES = 32 * 1024 * 1024;
-
 export function AttachmentView({ tab }: { tab: TabState }) {
   const app = useApp();
   const t = useI18n();
+  const loadMode = useStore(heavyLoadMode);
   const path = tab.filePath;
   const kind = path !== null ? mediaKind(path) : "other";
   const previewable = kind !== "other";
@@ -37,18 +35,14 @@ export function AttachmentView({ tab }: { tab: TabState }) {
   /** T-061: false while a PDF is held back from the boot window (see above). */
   const [armed, setArmed] = useState(false);
 
-  /** File size from the tree listing (desktop fills it from FS metadata); null when
-   *  unknown, in which case we only defer rather than gate. */
-  const size = useMemo(() => {
-    if (path === null) return null;
-    const node = app.vault.getFiles().find((f) => f.path === path);
-    return node?.size ?? null;
-  }, [app, path]);
-
-  const gatedPdf = kind === "pdf" && size !== null && size > PDF_AUTO_LOAD_BYTES;
+  const heavyPreview = formatPreviewer(path ?? "") !== null;
+  const onDemand = loadMode === "onDemand";
+  /** Q-007: auto loads every PDF; onDemand gates every structured preview. */
+  const gatedPdf = kind === "pdf" && onDemand;
+  const gatedHeavy = onDemand && heavyPreview;
 
   useEffect(() => {
-    if (path === null || !previewable || gatedPdf) {
+    if (path === null || !previewable || gatedPdf || gatedHeavy) {
       setArmed(false);
       return;
     }
@@ -69,7 +63,7 @@ export function AttachmentView({ tab }: { tab: TabState }) {
       cancelAnimationFrame(first);
       if (second !== 0) cancelAnimationFrame(second);
     };
-  }, [path, previewable, kind, gatedPdf]);
+  }, [path, previewable, kind, gatedPdf, gatedHeavy]);
 
   useEffect(() => {
     setUrl(null);
@@ -114,14 +108,14 @@ export function AttachmentView({ tab }: { tab: TabState }) {
         <span>{t("attachment.loadFailed")}</span>
       </div>
     );
-  } else if (gatedPdf && !armed) {
-    // T-061: a large PDF restored from the last session must not be read at startup
+  } else if ((gatedPdf || gatedHeavy) && !armed) {
+    // Q-007 onDemand: restored heavy content waits for an explicit Load click.
+    // In auto mode this is only the legacy >32 MB PDF gate.
+    const meta = t("attachment.heavyOnDemand");
     body = (
       <div className="attachment-placeholder" data-testid="attachment-pdf-gated">
         <span className="attachment-name">{name}</span>
-        <span className="attachment-meta">
-          {t("attachment.pdfLarge", { size: `${Math.round((size ?? 0) / (1024 * 1024))} MB` })}
-        </span>
+        <span className="attachment-meta">{meta}</span>
         <button
           className="attachment-pdf-load"
           data-testid="attachment-pdf-load"

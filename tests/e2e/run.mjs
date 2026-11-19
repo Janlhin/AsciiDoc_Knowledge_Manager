@@ -1,5 +1,5 @@
 /**
- * T-040 / T-004 baseline: twenty-one high-frequency paths against the REAL release
+ * T-040 / T-004 baseline: twenty-four high-frequency paths against the REAL release
  * build, driven over WebView2 CDP. Zero new dependencies.
  *
  *   node tests/e2e/run.mjs --port=9222      # attach to a running release instance
@@ -218,6 +218,13 @@ async function readZipEntries(file) {
 
 /** Write the fixture notes into a throwaway vault directory. */
 async function prepareVault(dir) {
+  // Start from a clean directory: the raw-binary case copies a 40 MB PDF, and a
+  // previous implementation let those copies accumulate until the backup ZIP hit
+  // the single-argument IPC limit and silently produced a 0-byte archive.
+  if (!/[\\/]e2e-vault/.test(dir)) {
+    throw new Error(`refusing to wipe a non-E2E directory: ${dir}`);
+  }
+  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "E2E-Note.md"), NOTE_A, "utf-8");
   writeFileSync(path.join(dir, "E2E-Other.md"), NOTE_B, "utf-8");
@@ -231,6 +238,18 @@ async function prepareVault(dir) {
   writeFileSync(path.join(dir, "docs", "partials", "intro.adoc"), DOC_INTRO, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-a.adoc"), DOC_CYCLE_A, "utf-8");
   writeFileSync(path.join(dir, "docs", "cycle-b.adoc"), DOC_CYCLE_B, "utf-8");
+  // P1-3: a large AsciiDoc source for the worker-vs-main-thread probe. Kept
+  // generated (not committed as a fixture) because it is only a load shape.
+  writeFileSync(
+    path.join(dir, "docs", "big-preview.adoc"),
+    `= Large AsciiDoc\n\n` +
+      Array.from(
+        { length: 120 },
+        (_, i) =>
+          `== Section ${i}\n\nParagraph ${i}: *bold*, _italic_ and link:https://example.com[external] with \`code\`.\n\n- item one\n- item two\n\n`,
+      ).join(""),
+    "utf-8",
+  );
   // T-045 slice 2: Antora component versions, a valid id, an ambiguous id and
   // an unknown version. Descriptor files themselves are not indexable notes.
   for (const version of ["2.0", "2.1"]) {
@@ -252,6 +271,14 @@ async function prepareVault(dir) {
   const fbz = new JSZip();
   fbz.file("book.fb2", FB2_ZIPPED);
   writeFileSync(path.join(dir, "sample.fb2.zip"), await fbz.generateAsync({ type: "nodebuffer" }));
+  // P1-2: a generated XLSX with 300 rows for the SheetJS worker probe.
+  const XLSX = requireCjs("xlsx");
+  const xws = XLSX.utils.aoa_to_sheet(
+    Array.from({ length: 300 }, (_, r) => [`Row ${r}`, `value ${r}`]),
+  );
+  const xwb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(xwb, xws, "Sheet1");
+  writeFileSync(path.join(dir, "sample.xlsx"), XLSX.write(xwb, { type: "buffer", bookType: "xlsx" }));
   const cbz = new JSZip();
   for (const name of ["page10.png", "page2.png", "page1.png"]) {
     cbz.file(name, PNG_B64, { base64: true });
@@ -298,6 +325,26 @@ async function prepareVault(dir) {
     );
   }
   writeFileSync(path.join(dir, "sample.epub"), await book.generateAsync({ type: "nodebuffer" }));
+
+  // P1-1: a structurally valid DOCX with enough paragraphs to make conversion
+  // measurable. Generated from OOXML parts; no binary bundled in the repo.
+  const docx = new JSZip();
+  docx.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+  );
+  docx.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+  );
+  docx.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Large DOCX</w:t></w:r></w:p>${Array.from(
+      { length: 500 },
+      (_, i) => `<w:p><w:r><w:t>Paragraph ${i + 1}: ** bold marker ** and ordinary text for conversion.</w:t></w:r></w:p>`,
+    ).join("")}</w:body></w:document>`,
+  );
+  writeFileSync(path.join(dir, "sample.docx"), await docx.generateAsync({ type: "nodebuffer" }));
 
   // T-061: an EPUB with no nav document at all — the reader must say so instead of
   // rendering an empty panel or failing to open.
@@ -357,14 +404,17 @@ async function attach() {
   } catch {
     throw new Error(
       `CDP port ${port} is not open. Start the app first://n` +
-      `  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=${port} ./src-tauri/target/release/geode.exe "<vault>"\n` +
+      `  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=${port} ./src-tauri/target/release/adkm.exe "<vault>"\n` +
       `Then re-run: node tests/e2e/run.mjs --port=${port}`,
     );
   }
 }
 
 const results = [];
+const onlyCase = (argv.find((a) => a.startsWith("--only=")) || "").split("=")[1] || null;
+
 async function runCase(name, fn) {
+  if (onlyCase && name !== onlyCase) return;
   try {
     const detail = await fn();
     results.push({ name, ok: true, detail });
@@ -1021,9 +1071,15 @@ async function main() {
     return `${freshTabs} tab(s) in a fresh window; ${restored} restored after switching back`;
   });
 
-  // ---- 16. T-061: a large PDF must not be read during startup ------------
+  // ---- 16. Q-007/D-034: click-to-load by default, setting can switch to auto ----
   await runCase("pdf-startup-gate", async () => {
-    // earlier cases may have left the docs folder expanded — only toggle when closed
+    // A fresh profile has no override; Q-007 default must be onDemand.
+    await c.evaluate(`localStorage.removeItem("adkm.heavyLoadMode")`);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
+    const defaultMode = await c.evaluate(`localStorage.getItem("adkm.heavyLoadMode")`);
+    assert(defaultMode === null, `a fresh profile should have no override, got ${defaultMode}`);
+
     const smallVisible = () => c.evaluate(
       `!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]')`,
     );
@@ -1035,19 +1091,41 @@ async function main() {
 
     assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-small.pdf"]'),
       "could not open scan-small.pdf");
-    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 15000,
-      "a small PDF still mounts (deferred past the boot paint)");
-
-    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
-      "could not open scan-big.pdf");    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 15000,
-      "the 40 MB PDF is gated behind a button");
-    const embeds = await c.evaluate(`document.querySelectorAll('[data-testid="attachment-pdf"]').length`);
-    assert(embeds === 0, `a gated PDF must not create an <embed> before the user asks (got ${embeds})`);
-
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 15000,
+      "the default onDemand mode gates a small PDF too");
     assert(await c.click('[data-testid="attachment-pdf-load"]'), "the gate has no load button");
     await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
       "clicking load mounts the PDF");
-    return "small PDF mounts after paint; a 40 MB PDF waits for an explicit load";
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not open scan-big.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf-gated"]')`, 20000,
+      "the 40 MB PDF is gated in onDemand mode");
+
+    // Switch to auto through the REAL settings UI, then reload and reopen.
+    await c.key("p", "KeyP", 80, 2);
+    await c.waitFor(`!!document.querySelector('[data-testid="palette-input"]')`, 6000, "command palette");
+    await c.setInput('[data-testid="palette-input"]', "设置");
+    await sleep(350);
+    assert(await c.click('[data-testid="palette-item"]'), "settings command not found");
+    await c.waitFor(`!!document.querySelector('[data-testid^="settings-section-"]')`, 8000, "settings modal");
+    assert(await c.click('[data-testid="settings-nav-startup"]'), "no startup nav item");
+    await c.waitFor(`!!document.querySelector('[data-testid="settings-section-startup"]')`, 8000,
+      "startup settings section");
+    assert(await c.click('[data-testid="settings-heavy-load-radio-auto"]'), "no auto radio in settings");
+    await c.key("Escape", "Escape", 27, 0);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
+    await c.waitFor(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`,
+      20000, "explorer restored after reload");
+
+    assert(await c.click('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]'),
+      "could not reopen scan-big.pdf");
+    await c.waitFor(`!!document.querySelector('[data-testid="attachment-pdf"]')`, 20000,
+      "auto mode mounts the 40 MB PDF without a click");
+
+    // Leave auto for the following EPUB/DOCX cases; the product default remains onDemand.
+    return "default onDemand gates PDFs; settings auto mounts the same 40 MB PDF";
   });
 
   // ---- 17. T-061: EPUB TOC + reading position survive a restart -----------
@@ -1084,6 +1162,11 @@ async function main() {
   // A restored large PDF used to block the renderer for 72+151 ms. The gate made
   // that zero; this case keeps it zero by summing animation-frame gaps during boot.
   await runCase("pdf-restore-no-stall", async () => {
+    // Q-007 default is auto; set onDemand explicitly so this case keeps guarding
+    // the click-to-load path instead of measuring an intentional auto load.
+    await c.evaluate(`localStorage.setItem("adkm.heavyLoadMode", "onDemand")`);
+    await c.call("Page.reload", { ignoreCache: false });
+    await sleep(2500);
     if (!(await c.evaluate(`!!document.querySelector('[data-testid="explorer-item"][data-path="docs/scan-big.pdf"]')`))) {
       await c.click('[data-testid="explorer-item"][data-path="docs"]');
       await sleep(500);
@@ -1116,10 +1199,59 @@ async function main() {
       return `boot blocked ${blocked} ms (${gaps.length} frames >50 ms); 40 MB PDF still behind the gate`;
     } finally {
       await c.call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
+      // leave auto for the following EPUB/DOCX cases; onDemand is the product default
+      await c.evaluate(`localStorage.setItem("adkm.heavyLoadMode", "auto")`);
+      await c.call("Page.reload", { ignoreCache: false });
+      await sleep(2500);
     }
   });
 
-  // ---- 19. T-062/P0-1: raw-byte IPC round-trips a large binary ------------
+  // ---- 19. P1-2: XLSX parsing runs in a Worker -----------------------------
+  await runCase("xlsx-worker-offthread", async () => {
+    const result = JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeXlsxProbe !== "function") return { missing: true };
+      return JSON.stringify(await window.__geodeXlsxProbe("sample.xlsx"));
+    })()`));
+    assert(!result.missing, "the XLSX Worker probe is not installed");
+    assert(result.workerActive === true, "XLSX parsing did not use the Worker");
+    assert(result.sameData === true, "Worker and in-page XLSX parsing differ");
+    assert(result.sheetCount > 0 && result.workerMs > 0, `parsing did not run: ${JSON.stringify(result)}`);
+    return `XLSX Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, ${result.sheetCount} sheet(s), identical data`;
+  });
+
+  // ---- 19. P1-1: DOCX conversion runs in a Worker --------------------------
+  await runCase("docx-worker-offthread", async () => {
+    const result = JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeDocxProbe !== "function") return { missing: true };
+      return JSON.stringify(await window.__geodeDocxProbe("sample.docx"));
+    })()`));
+    assert(!result.missing, "the DOCX Worker probe is not installed");
+    assert(result.workerActive === true, "DOCX conversion did not use the Worker");
+    assert(result.sameHtml === true, "Worker and in-page DOCX conversion differ");
+    assert(result.workerMs > 0 && result.inPageMs > 0, `conversions did not run: ${JSON.stringify(result)}`);
+    return `DOCX Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, identical HTML`;
+  });
+
+  // ---- 19. P1-3: AsciiDoc conversion runs off the main thread -------------
+  await runCase("adoc-worker-offthread", async () => {
+    const measure = async () => JSON.parse(await c.evaluate(`(async () => {
+      if (typeof window.__geodeAdocProbe !== "function") return { missing: true };
+      const source = "= Worker bench\\n\\n" + "== Section\\n\\nText *bold*.\\n\\n".repeat(500);
+      return JSON.stringify(await window.__geodeAdocProbe(source));
+    })()`));
+    const result = await measure();
+    assert(!result.missing, "the AsciiDoc worker probe is not installed");
+    // P1-3 is a CPU-offload change, not a wall-clock speedup: Asciidoctor yields
+    // internally, so a 5 ms timer is not measurably delayed on either path here.
+    // Prove instead that the Worker actually produced identical HTML.
+    assert(result.workerActive === true, "AsciiDoc conversion did not use the Worker");
+    assert(result.sameHtml === true, "Worker and in-page conversion produced different HTML");
+    assert(result.workerMs > 0 && result.inPageMs > 0,
+      `conversions did not run: ${JSON.stringify(result)}`);
+    return `Worker ${result.workerMs} ms vs in-page ${result.inPageMs} ms, identical HTML, Worker active`;
+  });
+
+  // ---- 20. T-062/P0-1: raw-byte IPC round-trips a large binary ------------
   // Uses the always-on explorer-copy throat: readBinary → createBinary →
   // readBinary on REAL fs. The old base64 envelope added atob + a per-byte JS loop.
   await runCase("raw-binary-ipc", async () => {
@@ -1146,7 +1278,7 @@ async function main() {
     return `40 MB copy byte-identical in ${copy.ms} ms, ${blocked} ms main-thread gaps`;
   });
 
-  // ---- 19. T-061: TOC jumps really move the reader, and highlight follows --
+  // ---- 21. T-061: TOC jumps really move the reader, and highlight follows --
   await runCase("epub-reading-controls", async () => {
     assert(await c.click('[data-testid="explorer-item"][data-path="sample.epub"]'), "could not open sample.epub");
     await c.waitFor(`!!document.querySelector('[data-testid="epub-preview"]')`, 20000, "epub viewer mounted");
@@ -1183,7 +1315,7 @@ async function main() {
     return "TOC jumps 33/67/100 with matching highlight; next advances, prev responds";
   });
 
-  // ---- 20. T-061: a book without a nav document degrades honestly ----------
+  // ---- 22. T-061: a book without a nav document degrades honestly ----------
   await runCase("epub-no-nav", async () => {
     assert(await c.click('[data-testid="explorer-item"][data-path="sample-nonav.epub"]'),
       "could not open sample-nonav.epub");

@@ -23,6 +23,18 @@
 
 === 新增
 
+* **GPU 图谱原型（Q-011 / D-037）**：新增 `scripts/graph-scale-webgl-layout.html`。WebGL2 浮点纹理 ping-pong 做近似 GPU 力导，点/边直接从状态纹理渲染；10 万节点/20 万边在 RTX 5080 + Edge 上 **164.1fps、6.09ms/帧**，GPU 平均 14%、峰值 49%。这是原型，不是生产 `GraphView` 替换；无标签、拾取、拖拽、过滤与数据接线。
+
+* **Q-011 图谱规模 spike（D-036）**：新增 `scripts/graph-scale-bench.ts` 与 `scripts/graph-scale-webgl.html`，用可重复合成图分离布局与绘制成本。实测 10 万节点 WebGL 绘制约 0.6ms，但 d3-force 单 tick 约 925ms、15 秒仅 17 tick；当前 419 节点图谱绘制 0.4ms。结论是 WebGL 不是当前瓶颈，生产 `GraphView` 未改。
+
+* **备份分块写入，修复大库静默 0 字节归档（D-035）**：备份 ZIP 不再作为单个 base64 IPC 参数传输（440MB 库实测会静默写出 0 字节），改为 4MB 分块 append 到 Rust 临时文件后原子 rename。同一 440MB 夹具生成 461,536,071 字节归档，可正常读出 40 个条目。E2E 夹具清空逻辑同时修正，避免 40MB 副本累积污染备份用例。
+
+* **重内容默认点击加载（Q-007 / D-034）**：启动恢复时，PDF/EPUB/Office/CBZ 默认只恢复标签并显示“加载内容”，未点击前不读取文件；设置 → 启动行为新增二态开关，可改为自动加载（含 32MB+ PDF）。真实库 22 本（757MB）验证：默认为按需时 22/22 在 3–11ms 进入占位；切自动后 22/22 成功挂载，最慢 697ms；22 个标签重启时只挂载当前标签。
+
+* **DOCX/XLSX 解析移入 Worker（T-062 / D-033，P1-1 + P1-2）**：mammoth 的 OOXML→HTML 转换与 SheetJS 的工作簿解析分别由专用 Worker 执行，主线程保留 DOCX 的 HTML 渲染、XLSX 的网格与显式 Save；Worker 失败自动回退页内解析。E2E 新增 `docx-worker-offthread`、`xlsx-worker-offthread`：同一构建中分别跑 Worker/页内两条路径，断言 Worker 真在使用且 HTML/数据等价；`--only=<case>` 可单独跑某条用例。真机数据：DOCX 46/9 ms、XLSX 25/18 ms（Worker/页内）——**这是 CPU 卸载，不是提速声明**。全套 E2E 24/24。
+
+* **AsciiDoc 转换移入 Web Worker（T-062 / D-032，P1-3）**：`@asciidoctor/core` 的 `convert()` 现在由独立 Worker 执行，主线程只保留 HTML 清理与站内链接改写；Worker 失败自动回退页内转换，预览不会中断。E2E 新增 `adoc-worker-offthread`：同一构建中分别跑两条路径，断言 Worker 被实际使用且产出 HTML 与页内一致。**实测：1000 节文档 Worker 47ms / 页内 38ms，主线程定时器延迟约 1ms / 0ms——本项是 CPU 卸载，不是可测的提速**。全套 E2E 22/22。
+
 * **原始字节 IPC（T-062 / D-031，P0-1）**：桌面端文件读取不再走 base64 字符串 + 前端逐字节解码——144 MB 文件此前仅解码就占主线程约 322 ms。现在 Rust `vault_read_binary` 返回 `tauri::ipc::Response`（`ArrayBuffer`），`vault_write_binary` / `vault_modify_binary` 接收原始 body，路径由 UTF-8 base64 header 传递；上层 `readBinary` / `createBinary` / `modifyBinary` 签名不变。新增 E2E `raw-binary-ipc`：40 MB 文件读→写→读字节完全一致，主线程帧间隔 0 ms。全量 E2E 21/21。**这不是全场景多核的完成态**：解压、解析、备份压缩与图谱布局仍待后续阶段。
 
 * **EPUB 阅读器补全：目录、翻页、阅读位置（T-061 / D-030）**：原来的 EPUB 预览只有 83 行、只调 `display()`——**没有目录、没有进度**，每本书永远从第一页打开，跳转一关就丢（EPUB 此前在 E2E 里零覆盖，所以没人发现）。现在有工具栏（目录 / 上一页 / 百分比 / 下一页）、按层级缩进的目录侧栏、当前章高亮、方向键翻页；阅读位置按 `{cfi, index, percent}` 去抖保存，重启后回到原处，CFI 失效时回退第一页。百分比用 spine 索引计算（O(1)），刻意不用 `locations.generate()`——那会为了进度条把 50MB 的书在主线程数秒。

@@ -9729,3 +9729,10 @@ npx tsc --noEmit     # must pass with zero errors
 Do not edit files outside your assigned folder(s). Do not add npm dependencies.
 Already available deps: @codemirror/* (state, view, commands, language, lang-markdown,
 language-data, autocomplete, search), @lezer/highlight, markdown-it, d3-force, @tauri-apps/api & plugin-dialog.
+
+
+## Chunked backup export contract (local proposal, 2026-11-17)
+
+`export_begin_binary(path, expectedBytes)` returns an opaque session ID. Append, finish and abort accept only that ID, never a caller-selected temporary path. Each session owns an exclusively created sibling temporary file. Finish requires exactly the declared byte count and syncs data before publishing. Finish failure or explicit abort removes only the session-owned temporary file. The frontend requests abort after append/finish errors. Publication never replaces an existing destination, including a racing publisher: Windows uses MoveFileExW without REPLACE_EXISTING; other targets use a same-directory hard link. Non-Windows filesystems without hard-link support fail safely. Callers use random archive suffixes to avoid routine collisions. This does not protect against an unrelated editor modifying an already published archive. Process death may leave an unpublished temporary file; automatic deletion of unknown leftovers is out of scope.
+
+`runBackup` rejects overlapping work in the same renderer before reading the vault; it releases its guard after success or failure. Pruning happens only after export completes. Distinct successful same-second runs get distinct names; their relative retention order within that second is unspecified. Existing timestamp-only archive names remain recognized. No cross-process retention transaction is claimed.
