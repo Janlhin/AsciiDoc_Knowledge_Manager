@@ -54,7 +54,7 @@ import { hydrateCodeCopy } from "./codeCopy";
 import { runMarkdownPostProcessors } from "./markdownPostProcess";
 import { renderPreview, toggleTaskOnLine } from "./preview";
 import { isAsciiDocPath, renderAsciiDocPreview } from "@core/asciidoctorPreview";
-import { markdownFoldService } from "./folding";
+import { adocFoldService, markdownFoldService } from "./folding";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { BacklinksInDocument } from "./BacklinksInDocument";
 import { openWikilink } from "./wikilinks";
@@ -752,8 +752,10 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     const view = viewRef.current;
     const compartment = foldServiceCompartmentRef.current;
     if (!view || !compartment) return;
-    // reconfiguring the foldService also forces the gutter to re-query → chevrons refresh
-    view.dispatch({ effects: compartment.reconfigure(markdownFoldService(foldHeadingOn)) });
+    // T-071: `.adoc` uses the scanner-based adoc fold service; `.md` keeps the markdown one.
+    // reconfiguring the foldService also forces the gutter to re-query → chevrons refresh.
+    const adoc = handleRef.current ? isAsciiDocPath(handleRef.current.path) : false;
+    view.dispatch({ effects: compartment.reconfigure(adoc ? adocFoldService(foldHeadingOn) : markdownFoldService(foldHeadingOn)) });
   }, [foldHeadingOn]);
 
   /* ---------- indentation preference → CM compartment (R92) ---------- */

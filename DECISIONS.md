@@ -757,3 +757,24 @@
   - *断链边单独建一套节点 / 边装配管线*：与既有幽灵节点路径重复，性能与维护成本都更高——否决，只在既有装配上补 `kind`。
 - **影响范围**：`src/core/types.ts`（`GraphEdge.kind`）、`src/core/metadata.ts` 图谱装配、`src/features/graph/` 渲染与图例；不改标签 / 附件辅助节点、不改过滤与局部子图逻辑；零新增依赖。
 - **复审条件**：三态校验在真实库稳定运行后，按引用语义（双链 / 显式 include / Antora 资源引用）另立任务细分其余边类型。
+
+---
+
+## D-045 AsciiDoc 折叠走文本扫描复用词法状态，大纲复用 metadata headings（T-071）
+
+- **日期**：2026-11-27
+- **依据**：用户 2026-11-27 指示制作。
+- **决策**：`.adoc` 标题折叠不引入第二套语法树，而是复用 batch-1 `scanAsciiDocLine` 纯行扫描收集真实标题（块状态逐行传递），折叠区间由纯函数按标题层级切出；大纲不另造 adoc 导航树，直接消费 `parseAsciiDoc` 已产出的 metadata headings（level / text / from），行构造抽成格式无关的纯函数。Markdown 折叠继续走冻结的 Lezer-tree 语义，一字未改。
+- **背景**：T-067 之后，编辑器折叠服务只认 Lezer 节点（ATXHeading / SetextHeading / ListItem）；adoc 是 StreamLanguage，树上没有这些节点，因此 adoc 标题行拿不到折叠点。大纲侧取证：adoc 标签的 `viewType` 与 md 同为 `"markdown"`（`fileViewType` 对非附件一律返回 markdown），`parseDocument` 分派 `parseAsciiDoc` 已产出 headings，`buildRows` / 跳转链路本就格式无关——断点只在折叠服务缺 adoc 分支，以及行构造没有单测证据。
+- **被采纳方案**：
+  - 折叠：`collectAdocHeadings(source)` 逐行跑 `scanAsciiDocLine` 并线程块状态；`foldAdocSection(source, line, on)` 返回标题行尾到「下一个同级或更高级标题前一行末」的区间，末节到 EOF；`adocFoldService` 以 `Prec.high` 注入，仅 `.adoc` 视图装配；`foldHeading` 关闭时 adoc 同样不折叠标题。
+  - 大纲：`buildRows` 迁入 `features/outline/outlineRows.ts` 纯模块，Markdown / AsciiDoc 共用；层级缩进、折叠键 `index`、子级标记全由 headings 的 level / from 推导。
+  - 缓存：标题列表按不可变 doc 对象身份经 WeakMap 记忆，避免折叠槽位逐行重复全文档扫描。
+- **被否决的替代方案与理由**：
+  - *为 adoc 补 Lezer grammar*：超出 L3 边界，投入大且会与 Markdown 树形成双树一致性问题，留待 L4 单独立项——否决。
+  - *在折叠服务里另写一套代码块 / 注释判定*：会与 batch-1 词法漂移（同一个 `=` 行两处给出不同结论）——否决；复用 `scanAsciiDocLine` 单一真源。
+  - *大纲为 adoc 另建一棵导航树*：metadata 已有 headings，重复建模且偏移会与索引漂移——否决。
+- **影响范围**：`src/features/editor/folding.ts`（adoc 纯函数 + 服务 + fold-all 路由）、`src/features/editor/cmExtensions.ts`（服务按 isAdoc 选路）、`src/features/editor/EditorPane.tsx`（compartment 重配选路）、`src/features/outline/outlineRows.ts`（新增）、`src/features/outline/OutlinePanel.tsx`（抽取，行为不变）、`tests/adoc-fold-outline.test.ts`（新增）。未触碰 `src-tauri/`、`.tauri-keys/`、Canvas、三态校验、图谱与 PR #5 三路径；零新增依赖；Markdown 路径零回归。
+- **诚实缺口**：下划线式标题，以及示例 `====` / 侧栏 `****` / 引用 `____` / 开放块 `--` 内部的结构屏蔽未做（见 T-071「仍缺」）；真机 WebView 折叠展开与大纲点击未目检。
+- **复审条件**：L4 立项完整语法树后，评估以 Lezer 树替换文本扫描；词法若新增块类型屏蔽范围，需同步 `collectAdocHeadings` 的状态线程。
+

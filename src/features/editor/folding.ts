@@ -32,6 +32,9 @@ import {
 import { type EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { foldHeading } from "@core/appearance";
+import { isAsciiDocPath } from "@core/asciidoctorPreview";
+import { editorPathFacet } from "@core/editorContext";
+import { initialAdocBlockState, scanAsciiDocLine } from "./asciidocLanguage";
 
 const ATX_HEADING_RE = /^ATXHeading([1-6])$/;
 // R54: SetextHeading1/2 = a text line underlined by `===` (h1) / `---` (h2). The
@@ -166,6 +169,141 @@ export function markdownFoldRange(
   return result;
 }
 
+/* ---------------- AsciiDoc heading folding (T-071 / D-045) ---------------- */
+
+/** A real AsciiDoc heading collected by the batch-1 line scanner. Coordinates are
+ *  source offsets; `line` is the 0-based line number in the document. */
+interface AdocHeadingMarker {
+  line: number;
+  level: number;
+  from: number;
+  to: number;
+}
+
+/** Split preserving exact offsets (mirrors `parsers/asciidoc.ts`): every line's
+ *  `end` excludes a trailing CR so LF and CRLF both stay byte-aligned. */
+function splitAdocLines(source: string): Array<{ text: string; start: number; end: number }> {
+  const out: Array<{ text: string; start: number; end: number }> = [];
+  let start = 0;
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) !== 10) continue;
+    const end = i > start && source.charCodeAt(i - 1) === 13 ? i - 1 : i;
+    out.push({ text: source.slice(start, end), start, end });
+    start = i + 1;
+  }
+  out.push({ text: source.slice(start), start, end: source.length });
+  return out;
+}
+
+/**
+ * Collect the document's real AsciiDoc headings by reusing the batch-1 lexer
+ * (`scanAsciiDocLine`): `----`/`....`/`++++`/`$$$$` verbatim blocks, `////` block
+ * comments, `[source,…]` blocks and `//` line comments all keep their block state
+ * threaded, so an `=`-prefixed line inside those regions is NOT a heading. Pure —
+ * no CodeMirror view, no state outside the returned list.
+ */
+export function collectAdocHeadings(source: string): AdocHeadingMarker[] {
+  const lines = splitAdocLines(source);
+  let state = initialAdocBlockState();
+  const headings: AdocHeadingMarker[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const res = scanAsciiDocLine(lines[i].text, state);
+    state = res.state;
+    const heading = res.tokens.find((tk) => tk.type === "heading");
+    if (heading) {
+      headings.push({ line: i, level: heading.level ?? 1, from: lines[i].start, to: lines[i].end });
+    }
+  }
+  return headings;
+}
+
+/** End offset of the line preceding a line that starts at `lineStart` (excludes
+ *  the line break; backs off a CR on CRLF), mirroring the markdown path's
+ *  `doc.lineAt(line.from - 1).to`. */
+function prevLineEnd(source: string, lineStart: number): number {
+  if (lineStart <= 0) return 0;
+  const nl = lineStart - 1;
+  return nl > 0 && source.charCodeAt(nl - 1) === 13 ? nl - 1 : nl;
+}
+
+/**
+ * Pure section range for the heading on `targetLine` (0-based). Folds from the
+ * heading line's end to the end of the line before the next heading of the same
+ * or higher level (`level <= target.level`); the last section runs to EOF. Returns
+ * null when the line is not a heading, "Fold heading" is off, or the section has
+ * nothing to hide. Input is the source string + line number, so it is unit-testable
+ * without a CodeMirror view.
+ */
+export function foldAdocSection(
+  source: string,
+  targetLine: number,
+  foldHeadingOn = true,
+): FoldRange {
+  if (!foldHeadingOn || targetLine < 0) return null;
+  const headings = collectAdocHeadings(source);
+  const target = headings.find((h) => h.line === targetLine);
+  if (!target) return null;
+  let to = source.length;
+  for (const h of headings) {
+    if (h.line > target.line && h.level <= target.level) {
+      to = prevLineEnd(source, h.from);
+      break;
+    }
+  }
+  if (to <= target.to) return null;
+  return { from: target.to, to };
+}
+
+/** Per-doc heading cache: the gutter re-queries many lines against one immutable
+ *  Text, so the scanner result is memoized on the doc identity (same idiom as the
+ *  markdown frontmatter cache). */
+const adocHeadingCache = new WeakMap<object, AdocHeadingMarker[]>();
+
+function cachedAdocHeadings(state: EditorState): AdocHeadingMarker[] {
+  const doc = state.doc;
+  const cached = adocHeadingCache.get(doc);
+  if (cached) return cached;
+  const headings = collectAdocHeadings(state.doc.toString());
+  adocHeadingCache.set(doc, headings);
+  return headings;
+}
+
+/** CM adapter over the pure `foldAdocSection`: resolves offsets against the editor
+ *  doc so CRLF handling matches the markdown fold path. */
+export function adocFoldRange(
+  state: EditorState,
+  lineStart: number,
+  _lineEnd: number,
+  foldHeadingOn = true,
+): FoldRange {
+  if (!foldHeadingOn) return null;
+  const lineNo = state.doc.lineAt(lineStart).number - 1;
+  const headings = cachedAdocHeadings(state);
+  const target = headings.find((h) => h.line === lineNo);
+  if (!target) return null;
+  let to = state.doc.length;
+  for (const h of headings) {
+    if (h.line > target.line && h.level <= target.level) {
+      to = state.doc.lineAt(state.doc.line(h.line + 1).from - 1).to;
+      break;
+    }
+  }
+  if (to <= target.to) return null;
+  return { from: target.to, to };
+}
+
+/**
+ * AsciiDoc foldService — high precedence like the markdown one, consulted before
+ * any library fold source. Only `.adoc` views install this (see
+ * `buildEditorExtensions` / the EditorPane compartment); the Markdown path keeps
+ * `markdownFoldService` byte-for-byte unchanged.
+ */
+export function adocFoldService(foldHeadingOn: boolean): Extension {
+  return Prec.high(
+    foldService.of((state, from, to) => adocFoldRange(state, from, to, foldHeadingOn)),
+  );
+}
+
 /** Gutter marker: a CSS chevron; `.is-folded` stays visible without hover. */
 function foldMarker(open: boolean): HTMLElement {
   const el = document.createElement("span");
@@ -230,11 +368,16 @@ export function foldAllInView(view: EditorView): void {
   ensureSyntaxTree(state, state.doc.length, 500);
   // R156: fold-all respects the Fold heading setting too
   const headingOn = foldHeading.get();
+  // T-071: adoc views fold via the scanner-based adoc service; markdown keeps the
+  // frozen Lezer-tree path untouched.
+  const isAdoc = isAsciiDocPath(state.facet(editorPathFacet)());
+  const rangeOf = (lineStart: number, lineEnd: number): FoldRange =>
+    isAdoc ? adocFoldRange(state, lineStart, lineEnd, headingOn) : markdownFoldRange(state, lineStart, lineEnd, headingOn);
   const folded = foldedRanges(state);
   const effects = [];
   for (let pos = 0; pos < state.doc.length; ) {
     const line = state.doc.lineAt(pos);
-    const range = markdownFoldRange(state, line.from, line.to, headingOn);
+    const range = rangeOf(line.from, line.to);
     if (range) {
       let already = false;
       folded.between(range.from, range.to, (f, t) => {
