@@ -314,6 +314,26 @@ export const en = {
   "docaudit.cat.frontmatter-missing": "Missing metadata",
   "docaudit.cat.structure": "Structure",
   "docaudit.cat.punctuation": "Punctuation",
+
+  // ---- T-066 bilingual alignment (src/features/bilingualalign) ----
+  "cmd.bilingualAlign": "Check bilingual alignment...",
+  "app.bilingualAlignTab": "Bilingual align",
+  "bilingualalign.title": "Bilingual consistency check",
+  "bilingualalign.subtitle": "{n} pairs found",
+  "bilingualalign.run": "Run check",
+  "bilingualalign.rerun": "Re-run",
+  "bilingualalign.notrun": "Run the check to compare bilingual document pairs.",
+  "bilingualalign.empty": "No bilingual pairs found in this vault.",
+  "bilingualalign.clean": "All paired documents look consistent.",
+  "bilingualalign.base": "Original",
+  "bilingualalign.translation": "Translation",
+  "bilingualalign.missing": "Missing in translation",
+  "bilingualalign.extra": "Extra on this side",
+  "bilingualalign.jump": "Open at line {n}",
+  "bilingualalign.auxiliary": "paired by lang marker",
+  "bilingualalign.version": "Version",
+  "bilingualalign.lines": "Lines",
+  "bilingualalign.issueCount": "{n} differences",
 } as const;
 
 export const zh: Record<keyof typeof en, string> = {
@@ -620,4 +640,24 @@ export const zh: Record<keyof typeof en, string> = {
   "docaudit.cat.frontmatter-missing": "元数据缺失",
   "docaudit.cat.structure": "章节结构",
   "docaudit.cat.punctuation": "中文标点",
+
+  // ---- T-066 bilingual alignment ----
+  "cmd.bilingualAlign": "检查双语对齐...",
+  "app.bilingualAlignTab": "双语对齐",
+  "bilingualalign.title": "双语一致性校验",
+  "bilingualalign.subtitle": "发现 {n} 对配对文档",
+  "bilingualalign.run": "开始检查",
+  "bilingualalign.rerun": "重新检查",
+  "bilingualalign.notrun": "运行检查以比对库内的双语文档配对。",
+  "bilingualalign.empty": "本库未发现双语配对文档。",
+  "bilingualalign.clean": "配对文档结构一致，未发现偏差。",
+  "bilingualalign.base": "原文",
+  "bilingualalign.translation": "译文",
+  "bilingualalign.missing": "译文侧缺失",
+  "bilingualalign.extra": "本侧多出",
+  "bilingualalign.jump": "跳转到第 {n} 行",
+  "bilingualalign.auxiliary": "按语言标记配对",
+  "bilingualalign.version": "版本",
+  "bilingualalign.lines": "行数",
+  "bilingualalign.issueCount": "{n} 处偏差",
 };
