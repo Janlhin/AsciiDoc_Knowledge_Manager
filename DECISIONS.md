@@ -778,3 +778,39 @@
 - **诚实缺口**：下划线式标题，以及示例 `====` / 侧栏 `****` / 引用 `____` / 开放块 `--` 内部的结构屏蔽未做（见 T-071「仍缺」）；真机 WebView 折叠展开与大纲点击未目检。
 - **复审条件**：L4 立项完整语法树后，评估以 Lezer 树替换文本扫描；词法若新增块类型屏蔽范围，需同步 `collectAdocHeadings` 的状态线程。
 
+---
+
+## D-046 §9.2 稳定性四条：最小补齐，不新造错误中心 / 取消框架
+
+- **日期**：2026-11-27
+- **决策**：章程 §9.2 四条按「先取证、缺什么补什么」处理——单文件解析失败进入内存注册表并在文件树可见；索引损坏 / 缺失回退原文重建；watcher 事件去抖去重与临时文件过滤在既有 Rust 监听 + TS 消费链路上补兜底；backfill 增加协作式取消标志。不新建独立错误中心、不引入取消库或任务编排框架，零新增依赖。
+- **背景**：依据：用户 2026-11-27 指示制作（T-072）。取证发现：per-file try/catch 隔离与损坏行跳过回退读盘在代码中已存在，但失败只落 `console.warn`、无内存可查记录；watcher Rust 侧已有 400ms 去抖 + 排序去重 + 点目录 / 点文件过滤，TS 侧同批重复路径未折叠；backfill 循环没有任何取消路径，切库时在途任务继续写旧索引。
+- **被采纳方案**：
+  - 解析失败：`MetadataIndex` 内维护 `path → message` 的 `parseErrors` 表，成功解析后清除；`getParseErrors()` / `getParseError()` 查询；Explorer 行按注册表加危险色与 tooltip。不做独立诊断面板。
+  - 索引重建：沿用既有「坏行 JSON.parse 跳过 → 回退读盘；`index_open` 返回 null → 空 hydration → 全量读盘」链路，以可注入假 host 的测试证明损坏行与索引缺失两条回退路径，不改持久化索引格式。
+  - watcher：TS 侧新增纯函数 `dedupePaths()` 折叠同批重复路径；Rust 侧补 `to_vault_relative` 单元测试覆盖点文件临时件、噪声目录、库外路径与 Windows 反斜杠；不自建去抖队列（复用既有 400ms 窗口）。
+  - 取消：模块级 `cancelRequested` 标志 + `cancelSearchIndex()` / `resetSearchIndexCancel()`，循环在每篇之间检查；切库 `vault:changed(load)` 先置取消再关闭旧连接、新同步前复位。索引写入是逐行幂等 upsert，中途停跑不留半截批次，下一轮从断点收敛。
+- **被否决的替代方案与理由**：
+  - *建一套全局错误 / 诊断中心*：本轮只有解析失败一类落点，新造中心属于过度设计，后续真有多处诊断再演进——否决。
+  - *引入 AbortController 库或任务编排框架*：backfill 是单循环、内存内任务，协作标志足够；加依赖违反零新增约束——否决。
+  - *给编辑器加独立「取消索引」按钮*：取消路径先覆盖切库与关窗；UI 取消入口留待有真实长任务进度展示需求时再做——本轮不补。
+- **影响范围**：`src/core/metadata.ts`、`src/core/indexer.ts`、`src/core/vault.ts`、`src/features/explorer/Explorer.tsx` 与样式、`src-tauri/src/main.rs`（仅测试）、新增 `tests/stability-92.test.ts`；不碰三态校验模型、编辑器 / 图谱 / 大纲 / 双语代码、`.tauri-keys/` 与签名链路。
+- **复审条件**：出现第二类可观察失败（例如附件读取、LLM 调用）需要集中展示时，再评估错误中心；长任务需要可见进度条 / 用户中途取消按钮时，再补 UI 取消入口。
+
+---
+
+## D-047 本机只产 unsigned 包；正式签名与发布维持 blocked
+
+- **日期**：2026-11-27
+- **决策**：1.0 发版准备本轮只打通可复现的 unsigned 构建链路：`--no-bundle` 出 exe；缺私钥时用命令行 `--config` 内联覆盖 `bundle.createUpdaterArtifacts=false` 出 unsigned NSIS。仓库内默认配置 `createUpdaterArtifacts: true` 不改；minisign 私钥、口令与 Authenticode 证书一律不进仓库，正式签名与公开发布标为 blocked。
+- **背景**：依据：用户 2026-11-27 指示制作（T-072）。`tauri.conf.json` 已带 `plugins.updater.pubkey`，跑 `npx tauri build` 会在 updater 签名阶段因缺 `TAURI_SIGNING_PRIVATE_KEY` 退出；私钥在被 gitignore 的 `.tauri-keys/`，本轮不读不碰。
+- **被采纳方案**：
+  - unsigned 命令：`npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'`；不产出 `.sig`，不改变仓库默认值。
+  - 产物校验记录路径、字节数、SHA256 与退出码，写入 `docs/release-checklist.adoc`；signed 命令模板同文档列出，待私钥环境就位后执行。
+  - 未做版本号 bump：五处版本号当前均为 `0.0.1`，1.0.0 范围与版本决策另立任务。
+- **被否决的替代方案与理由**：
+  - *把仓库默认 `createUpdaterArtifacts` 改成 false 绕过报错*：会破坏正式发版链路，且让无签名包被误当可分发产物——否决；覆盖只走命令行。
+  - *在文档里把 unsigned 包写成「已可发版」*：无 minisign 签名不能走自动更新、无 Authenticode 签名会有 SmartScreen 警告——否决，如实标 blocked。
+  - *本轮购买 / 配置代码签名证书*：超出任务范围且需要账号与付款流程——否决，留 blocked。
+- **影响范围**：`docs/release-checklist.adoc`（新增）、`AGENTS.md` 文档表一行、`CHANGELOG.adoc` / `TASKS.md` 收口记录；不改打包默认配置、不碰 `.tauri-keys/`、`.github` 与 PR #5 路径。
+- **复审条件**：私钥与口令就位、证书采购完成后，按清单 C 节跑 signed 构建；发布渠道与 `latest.json` 策略确定后更新本决策。

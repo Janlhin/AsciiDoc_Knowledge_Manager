@@ -3,6 +3,25 @@
 version = 4
 
 [[package]]
+name = "adkm"
+version = "0.0.1"
+dependencies = [
+ "base64 0.22.1",
+ "keyring",
+ "notify",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "ureq",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1293,25 +1312,6 @@ checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
-]
-
-[[package]]
-name = "adkm"
-version = "0.0.1"
-dependencies = [
- "base64 0.22.1",
- "keyring",
- "notify",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "ureq",
 ]
 
 [[package]]

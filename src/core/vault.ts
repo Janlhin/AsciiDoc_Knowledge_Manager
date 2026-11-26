@@ -169,6 +169,22 @@ export type ExplorerSortKey = "name-asc" | "name-desc";
  * Pure (returns a new array); exported for the probe. The vault's stored order is
  * untouched — this is a presentation-layer sort applied per render.
  */
+/** §9.2: collapse duplicate paths in one watcher batch, preserving first-seen
+ *  order. notify can fire several events for the same rename/temp-swap in a
+ *  single debounced batch; the backend already dedupes, this is the TS-side
+ *  guard so duplicate events never trigger a second reindex pass. Pure. */
+export function dedupePaths(paths: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of paths) {
+    if (p !== "" && !seen.has(p)) {
+      seen.add(p);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
 export function sortTreeNodes<N extends { kind: "file" | "folder"; name: string }>(
   nodes: readonly N[],
   sortKey: ExplorerSortKey,
@@ -313,6 +329,8 @@ export class Vault {
    * whether to reload based on their own dirty state.
    */
   private async handleExternalChanges(paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+    paths = dedupePaths(paths); // §9.2: one batch may repeat the same path
     if (paths.length === 0) return;
     // Echo suppression: a path we recently wrote ourselves is re-read and
     // hash-compared. Match -> it's our own write echoing back through the
