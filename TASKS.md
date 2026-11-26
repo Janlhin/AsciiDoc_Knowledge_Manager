@@ -6,6 +6,23 @@
 
 ## 待办
 
+### T-069 千篇 adoc 性能基准（章程 §9.1，D-044）
+
+- **提出**：2026-11-27
+- **背景**：章程 §9.1 给出首次索引 1000 篇（平均 5KB）≤30s、校验 ≤5s、内存 ≤500MB 的目标；此前只有单库画像与图谱规模脚本，缺一套可复现、可留痕的千篇基准。本任务只做测量与报告，不改生产索引 / 校验代码。
+- **方法**：
+  1. 新增 `scripts/adoc-1000-bench.ts`：确定性 LCG（种子 42）生成 1000 篇 ≥5KB 的 adoc + 20 个 include 片段，经 Vite SSR 加载应用真实 `Vault` / `MetadataIndex` / `auditVault`（不另写解析）。
+  2. 测量三层：冷 / 热索引构建（`rebuildAll`，TS 侧解析 + 元数据路径）、全量引用校验（`auditVault`）、进程内存（`heapUsed` / `rss`）；冷 5 轮、热 7 轮，输出中位数、p95、均值、最小 / 最大，支持 `--json` 导出逐轮样本。
+  3. 报告写入 `docs/perf-1000-adoc.adoc`：机器规格、完整命令、三轮原始数值、与章程目标逐条对照、已知局限；`AGENTS.md` 项目文档表补指向该行。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npm run typecheck:scripts` 退出码 0；
+  3. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0；
+  4. 报告文件 `docs/perf-1000-adoc.adoc` 存在且含机器规格、命令、数值与对照结论；
+  5. `npm test -- --run` 退出码 0，通过数只增不减；`npm run verify` 退出码 0。
+- **解决**：**完成（2026-11-27）**。本机（9800X3D / 32GB / Win11 26320 / Node v22.23.2）实测：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，三项均达章程目标；引用类问题 0（`broken-xref` / `broken-include` / `broken-link`）。口径与局限见报告；决策记录见 `DECISIONS.md` D-044。
+- **仍缺**：未测 Rust FTS5 持久化写入、Tauri/WebView 桌面路径；夹具为合成语料，真实长文档与深层 include 待复测；JIT 预热状态与桌面冷启动不同。
+
 ### T-068 `.txt` 入索引（章程 §4.1，D-043）
 
 - **提出**：2026-11-27

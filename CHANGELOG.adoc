@@ -23,6 +23,8 @@
 
 === 新增
 
+* **千篇 adoc 性能基准（T-069 / D-044）**：新增可复现脚本 `scripts/adoc-1000-bench.ts`（确定性夹具、冷热分轮、中位数 / p95 与逐轮样本），报告见 `docs/perf-1000-adoc.adoc`。本机实测（9800X3D / 32GB / Node v22.23.2）：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，对照章程 §9.1（30s / 5s / 500MB）三项达标；口径仅限 TS 侧计算路径，未测 Rust FTS5 写入与 WebView/Tauri 占用。
+
 * **`.txt` 入索引（T-068 / D-043）**：`.txt` 与 `.md` / `.adoc` 同索引——进入元数据索引与检索载荷、可走既有文本编辑 / 阅读视图、可被 `xref:` / `link:` 按路径解析。解析层对 txt 刻意产出**空结构**：不提取标题、章节、链接、标签、块与脚注，显示标题仍取 basename——纯文本不伪装成 Markdown / AsciiDoc 结构。
 
 * **AsciiDoc 编辑器源码模式（T-067 / D-041）**：`.adoc` 在源码模式下改用自写的 CodeMirror 词法（`StreamLanguage`，零新增依赖），标题、属性行 / `{attr}`、行与块注释、`xref:` / `<<…>>` / `link:` / `include::`、列表项与代码块边界分别着色；`xref:path#anchor[text]` 与 `<<path,text>>` 支持 Ctrl/Cmd+Click 跳转，目标不存在时给出可见提示而不抛异常、不自动建笔记。Markdown 编辑器链路零回归；折叠与大纲仍走 Markdown 语法树，完整语法树（L4）未做。
