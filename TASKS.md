@@ -6,7 +6,7 @@
 
 ## 待办
 
-### T-069 千篇 adoc 性能基准（章程 §9.1，D-044）
+### T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
 
 - **提出**：2026-11-27
 - **背景**：章程 §9.1 给出首次索引 1000 篇（平均 5KB）≤30s、校验 ≤5s、内存 ≤500MB 的目标；此前只有单库画像与图谱规模脚本，缺一套可复现、可留痕的千篇基准。本任务只做测量与报告，不改生产索引 / 校验代码。
@@ -20,10 +20,10 @@
   3. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0；
   4. 报告文件 `docs/perf-1000-adoc.adoc` 存在且含机器规格、命令、数值与对照结论；
   5. `npm test -- --run` 退出码 0，通过数只增不减；`npm run verify` 退出码 0。
-- **解决**：**完成（2026-11-27）**。本机（9800X3D / 32GB / Win11 26320 / Node v22.23.2）实测：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，三项均达章程目标；引用类问题 0（`broken-xref` / `broken-include` / `broken-link`）。口径与局限见报告；决策记录见 `DECISIONS.md` D-044。
+- **解决**：**完成（2026-11-27）**。本机（9800X3D / 32GB / Win11 26320 / Node v22.23.2）实测：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，三项均达章程目标；引用类问题 0（`broken-xref` / `broken-include` / `broken-link`）。口径与局限见报告；决策记录见 `DECISIONS.md` D-042。
 - **仍缺**：未测 Rust FTS5 持久化写入、Tauri/WebView 桌面路径；夹具为合成语料，真实长文档与深层 include 待复测；JIT 预热状态与桌面冷启动不同。
 
-### T-068 `.txt` 入索引（章程 §4.1，D-043）
+### T-068 `.txt` 入索引（章程 §4.1，D-041）
 
 - **提出**：2026-11-27
 - **背景**：章程 §4.1 要求 `.txt` 与 `.md` / `.adoc` 同索引——可搜索、可预览、可被引用解析。现状可索引集合只有 `md` / `adoc`：txt 不进元数据索引、不进 Rust 检索索引，`xref:foo.txt[]` / `link:foo.txt[]` 无法按路径解析。
@@ -38,7 +38,7 @@
   3. `npx vitest run tests/txt-index.test.ts` 退出码 0（12 用例）；
   4. `npm test -- --run` 退出码 0，通过数只增不减（基线 203 passed + 1 expected fail + 1 skipped）；
   5. `npm run verify` 退出码 0。
-- **解决**：**完成（2026-11-27）**。txt 进入元数据索引与检索索引载荷；`xref:` / `link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.md` D-043。
+- **解决**：**完成（2026-11-27）**。txt 进入元数据索引与检索索引载荷；`xref:` / `link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.md` D-041。
 - **仍缺**：txt 正文内的双链 / 标签识别明确不做（无结构边界）；txt 内锚点引用不解析；未在真机 WebView 目检 txt 编辑 / 阅读视图。
 
 ### T-067 章程 L3：AsciiDoc 编辑器源码模式语言模式 + 语法高亮 + xref 可点击（已完成 2026-11-27）
@@ -47,16 +47,17 @@
 - **背景**：按 D-17 结论先做 C 档（`xref:` 可点击），A 档高亮以零新增依赖方式补做。此前编辑器对 `.adoc` 一律套用 Markdown 语言模式，源码模式下 `xref:` / `<<…>>` 不可点，标题/属性/注释等 token 也按 Markdown 规则着色。
 - **方法**：`src/features/editor/asciidocLanguage.ts` 提供纯函数行扫描（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`），经 `@codemirror/language` 已有的 `StreamLanguage` 自作词法；新增 language compartment 做文件类型路由——`.adoc` 挂 AsciiDoc 语言，`.md` 保持 `lang-markdown` 不变。`src/features/editor/adocXref.ts` 复用 `resolveMarkdownLink` / `resolveLink` 解析与 `openFile` / `requestReveal` 跳转；锚点回退纯文本正则定位；坏链弹可见提示 pill，不建笔记、不抛异常。高亮复用现有 `HighlightStyle` 调色板，不新增主题/CSS 变量、不新增依赖。
 - **完成判据**：① `npm run typecheck` 退出码 0；② `npx vitest run tests/asciidoc-language.test.ts` 退出码 0；③ `npm test -- --run` 无新失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例只增不减）；④ `npm run verify` 退出码 0；⑤ `git diff 7f3addb -- package.json package-lock.json` 为空（零新生产/开发依赖）。
-- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.md` D-041。
+- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.md` D-040。
 - **仍缺**：折叠/大纲仍依赖 Markdown 树；锚点定位为正则行号级；L4（完整语法树、宏参数模型、章节折叠适配）未做。
 
-### T-066 多版本一致性校验：双语配对与对齐视图（本轮实施，D-039）
+### T-066 多版本一致性校验：双语配对与对齐视图（已完成 2026-11-27，D-039）
 
 - **提出**：2026-11-27
 - **范围**：章程 §5.2「多版本一致性校验」。识别 `foo.adoc` ↔ `foo-en.adoc` 双语配对（文档头 `:lang:` / frontmatter `lang:` 仅作辅助判定）；对一对文档比较四类内容：① 版本号（AsciiDoc `:revnumber:`；Markdown frontmatter `revnumber` / `version`）；② 标题总数与各级层级分布；③ 章节结构（按层级序列保序对齐，标题文本相似度仅作辅助，不要求完全一致），定位缺失 / 多余章节；④ 总行数偏差。主区单例视图并列呈现两边章节，缺失章节高亮，点击节点跳到对应文件对应行；命令面板命令打开该视图。
 - **方法**：`src/core/bilingualAlign.ts` 纯函数引擎（无 DOM / IPC / 单例依赖）；`src/core/bilingualAlignRunner.ts` 负责唯一不纯的一步——读盘后交引擎计算，报告存 `workspace.bilingualAlignReport`；`src/features/bilingualalign/` 视图只消费报告，跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
 - **完成判据**：① `npx vitest run tests/bilingual-align.test.ts` 退出码 0；② `npm run typecheck` 退出码 0；③ `npm test -- --run` 无新增失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例后只增不减）；④ `npm run verify` 退出码 0。
-- **当前状态**：本轮实施；决策记录见 DECISIONS.md D-039。
+- **解决**：**完成（2026-11-27）**。验证：`npx vitest run tests/bilingual-align.test.ts` 退出 0（24 用例）；`npm run verify` 退出 0；合并后全量 `npm test -- --run` 为 24 文件通过 / 1 跳过、266 passed + 1 expected fail + 1 skipped（基线 203，新增 63 条：24 双语 + 27 编辑器 + 12 txt）。详见 `DECISIONS.md` D-039。
+- **仍缺**：跨目录配对、语言标记词表覆盖面、行数偏差阈值可配置、父子章节嵌套对齐、真机 E2E 点击断言（详见 D-039「诚实缺口」）。
 
 ### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
 

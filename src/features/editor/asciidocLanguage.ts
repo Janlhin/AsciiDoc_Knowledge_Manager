@@ -1,5 +1,5 @@
 /**
- * T-067 (ADKM L3, D-17 / D-041): AsciiDoc source-mode language support for
+ * T-067 (ADKM L3, D-17 / D-040): AsciiDoc source-mode language support for
  * CodeMirror 6.
  *
  * Zero new dependency: the lexer is a hand-written line scanner exposed as pure
@@ -13,7 +13,7 @@
  * comments, `xref:` / `link:` / `include::` macros, `<<…>>` short refs, list
  * markers, block attribute lines and verbatim fences. This is deliberately
  * NOT a full AsciiDoc grammar: no inline bold/italic model, no macro argument
- * parsing, no fold/outline tree — see DECISIONS.md D-041 for the L4 boundary.
+ * parsing, no fold/outline tree — see DECISIONS.md D-040 for the L4 boundary.
  */
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { tags as t, type Tag } from "@lezer/highlight";

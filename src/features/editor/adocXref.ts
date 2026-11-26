@@ -1,5 +1,5 @@
 /**
- * T-067 (ADKM L3, D-17 / D-041): click-to-navigate for AsciiDoc xref macros in
+ * T-067 (ADKM L3, D-17 / D-040): click-to-navigate for AsciiDoc xref macros in
  * source mode.
  *
  * Reuses the existing vault resolution + navigation APIs:
