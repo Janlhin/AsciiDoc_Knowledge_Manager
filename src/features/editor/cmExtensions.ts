@@ -62,6 +62,7 @@ import { slashCommandSource } from "./slashCommands";
 import { tagCompletionSource } from "./tagCompletion";
 import { openWikilink, wikilinkTarget } from "./wikilinks";
 import { asciiDocLanguageSupport } from "./asciidocLanguage";
+import { adocXrefExtensions } from "./adocXref";
 
 /** Dispatched when the metadata index changes so wikilink resolution re-runs. */
 export const refreshWikilinks = StateEffect.define<null>();
@@ -760,6 +761,9 @@ export function buildEditorExtensions(opts: {
     wikilinkDecorations(app, getPath),
     tagPlugin,
     wikilinkClickHandler(app, getPath),
+    // T-067: adoc-only xref marks + Ctrl/Cmd+Click navigation. Empty for `.md`,
+    // so the Markdown click path is unchanged.
+    ...(isAdoc ? adocXrefExtensions(app, getPath) : []),
     // R17 — base list, NOT the mode compartment: fold state lives in the
     // EditorState and must survive live<->source reconfigures
     attachmentIngest(app, getPath),
