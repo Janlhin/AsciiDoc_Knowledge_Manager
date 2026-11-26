@@ -235,6 +235,9 @@ export function Explorer() {
   // R96: subscribe so the tree re-renders (re-applying the dim via renderRow's
   // isExcluded) whenever the excluded-files patterns change
   useStore(excludedRaw);
+  // §9.2: re-render when the metadata index rebuilds, so per-file parse failures
+  // (getParseError) show on the tree rows without a separate diagnostics panel.
+  useStore(app.metadata.revision);
   const rows = useMemo(
     () => (tree ? flattenVisible(tree, expanded, sortKey) : []),
     [tree, expanded, sortKey],
@@ -867,12 +870,15 @@ export function Explorer() {
     const isDragging = node.path === draggingPath;
     const isDropTarget = dropTarget !== null && dropTarget !== "" && node.path === dropTarget;
     const isExcludedRow = isExcluded(node.path); // R96: dim excluded files
+    // §9.2: a note that failed to read/parse during the last index pass gets a
+    // marker + tooltip; the full message lives in the metadata registry.
+    const parseError = isFolder ? undefined : app.metadata.getParseError(node.path);
     const label = isFolder ? node.name : node.basename;
 
     return (
       <div
         key={node.path}
-        className={`explorer-item${isActive ? " is-active" : ""}${isSelected ? " is-selected" : ""}${isDragging ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${isExcludedRow ? " is-excluded" : ""}`}
+        className={`explorer-item${isActive ? " is-active" : ""}${isSelected ? " is-selected" : ""}${isDragging ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${isExcludedRow ? " is-excluded" : ""}${parseError !== undefined ? " is-parse-error" : ""}`}
         data-testid="explorer-item"
         data-path={node.path}
         data-hover-path={isFolder ? undefined : node.path}
@@ -930,7 +936,7 @@ export function Explorer() {
           });
           setMenu({ x: e.clientX, y: e.clientY, node, contributed });
         }}
-        title={node.path}
+        title={parseError !== undefined ? `${node.path}\n${parseError}` : node.path}
       >
         <span className="explorer-chevron">
           {isFolder && <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={13} />}

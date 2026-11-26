@@ -1211,6 +1211,59 @@ fn main() {
 }
 
 #[cfg(test)]
+mod watcher_tests {
+    use super::to_vault_relative;
+    use std::path::PathBuf;
+
+    #[test]
+    fn maps_inside_vault_to_forward_slash_relative() {
+        let root = "C:/vault";
+        let abs = PathBuf::from("C:/vault/notes/a.md");
+        assert_eq!(to_vault_relative(root, &abs), Some("notes/a.md".to_string()));
+    }
+
+    #[test]
+    fn windows_backslashes_become_forward_slash() {
+        let root = "C:\\vault";
+        let abs = PathBuf::from("C:\\vault\\notes\\a.md");
+        assert_eq!(to_vault_relative(root, &abs), Some("notes/a.md".to_string()));
+    }
+
+    #[test]
+    fn atomic_write_temp_dotfile_is_filtered() {
+        // §9.2: the editor's temp-then-rename writes a dot-prefixed `.{name}.{pid}.{seq}.geode-tmp`;
+        // its create/rename events must never surface to the frontend.
+        let root = "C:/vault";
+        let abs = PathBuf::from("C:/vault/notes/.a.md.123.7.geode-tmp");
+        assert_eq!(to_vault_relative(root, &abs), None);
+    }
+
+    #[test]
+    fn noise_segments_are_filtered() {
+        let root = "C:/vault";
+        assert_eq!(
+            to_vault_relative(root, &PathBuf::from("C:/vault/node_modules/x.js")),
+            None
+        );
+        assert_eq!(
+            to_vault_relative(root, &PathBuf::from("C:/vault/target/debug/y.exe")),
+            None
+        );
+        assert_eq!(
+            to_vault_relative(root, &PathBuf::from("C:/vault/.obsidian/plugins/z/main.js")),
+            None
+        );
+    }
+
+    #[test]
+    fn outside_vault_and_root_are_filtered() {
+        let root = "C:/vault";
+        assert_eq!(to_vault_relative(root, &PathBuf::from("C:/other/a.md")), None);
+        assert_eq!(to_vault_relative(root, &PathBuf::from("C:/vault")), None);
+    }
+}
+
+#[cfg(test)]
 mod ai_tests {
     use super::{secret_delete, secret_get, secret_set, sse_data_payload};
 

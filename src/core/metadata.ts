@@ -424,6 +424,14 @@ export interface HydratedMetadata {
   meta: NoteMetadata;
 }
 
+/** One file whose read/parse failed during the last index pass (§9.2). Kept in
+ *  memory so the failure is queryable and reachable from the UI — a single bad
+ *  document must not abort the rest of the index, and the failure must be visible. */
+export interface ParseErrorEntry {
+  path: string;
+  message: string;
+}
+
 /** Supplies previously-persisted metadata (T-039). Returning an empty map is
  *  fine: every miss simply falls back to reading and parsing the file. */
 export type MetadataHydrator = () => Promise<Map<string, HydratedMetadata>>;
@@ -452,6 +460,9 @@ export class MetadataIndex {
   private attachmentRefMapCache: { rev: number; map: Map<string, Set<string>> } | null = null;
   /** R106 (㉟ 续): note path → its frontmatter aliases (only notes that have any) */
   private aliasMapCache: { rev: number; map: Map<string, string[]> } | null = null;
+  /** §9.2: path → parse/read failure message for files the last index pass could
+   *  not ingest. Cleared on successful rebuild; re-registered on the next failure. */
+  private parseErrors = new Map<string, string>();
 
   /** Set by the search indexer once the persisted store is reachable. */
   private hydrator: MetadataHydrator | null = null;
@@ -494,6 +505,7 @@ export class MetadataIndex {
     // ~287 ms on a 415-file vault (69% of it reads), so this is the whole point.
     const hydrated = this.hydrator === null ? null : await this.hydrator().catch(() => null);
     this.byPath.clear();
+    this.parseErrors.clear();
     this.nameToPaths.clear();
     await this.indexFiles(this.vault.getIndexableFiles(), hydrated);
     perfMark("metadataHydrated", hydrated?.size ?? 0);
@@ -525,13 +537,18 @@ export class MetadataIndex {
           (f.size === undefined || cached.size === f.size)
         ) {
           this.byPath.set(f.path, cached.meta);
+          this.clearParseError(f.path);
           continue;
         }
         try {
           const content = await this.vault.read(f.path);
           this.byPath.set(f.path, parseDocument(f.path, content));
+          this.clearParseError(f.path);
         } catch (err) {
+          // §9.2: one bad file must not abort the rest of the index; the failure
+          // is recorded in memory so the UI can surface it (getParseErrors).
           console.warn(`[metadata] failed to index ${f.path}`, err);
+          this.recordParseError(f.path, err);
         }
       }
     };
@@ -552,7 +569,7 @@ export class MetadataIndex {
     }
     // guard against late events for files that no longer exist (ghost entries)
     if (!this.vault.fileExists(path)) {
-      if (this.byPath.delete(path)) {
+      if (this.byPath.delete(path) || this.parseErrors.delete(path)) {
         this.rebuildNameMap();
         this.bump();
       }
@@ -561,8 +578,10 @@ export class MetadataIndex {
     try {
       const content = await this.vault.read(path);
       this.byPath.set(path, parseDocument(path, content));
-    } catch {
+      this.clearParseError(path);
+    } catch (err) {
       this.byPath.delete(path);
+      this.recordParseError(path, err);
     }
     this.rebuildNameMap();
     this.bump();
@@ -595,18 +614,22 @@ export class MetadataIndex {
       const buffered = readText?.(path);
       if (buffered !== undefined) {
         this.byPath.set(path, parseDocument(path, buffered));
+        this.clearParseError(path);
         continue;
       }
       if (!this.vault.fileExists(path)) {
         this.byPath.delete(path);
+        this.parseErrors.delete(path);
         continue;
       }
       try {
         const content = await this.vault.read(path);
         this.byPath.set(path, parseDocument(path, content));
+        this.clearParseError(path);
       } catch (err) {
         console.warn(`[metadata] ensureFresh failed to read ${path}`, err);
         this.byPath.delete(path);
+        this.recordParseError(path, err);
       }
     }
     this.rebuildNameMap();
@@ -618,8 +641,33 @@ export class MetadataIndex {
     for (const key of [...this.byPath.keys()]) {
       if (key === path || key.startsWith(path + "/")) this.byPath.delete(key);
     }
+    for (const key of [...this.parseErrors.keys()]) {
+      if (key === path || key.startsWith(path + "/")) this.parseErrors.delete(key);
+    }
     this.rebuildNameMap();
     if (bump) this.bump();
+  }
+
+  /* ---------- §9.2 parse-failure registry ---------- */
+
+  /** Files that failed to read/parse during the last index pass, in registration
+   *  order. A single failure never aborts the rest; the list is what the UI (file
+   *  tree marker / diagnostic notice) surfaces. */
+  getParseErrors(): ParseErrorEntry[] {
+    return [...this.parseErrors.entries()].map(([path, message]) => ({ path, message }));
+  }
+
+  /** Current failure message for one path, if any; undefined once the file parses. */
+  getParseError(path: string): string | undefined {
+    return this.parseErrors.get(path);
+  }
+
+  private recordParseError(path: string, err: unknown): void {
+    this.parseErrors.set(path, err instanceof Error ? err.message : String(err));
+  }
+
+  private clearParseError(path: string): void {
+    this.parseErrors.delete(path);
   }
 
   private rebuildNameMap() {
