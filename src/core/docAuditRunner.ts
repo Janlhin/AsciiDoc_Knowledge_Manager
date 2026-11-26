@@ -30,6 +30,28 @@ export interface DocAuditDeps {
   workspace: Workspace;
 }
 
+/**
+ * Read every `antora.yml` descriptor in the vault and build the base Antora
+ * index. Extracted so the T-070 reference-check runner can share the exact same
+ * descriptor-loading rules instead of drifting into a second copy. An
+ * unreadable descriptor is skipped, never guessed.
+ */
+export async function loadAntoraBaseIndex(
+  vault: Vault,
+  allPaths: ReadonlyArray<string>,
+): Promise<AntoraComponent[]> {
+  const descriptors: AntoraComponent[] = [];
+  for (const descriptorPath of allPaths.filter((p) => /(^|\/)antora\.ya?ml$/i.test(p))) {
+    try {
+      const parsed = parseAntoraYml(await vault.read(descriptorPath), descriptorPath);
+      if (parsed !== null) descriptors.push(parsed);
+    } catch {
+      // An unreadable descriptor is skipped, never guessed.
+    }
+  }
+  return descriptors;
+}
+
 /** Scan the whole vault and publish the report to workspace.docAuditReport.
  *  `active` pins one Antora component version; omit to keep the previous pin,
  *  pass null to return to automatic (current-file) resolution. */
@@ -60,16 +82,7 @@ export async function runDocAudit(
       }),
     );
     const allPaths = vault.getFiles().map((f) => f.path);
-    const descriptors: AntoraComponent[] = [];
-    for (const descriptorPath of allPaths.filter((p) => /(^|\/)antora\.ya?ml$/i.test(p))) {
-      try {
-        const parsed = parseAntoraYml(await vault.read(descriptorPath), descriptorPath);
-        if (parsed !== null) descriptors.push(parsed);
-      } catch {
-        // An unreadable descriptor is skipped, never guessed. The audit then
-        // falls back to the slice-1 plain-AsciiDoc rules for this vault.
-      }
-    }
+    const descriptors = await loadAntoraBaseIndex(vault, allPaths);
     const baseAntora = buildAntoraIndex(descriptors, allPaths);
     const antora = selected === null
       ? baseAntora
