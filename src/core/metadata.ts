@@ -257,6 +257,7 @@ export function parseNote(path: string, content: string): NoteMetadata {
       to: m.index! + m[0].length,
       context: makeSnippet(content, m.index!, m.index! + m[0].length),
       kind: "wikilink",
+      sourceLine: lineOfOffset(content, m.index!),
     });
   }
   // R70: standard markdown links `[text](href)` — indexed so file renames can
@@ -279,6 +280,7 @@ export function parseNote(path: string, content: string): NoteMetadata {
       to: m.index! + m[0].length,
       context: makeSnippet(content, m.index!, m.index! + m[0].length),
       kind: "markdown",
+      sourceLine: lineOfOffset(content, from),
     });
   }
 
@@ -1146,7 +1148,12 @@ export class MetadataIndex {
         const key = `${meta.path}\u0000${targetId}`;
         if (edgeSeen.has(key) || meta.path === targetId) continue;
         edgeSeen.add(key);
-        edges.push({ source: meta.path, target: targetId });
+        // T-070 (D-19 B): edges to a ghost (missing / unresolved) target carry
+        // kind "broken"; resolved-to-resolved edges keep the plain shape. This
+        // is the only extra edge member this round.
+        const edge: GraphEdge = { source: meta.path, target: targetId };
+        if (resolved === null) edge.kind = "broken";
+        edges.push(edge);
       }
     }
     for (const e of edges) {
@@ -1162,6 +1169,18 @@ export class MetadataIndex {
 function perfMark(key: string, value: number): void {
   const g = globalThis as unknown as { __geodePerf?: Record<string, number> };
   g.__geodePerf = { ...g.__geodePerf, [key]: Math.round(value * 100) / 100 };
+}
+
+/** 1-based source line of a char offset (T-070). Recorded at parse time so the
+ *  report never has to reverse-search the target string (which misaligns on
+ *  repeated lines). Pure. */
+export function lineOfOffset(content: string, offset: number): number {
+  let line = 1;
+  const end = Math.max(0, Math.min(offset, content.length));
+  for (let i = 0; i < end; i += 1) {
+    if (content[i] === "\n") line += 1;
+  }
+  return line;
 }
 
 function makeSnippet(content: string, from: number, to: number, radius = 60): string {

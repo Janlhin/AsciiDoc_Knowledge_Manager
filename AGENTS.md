@@ -52,6 +52,7 @@
 | [`docs/plans/`](docs/plans/) | 各层实施计划（L2 起） |
 | [`docs/product-placeholders.adoc`](docs/product-placeholders.adoc) | 产品身份占位符待填清单、系统默认值、未来 I18N 改造 |
 | [`docs/perf-1000-adoc.adoc`](docs/perf-1000-adoc.adoc) | T-069 千篇 adoc 性能基准：脚本、实测数值、与章程 §9.1 目标对照 |
+| [`docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`](docs/technical-decisions/ADR-0005-reference-status-boundary.adoc) | T-070 三态引用判定边界、二值歧义根因与锚点不判的已知缺口 |
 
 ## 禁止事项
 

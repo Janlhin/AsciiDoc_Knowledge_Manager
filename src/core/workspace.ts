@@ -136,8 +136,8 @@ export const MIN_PANE_FRACTION = 0.12;
  * R211 root cause was missing the re-derivation), the duplicate guard, and split.
  * Adding a new such view = add it here (+ openX / render / title / icon / command).
  */
-export function isFilelessSingletonView(vt: unknown): vt is "graph" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign" {
-  return vt === "graph" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline" || vt === "docaudit" || vt === "bilingualalign";
+export function isFilelessSingletonView(vt: unknown): vt is "graph" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign" | "refcheck" {
+  return vt === "graph" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline" || vt === "docaudit" || vt === "bilingualalign" || vt === "refcheck";
 }
 
 export function makeLeaf(tabs: TabState[] = [], activeTabId: string | null = null): PaneLeaf {
@@ -400,6 +400,10 @@ export class Workspace {
    *  command after scanning the vault; BilingualAlignView reads it. Session-only,
    *  recomputed on demand. */
   readonly bilingualAlignReport = new Store<import("./bilingualAlign").BilingualReport | null>(null);
+  /** T-070: last three-state reference-check report. Set by the
+   *  tools:reference-check command after scanning the vault; RefCheckView reads
+   *  it. Session-only, recomputed on demand. */
+  readonly referenceReport = new Store<import("./referenceReport").ReferenceReport | null>(null);
   private flushers = new Set<() => void | Promise<void>>();
   /** localStorage key holding THIS vault's layout (T-035). Starts on the
    *  pre-isolation key so the constructor-time restore still works, then
@@ -601,6 +605,10 @@ export class Workspace {
   /** T-066: bilingual alignment report as a main-area singleton tab. */
   openBilingualAlign() {
     this.openSingletonView("bilingualalign", "Bilingual align");
+  }
+  /** T-070: three-state reference check report as a main-area singleton tab. */
+  openReferenceCheck() {
+    this.openSingletonView("refcheck", "Reference check");
   }
 
   closeTab(id: string) {

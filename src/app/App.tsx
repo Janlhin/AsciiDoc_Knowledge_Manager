@@ -32,6 +32,8 @@ import { DocAuditView } from "@features/docaudit/DocAuditView";
 import { runDocAudit } from "@core/docAuditRunner";
 import { BilingualAlignView } from "@features/bilingualalign/BilingualAlignView";
 import { runBilingualAlign } from "@core/bilingualAlignRunner";
+import { RefCheckView } from "@features/refcheck/RefCheckView";
+import { runReferenceCheck } from "@core/referenceReportRunner";
 import { startProofread } from "@core/llm/proofreadRunner";
 import { BookmarksPanel } from "@features/bookmarks/BookmarksPanel";
 import { OutlinePanel } from "@features/outline/OutlinePanel";
@@ -460,6 +462,17 @@ export function App() {
         callback: () => {
           workspace.openBilingualAlign();
           void runBilingualAlign(app);
+        },
+      }),
+      commands.register({
+        // T-070: resolve every reference against the index into the charter
+        // three states, then focus the singleton check view. Async by nature
+        // (reads every note).
+        id: "tools:reference-check",
+        name: () => t("cmd.referenceCheck"),
+        callback: () => {
+          workspace.openReferenceCheck();
+          void runReferenceCheck(app);
         },
       }),
       commands.register({
@@ -2062,6 +2075,8 @@ function PaneLeafView({ leaf }: { leaf: PaneLeaf }) {
       <DocAuditView />
     ) : tab.viewType === "bilingualalign" ? (
       <BilingualAlignView />
+    ) : tab.viewType === "refcheck" ? (
+      <RefCheckView />
     ) : tab.viewType === "attachment" ? (
       <AttachmentView key={tab.id} tab={tab} />
     ) : (
@@ -2276,6 +2291,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           : tab.viewType === "outline" ? t("app.outlineTab")
           : tab.viewType === "docaudit" ? t("app.docAuditTab")
           : tab.viewType === "bilingualalign" ? t("app.bilingualAlignTab")
+          : tab.viewType === "refcheck" ? t("app.refcheckTab")
           : tab.title;
         return (
         <div
@@ -2310,6 +2326,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           {tab.viewType === "outline" && <Icon name="list" size={14} />}
           {tab.viewType === "docaudit" && <Icon name="file-text" size={14} />}
           {tab.viewType === "bilingualalign" && <Icon name="list-tree" size={14} />}
+          {tab.viewType === "refcheck" && <Icon name="list" size={14} />}
           {tab.viewType === "attachment" && <Icon name="file-text" size={14} />}
           {tab.pinned && (
             <span className="tab-pin" aria-label={t("app.pinnedTab")} title={t("app.pinnedTab")}>

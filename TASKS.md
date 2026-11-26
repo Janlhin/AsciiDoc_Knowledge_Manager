@@ -6,6 +6,26 @@
 
 ## 待办
 
+### T-070 三态引用校验报告 + 图谱断链边（章程 §5.1 / §5.4，D-043 / D-044）
+
+- **提出**：2026-11-27
+- **背景**：现状索引只产出二值（`resolveByKind` 返回 `string | null`），`null` 同时表示「目标文件不存在」和「无法确定目标」，校验与图谱都只能把两者混在一起。章程 §5.1 要求有效 / 断链 / 未解析三态，§5.4 要求断链边可见。决策表档位：D-14 A / D-15 A / D-16 D / D-19 B / D-20 B。
+- **范围**：
+  1. `LinkRef` 只新增 `status`（resolved / broken / unresolved）与 `sourceLine`（1-based，解析阶段记录）；其余章程字段不加。
+  2. 纯函数 `classifyReferenceStatus`（`src/core/referenceStatus.ts`）承担二值→三态判定；纯报告引擎 `buildReferenceReport`（`src/core/referenceReport.ts`）按源码位置去重，产出全库三态条目。
+  3. 独立 fileless 单例视图「引用校验」：列全库非有效条目，按 status / 格式筛选，点击跳转定位源码行；不做任何导出。
+  4. `GraphEdge` 只加 `kind?: "broken"`；断链边虚线 + 独立配色，图例新增「断链」条；其余边类型不动。
+  5. 锚点（subpath）存在性本轮不判：文件存在即有效（D-20 B）。
+- **方法**：解析阶段记录行号（md wikilink / markdown 链接；adoc `xref:` / `<<>>` / `link:` / `include::`）；adoc 目标经既有 `resolveXref` / `resolveInclude` 的 `DocResolution` 三态直接映射，md 目标按 `resolvedPath` 判；属性占位符残留、include 越界判未解析。面板 runner 复用既有 Antora 描述符加载规则，不与文档体检的 category 语义混用。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npx vitest run tests/reference-check.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减；
+  4. `npm run verify` 退出码 0；
+  5. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0，`audit-hot` p95 ≤5000ms。
+- **解决**：**完成（2026-11-27）**。三态模型、校验面板、图谱断链边与 18 个新单测落地；千篇基准 audit-hot median 347.92 ms / p95 359.4 ms（≤5000ms 目标内）。决策记录见 `DECISIONS.md` D-043 / D-044；边界与已知缺口见 `docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`。
+- **仍缺**：锚点级断链不判（文件存在即有效，锚点存在性留待复审）；txt 正文不扫引用；条件块外求值失败、Antora 多候选歧义的细分场景仅部分覆盖；不做 CSV / JSON / AsciiDoc 导出；未在真机 WebView 目检面板与图谱配色。
+
 ### T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
 
 - **提出**：2026-11-27
