@@ -30,6 +30,8 @@ import { AllPropertiesPanel } from "@features/allproperties/AllPropertiesPanel";
 import { BacklinksPanel } from "@features/backlinks/BacklinksPanel";
 import { DocAuditView } from "@features/docaudit/DocAuditView";
 import { runDocAudit } from "@core/docAuditRunner";
+import { BilingualAlignView } from "@features/bilingualalign/BilingualAlignView";
+import { runBilingualAlign } from "@core/bilingualAlignRunner";
 import { startProofread } from "@core/llm/proofreadRunner";
 import { BookmarksPanel } from "@features/bookmarks/BookmarksPanel";
 import { OutlinePanel } from "@features/outline/OutlinePanel";
@@ -447,6 +449,17 @@ export function App() {
         callback: () => {
           workspace.openDocAudit();
           void runDocAudit(app);
+        },
+      }),
+      commands.register({
+        // T-066: pair bilingual documents and compare versions / heading
+        // counts / section structure / line counts, then focus the singleton
+        // alignment view. Async by nature (reads every note).
+        id: "tools:bilingual-align",
+        name: () => t("cmd.bilingualAlign"),
+        callback: () => {
+          workspace.openBilingualAlign();
+          void runBilingualAlign(app);
         },
       }),
       commands.register({
@@ -2047,6 +2060,8 @@ function PaneLeafView({ leaf }: { leaf: PaneLeaf }) {
       <div className="main-outline-view markdown-reading-view"><OutlinePanel /></div>
     ) : tab.viewType === "docaudit" ? (
       <DocAuditView />
+    ) : tab.viewType === "bilingualalign" ? (
+      <BilingualAlignView />
     ) : tab.viewType === "attachment" ? (
       <AttachmentView key={tab.id} tab={tab} />
     ) : (
@@ -2260,6 +2275,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           : tab.viewType === "outgoinglinks" ? t("app.outgoingLinksTab")
           : tab.viewType === "outline" ? t("app.outlineTab")
           : tab.viewType === "docaudit" ? t("app.docAuditTab")
+          : tab.viewType === "bilingualalign" ? t("app.bilingualAlignTab")
           : tab.title;
         return (
         <div
@@ -2293,6 +2309,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           {tab.viewType === "outgoinglinks" && <Icon name="external-link" size={14} />}
           {tab.viewType === "outline" && <Icon name="list" size={14} />}
           {tab.viewType === "docaudit" && <Icon name="file-text" size={14} />}
+          {tab.viewType === "bilingualalign" && <Icon name="list-tree" size={14} />}
           {tab.viewType === "attachment" && <Icon name="file-text" size={14} />}
           {tab.pinned && (
             <span className="tab-pin" aria-label={t("app.pinnedTab")} title={t("app.pinnedTab")}>
