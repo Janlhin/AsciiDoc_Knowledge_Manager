@@ -6,6 +6,14 @@
 
 ## 待办
 
+### T-066 多版本一致性校验：双语配对与对齐视图（本轮实施，D-039）
+
+- **提出**：2026-11-27
+- **范围**：章程 §5.2「多版本一致性校验」。识别 `foo.adoc` ↔ `foo-en.adoc` 双语配对（文档头 `:lang:` / frontmatter `lang:` 仅作辅助判定）；对一对文档比较四类内容：① 版本号（AsciiDoc `:revnumber:`；Markdown frontmatter `revnumber` / `version`）；② 标题总数与各级层级分布；③ 章节结构（按层级序列保序对齐，标题文本相似度仅作辅助，不要求完全一致），定位缺失 / 多余章节；④ 总行数偏差。主区单例视图并列呈现两边章节，缺失章节高亮，点击节点跳到对应文件对应行；命令面板命令打开该视图。
+- **方法**：`src/core/bilingualAlign.ts` 纯函数引擎（无 DOM / IPC / 单例依赖）；`src/core/bilingualAlignRunner.ts` 负责唯一不纯的一步——读盘后交引擎计算，报告存 `workspace.bilingualAlignReport`；`src/features/bilingualalign/` 视图只消费报告，跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
+- **完成判据**：① `npx vitest run tests/bilingual-align.test.ts` 退出码 0；② `npm run typecheck` 退出码 0；③ `npm test -- --run` 无新增失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例后只增不减）；④ `npm run verify` 退出码 0。
+- **当前状态**：本轮实施；决策记录见 DECISIONS.md D-039。
+
 ### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
 
 - **提出**：2026-11-19

@@ -649,3 +649,19 @@
 - The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
 - Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
 - Verification recorded in TASKS and the external review receipt; not published or merged.
+
+## D-039 双语对齐：层级序列保序贪心对齐，文本相似度仅作辅助
+
+- **日期**：2026-11-27
+- **状态**：**已实施**（T-066）。
+- **决策**：配对以文件名 `-<lang>` 后缀为主规则（同目录、同扩展名优先）；`:lang:` / frontmatter `lang:` 仅作辅助——同词根、跨格式且两侧显式语言标记不同时，才按语言标记配成一对。章节对齐按标题层级序列做保序贪心双指针：当前两侧层级相同即配对，否则先消费层级较浅的一侧（另一侧记缺失 / 多余）；标题文本相似度（归一化后 Levenshtein 比率）只挂在配对行上作辅助展示，不要求译文标题与原文一致。
+- **背景**：章程 §5.2 要求逐对比较版本号、标题总数与层级分布、章节结构、行数偏差。译文标题本就与原文不同语言，不能拿文本相等当配对判据；而纯 LCS 在重复同级标题（多篇 H2）上回溯 tie-break 会把靠前章节错配到靠后章节。
+- **被采纳方案**：`core/bilingualAlign.ts` 纯函数——`digestDocument` 抽取版本 / 语言 / 标题 / 行数，`alignStructure` 保序贪心对齐，`buildBilingualReport` 发现配对并汇总四类检查；runner 只读盘，视图只消费报告。跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
+- **被否决的替代方案**：
+  - *标题文本相似度参与配对判据*：否决理由——中英标题天然不同语言，相似度阈值会误杀正常译文；相似度降级为配对行上的辅助展示值。
+  - *LCS 最长公共子序列对齐*：否决理由——重复同级标题下回溯 tie-break 会把靠前章节错配到靠后章节；保序贪心双指针在文档顺序上更直观、可测。
+  - *按目录树父子关系对齐*：否决理由——现有元数据只拍平标题列表，父子层级需另建树；本轮范围只做层级序列对齐，树状语义留待后续。
+- **影响范围**：`src/core/bilingualAlign.ts`（新增）、`src/core/bilingualAlignRunner.ts`（新增）、`src/features/bilingualalign/`（新增视图 + scss）、`src/core/workspace.ts`（报告 Store + 单例视图方法）、`src/core/types.ts`（viewType 联合）、`src/core/i18n/dict.app.ts`（en/zh 文案）、`src/app/App.tsx`（命令 + 视图分发 + 标签标题）、`tests/bilingual-align.test.ts`（新增 24 用例）。
+- **验证**：`npx vitest run tests/bilingual-align.test.ts` 退出码 0（24 用例）；`npm run typecheck` 退出码 0；`npm test -- --run` 227 passed + 1 expected fail + 1 skipped；`npm run verify` 退出码 0。
+- **诚实缺口**：跨目录配对不支持；语言标签只认内置小词表；行数偏差阈值固定 25%，未暴露设置；结构对齐不解析父子章节嵌套；未做 E2E 真机跳转断言。
+- **复审条件**：真实语料出现跨目录同词根配对需求，或重复同级标题下贪心对齐错配被实测报告时，再评估目录参与与树状对齐。
