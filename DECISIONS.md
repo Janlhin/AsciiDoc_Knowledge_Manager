@@ -686,3 +686,22 @@
 - **影响范围**：`src/features/editor/asciidocLanguage.ts`（新增）、`src/features/editor/adocXref.ts`（新增）、`src/features/editor/cmExtensions.ts`（language compartment + adoc 插件接线）、`src/features/editor/EditorPane.tsx`（compartment 装配 + 文件类型路由）、`src/core/i18n/dict.views.ts`（`editor.xrefUnresolved` 文案）、`tests/asciidoc-language.test.ts`（新增）。Canvas、三态校验、图谱边类型、发版签名、`.tauri-keys`、PR #5 相关文件均未触碰；Markdown 路径零回归。
 - **诚实缺口**：折叠与结构化导航仍依赖 Markdown 语法树，AsciiDoc 章节折叠未适配；锚点定位是正则行号级，不识别 Asciidoctor 生成的内部 id；行内粗体/斜体与宏参数模型未解析；`link:` 宏高亮但不作为本次点击目标；重命名改扩展名（md ↔ adoc）时语言模式不在原地重路由。
 - **复审条件**：若 L4 立项（完整语法树、大纲/折叠适配、宏参数模型），或现成 AsciiDoc CM 包的许可与维护状态核实可接受，再重新评估是否替换自写词法；三态校验落地时，需把 adoc 坏链展示与本任务的 unresolved pill 口径对齐。
+
+---
+
+## D-043 `.txt` 与 md/adoc 同索引，但按无结构纯文本处理
+
+- **日期**：2026-11-27
+- **决策**：`.txt` 文件进入可索引集合，参与全文搜索、可走既有文本编辑 / 阅读视图、可被 `xref:` / `link:` 按路径引用解析；但解析层对 txt 产出**空结构**——不提取标题、章节、链接、标签、块标记与脚注，显示标题取 basename，不猜首行、不伪造层级。
+- **背景**：章程 §4.1 要求 txt 与 md / adoc 同索引。现状可索引集合仅 `md` / `adoc`，txt 既不进元数据索引也不进检索索引载荷，指向 txt 的引用无法解析。
+- **被采纳方案**：
+  - `parsers/indexable.ts` 的可索引扩展名集合加入 `txt`；`RESOLVE_EXTENSIONS` 与 `docsAsCode.APPENDABLE` 末尾追加 `.txt`，md / adoc 的既有优先顺序不变。
+  - 新增 `parsers/plaintext.ts` 的 `parsePlainText(path, content)`：返回空 `links` / `tags` / `headings` / `blocks` / `footnotes` / `footnoteRefs` / `aliases`，仅记录 `contentLength`；`parseDocument` 分派在 adoc 之后、Markdown 之前拦截 txt。
+  - `indexer.ts` 的文件过滤复用共享 `isIndexable()`，删除本地扩展名集合，避免两处真源漂移。
+  - 预览 / 编辑路由不改：txt 本就在 `isEditableTextPath()` 白名单，继续走既有文本视图；附件只读边界（二进制 / 未知扩展名）不变。
+- **被否决的替代方案与理由**：
+  - *复用 `parseNote` 扫描 txt*：会把 `#` 开头的行误判为标题、`[[…]]` 误判为双链、`#tag` 误判为标签，等于在纯文本上伪造 Markdown 结构——否决。
+  - *取首行作为标题*：大纲与图谱会出现作者没有写过的层级，违反「无结构」边界——否决。
+  - *把 txt 归入只读附件*：违背既有「可编辑文本」分类，且无法进入搜索与引用解析——否决。
+- **影响范围**：索引集合、元数据分派、链接解析、docsAsCode 路径解析；不涉及 Canvas、三态校验报告模型、图谱边类型、发版签名与 `.tauri-keys`。
+- **复审条件**：若后续产品需要识别 txt 正文内的双链 / 标签，再单独立项评估；当前明确不做。txt 内锚点引用同样不解析。

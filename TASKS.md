@@ -6,6 +6,24 @@
 
 ## 待办
 
+### T-068 `.txt` 入索引（章程 §4.1，D-043）
+
+- **提出**：2026-11-27
+- **背景**：章程 §4.1 要求 `.txt` 与 `.md` / `.adoc` 同索引——可搜索、可预览、可被引用解析。现状可索引集合只有 `md` / `adoc`：txt 不进元数据索引、不进 Rust 检索索引，`xref:foo.txt[]` / `link:foo.txt[]` 无法按路径解析。
+- **方法**：
+  1. `parsers/indexable.ts` 可索引扩展名集合加入 `txt`；链接解析扩展名探针与 `docsAsCode` 的可追加扩展名末尾追加 `.txt`（md / adoc 优先顺序不变）。
+  2. 新增 `parsers/plaintext.ts` 的 `parsePlainText`：txt 按**无结构纯文本**处理，链接 / 标签 / 标题 / 块 / 脚注 / 别名一律为空，不跑 Markdown / AsciiDoc 扫描；正文长度照常记录，索引标题仍取 basename，不猜首行、不伪造层级。
+  3. `indexer.ts` 过滤复用共享的 `isIndexable()`，不再维护本地扩展名集合。
+  4. 预览 / 编辑路由复用既有 `isEditableTextPath()`（txt 本就在可编辑文本白名单），不改附件路由边界。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npm run typecheck:scripts` 退出码 0；
+  3. `npx vitest run tests/txt-index.test.ts` 退出码 0（12 用例）；
+  4. `npm test -- --run` 退出码 0，通过数只增不减（基线 203 passed + 1 expected fail + 1 skipped）；
+  5. `npm run verify` 退出码 0。
+- **解决**：**完成（2026-11-27）**。txt 进入元数据索引与检索索引载荷；`xref:` / `link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.md` D-043。
+- **仍缺**：txt 正文内的双链 / 标签识别明确不做（无结构边界）；txt 内锚点引用不解析；未在真机 WebView 目检 txt 编辑 / 阅读视图。
+
 ### T-067 章程 L3：AsciiDoc 编辑器源码模式语言模式 + 语法高亮 + xref 可点击（已完成 2026-11-27）
 
 - **提出**：2026-11-27
@@ -22,14 +40,6 @@
 - **方法**：`src/core/bilingualAlign.ts` 纯函数引擎（无 DOM / IPC / 单例依赖）；`src/core/bilingualAlignRunner.ts` 负责唯一不纯的一步——读盘后交引擎计算，报告存 `workspace.bilingualAlignReport`；`src/features/bilingualalign/` 视图只消费报告，跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
 - **完成判据**：① `npx vitest run tests/bilingual-align.test.ts` 退出码 0；② `npm run typecheck` 退出码 0；③ `npm test -- --run` 无新增失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例后只增不减）；④ `npm run verify` 退出码 0。
 - **当前状态**：本轮实施；决策记录见 DECISIONS.md D-039。
-### T-067 章程 L3：AsciiDoc 编辑器源码模式语言模式 + 语法高亮 + xref 可点击（已完成 2026-11-27）
-
-- **提出**：2026-11-27
-- **背景**：按 D-17 结论先做 C 档（`xref:` 可点击），A 档高亮以零新增依赖方式补做。此前编辑器对 `.adoc` 一律套用 Markdown 语言模式，源码模式下 `xref:` / `<<…>>` 不可点，标题/属性/注释等 token 也按 Markdown 规则着色。
-- **方法**：`src/features/editor/asciidocLanguage.ts` 提供纯函数行扫描（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`），经 `@codemirror/language` 已有的 `StreamLanguage` 自作词法；新增 language compartment 做文件类型路由——`.adoc` 挂 AsciiDoc 语言，`.md` 保持 `lang-markdown` 不变。`src/features/editor/adocXref.ts` 复用 `resolveMarkdownLink` / `resolveLink` 解析与 `openFile` / `requestReveal` 跳转；锚点回退纯文本正则定位；坏链弹可见提示 pill，不建笔记、不抛异常。高亮复用现有 `HighlightStyle` 调色板，不新增主题/CSS 变量、不新增依赖。
-- **完成判据**：① `npm run typecheck` 退出码 0；② `npx vitest run tests/asciidoc-language.test.ts` 退出码 0；③ `npm test -- --run` 无新失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例只增不减）；④ `npm run verify` 退出码 0；⑤ `git diff 7f3addb -- package.json package-lock.json` 为空（零新生产/开发依赖）。
-- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.md` D-041。
-- **仍缺**：折叠/大纲仍依赖 Markdown 树；锚点定位为正则行号级；L4（完整语法树、宏参数模型、章节折叠适配）未做。
 
 ### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
 
