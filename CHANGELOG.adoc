@@ -23,6 +23,8 @@
 
 === 新增
 
+* **AsciiDoc 编辑器源码模式（T-067 / D-041）**：`.adoc` 在源码模式下改用自写的 CodeMirror 词法（`StreamLanguage`，零新增依赖），标题、属性行 / `{attr}`、行与块注释、`xref:` / `<<…>>` / `link:` / `include::`、列表项与代码块边界分别着色；`xref:path#anchor[text]` 与 `<<path,text>>` 支持 Ctrl/Cmd+Click 跳转，目标不存在时给出可见提示而不抛异常、不自动建笔记。Markdown 编辑器链路零回归；折叠与大纲仍走 Markdown 语法树，完整语法树（L4）未做。
+
 * **双语一致性校验（T-066 / D-039）**：命令「检查双语对齐」+ 主区单例视图「双语对齐」。按文件名 `-<lang>` 后缀识别 `foo.adoc` ↔ `foo-en.adoc` 配对（`:lang:` / frontmatter `lang:` 作辅助判定），逐对比较版本号（`:revnumber:` / frontmatter `revnumber`·`version`）、标题总数与层级分布、章节结构（层级序列保序对齐，缺失 / 多余章节高亮）与总行数偏差；并列树点击章节跳转到对应文件行。纯函数引擎零新增依赖，24 条单测覆盖四类检查项与空文件 / 乱序标题 / 中英混合标题等负向降级。
 
 * **GPU 图谱原型（Q-011 / D-037）**：新增 `scripts/graph-scale-webgl-layout.html`。WebGL2 浮点纹理 ping-pong 做近似 GPU 力导，点/边直接从状态纹理渲染；10 万节点/20 万边在 RTX 5080 + Edge 上 **164.1fps、6.09ms/帧**，GPU 平均 14%、峰值 49%。这是原型，不是生产 `GraphView` 替换；无标签、拾取、拖拽、过滤与数据接线。
