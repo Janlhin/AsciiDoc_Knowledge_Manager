@@ -6,6 +6,24 @@
 
 ## 待办
 
+### T-068 `.txt` 入索引（章程 §4.1，D-043）
+
+- **提出**：2026-11-27
+- **背景**：章程 §4.1 要求 `.txt` 与 `.md` / `.adoc` 同索引——可搜索、可预览、可被引用解析。现状可索引集合只有 `md` / `adoc`：txt 不进元数据索引、不进 Rust 检索索引，`xref:foo.txt[]` / `link:foo.txt[]` 无法按路径解析。
+- **方法**：
+  1. `parsers/indexable.ts` 可索引扩展名集合加入 `txt`；链接解析扩展名探针与 `docsAsCode` 的可追加扩展名末尾追加 `.txt`（md / adoc 优先顺序不变）。
+  2. 新增 `parsers/plaintext.ts` 的 `parsePlainText`：txt 按**无结构纯文本**处理，链接 / 标签 / 标题 / 块 / 脚注 / 别名一律为空，不跑 Markdown / AsciiDoc 扫描；正文长度照常记录，索引标题仍取 basename，不猜首行、不伪造层级。
+  3. `indexer.ts` 过滤复用共享的 `isIndexable()`，不再维护本地扩展名集合。
+  4. 预览 / 编辑路由复用既有 `isEditableTextPath()`（txt 本就在可编辑文本白名单），不改附件路由边界。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npm run typecheck:scripts` 退出码 0；
+  3. `npx vitest run tests/txt-index.test.ts` 退出码 0（12 用例）；
+  4. `npm test -- --run` 退出码 0，通过数只增不减（基线 203 passed + 1 expected fail + 1 skipped）；
+  5. `npm run verify` 退出码 0。
+- **解决**：**完成（2026-11-27）**。txt 进入元数据索引与检索索引载荷；`xref:` / `link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.md` D-043。
+- **仍缺**：txt 正文内的双链 / 标签识别明确不做（无结构边界）；txt 内锚点引用不解析；未在真机 WebView 目检 txt 编辑 / 阅读视图。
+
 ### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
 
 - **提出**：2026-11-19

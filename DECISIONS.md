@@ -649,3 +649,22 @@
 - The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
 - Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
 - Verification recorded in TASKS and the external review receipt; not published or merged.
+
+---
+
+## D-043 `.txt` 与 md/adoc 同索引，但按无结构纯文本处理
+
+- **日期**：2026-11-27
+- **决策**：`.txt` 文件进入可索引集合，参与全文搜索、可走既有文本编辑 / 阅读视图、可被 `xref:` / `link:` 按路径引用解析；但解析层对 txt 产出**空结构**——不提取标题、章节、链接、标签、块标记与脚注，显示标题取 basename，不猜首行、不伪造层级。
+- **背景**：章程 §4.1 要求 txt 与 md / adoc 同索引。现状可索引集合仅 `md` / `adoc`，txt 既不进元数据索引也不进检索索引载荷，指向 txt 的引用无法解析。
+- **被采纳方案**：
+  - `parsers/indexable.ts` 的可索引扩展名集合加入 `txt`；`RESOLVE_EXTENSIONS` 与 `docsAsCode.APPENDABLE` 末尾追加 `.txt`，md / adoc 的既有优先顺序不变。
+  - 新增 `parsers/plaintext.ts` 的 `parsePlainText(path, content)`：返回空 `links` / `tags` / `headings` / `blocks` / `footnotes` / `footnoteRefs` / `aliases`，仅记录 `contentLength`；`parseDocument` 分派在 adoc 之后、Markdown 之前拦截 txt。
+  - `indexer.ts` 的文件过滤复用共享 `isIndexable()`，删除本地扩展名集合，避免两处真源漂移。
+  - 预览 / 编辑路由不改：txt 本就在 `isEditableTextPath()` 白名单，继续走既有文本视图；附件只读边界（二进制 / 未知扩展名）不变。
+- **被否决的替代方案与理由**：
+  - *复用 `parseNote` 扫描 txt*：会把 `#` 开头的行误判为标题、`[[…]]` 误判为双链、`#tag` 误判为标签，等于在纯文本上伪造 Markdown 结构——否决。
+  - *取首行作为标题*：大纲与图谱会出现作者没有写过的层级，违反「无结构」边界——否决。
+  - *把 txt 归入只读附件*：违背既有「可编辑文本」分类，且无法进入搜索与引用解析——否决。
+- **影响范围**：索引集合、元数据分派、链接解析、docsAsCode 路径解析；不涉及 Canvas、三态校验报告模型、图谱边类型、发版签名与 `.tauri-keys`。
+- **复审条件**：若后续产品需要识别 txt 正文内的双链 / 标签，再单独立项评估；当前明确不做。txt 内锚点引用同样不解析。

@@ -23,6 +23,8 @@
 
 === 新增
 
+* **`.txt` 入索引（T-068 / D-043）**：纯文本 `.txt` 与 `.md` / `.adoc` 同索引——正文可全文搜索、走既有文本编辑 / 阅读视图，`xref:foo.txt[]` / `link:foo.txt[]` 可按路径解析。txt 按**无结构**处理：不提取标题 / 章节 / 链接 / 标签，不猜首行标题、不伪造层级；超大正文仍按索引字符上限截断。零新增依赖，12 条新单测覆盖正反向用例（含大小写扩展名、路径含空格、二进制 / 未知扩展名排除）。
+
 * **GPU 图谱原型（Q-011 / D-037）**：新增 `scripts/graph-scale-webgl-layout.html`。WebGL2 浮点纹理 ping-pong 做近似 GPU 力导，点/边直接从状态纹理渲染；10 万节点/20 万边在 RTX 5080 + Edge 上 **164.1fps、6.09ms/帧**，GPU 平均 14%、峰值 49%。这是原型，不是生产 `GraphView` 替换；无标签、拾取、拖拽、过滤与数据接线。
 
 * **Q-011 图谱规模 spike（D-036）**：新增 `scripts/graph-scale-bench.ts` 与 `scripts/graph-scale-webgl.html`，用可重复合成图分离布局与绘制成本。实测 10 万节点 WebGL 绘制约 0.6ms，但 d3-force 单 tick 约 925ms、15 秒仅 17 tick；当前 419 节点图谱绘制 0.4ms。结论是 WebGL 不是当前瓶颈，生产 `GraphView` 未改。

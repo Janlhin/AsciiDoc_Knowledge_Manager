@@ -12,6 +12,7 @@
  */
 import type { EventBus } from "./events";
 import type { MetadataIndex } from "./metadata";
+import { isIndexable } from "./parsers/indexable";
 import type { FileNode, NoteMetadata } from "./types";
 import type { Vault } from "./vault";
 import {
@@ -34,9 +35,6 @@ export interface IndexHost {
   metadata: MetadataIndex;
   events: EventBus;
 }
-
-/** Extensions whose text is worth searching. Binary previews stay out. */
-const INDEXABLE = new Set(["md", "adoc"]);
 
 /** A 20 MB note would cost more to index than it can ever return. */
 const MAX_BODY_CHARS = 400_000;
@@ -112,7 +110,7 @@ function yieldToUi(): Promise<void> {
 }
 
 function indexable(files: FileNode[]): FileNode[] {
-  return files.filter((f) => INDEXABLE.has(f.extension));
+  return files.filter((f) => isIndexable(f.path));
 }
 
 /** Build the payload Rust stores. Title is the basename (no frontmatter parsing
@@ -256,6 +254,6 @@ async function reindexPath(host: IndexHost, path: string): Promise<void> {
     await indexRemove([path]);
     return;
   }
-  if (!INDEXABLE.has(file.extension)) return;
+  if (!isIndexable(file.path)) return;
   await indexOne(host, file);
 }

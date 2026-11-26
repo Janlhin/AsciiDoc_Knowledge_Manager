@@ -5,7 +5,7 @@
  * 而 `vault.ts` 不能反过来依赖 `metadata.ts`（会成环）。
  */
 
-const INDEXABLE_EXTENSIONS = new Set(["md", "adoc"]);
+const INDEXABLE_EXTENSIONS = new Set(["md", "adoc", "txt"]);
 
 /** 路径的扩展名（不含点），统一小写；无扩展名返回空串 */
 export function extensionOf(path: string): string {
@@ -27,5 +27,5 @@ export function stripDocExtension(path: string): string {
   return isIndexable(path) ? path.slice(0, path.lastIndexOf(".")) : path;
 }
 
-/** 链接解析时按优先级尝试的扩展名：先 md（历史行为），再 adoc */
-export const RESOLVE_EXTENSIONS = [".md", ".adoc"] as const;
+/** 链接解析时按优先级尝试的扩展名：先 md（历史行为），再 adoc，最后 txt */
+export const RESOLVE_EXTENSIONS = [".md", ".adoc", ".txt"] as const;
