@@ -6,6 +6,23 @@
 
 ## 待办
 
+### T-071 AsciiDoc 折叠 + 大纲（0.6 收口，D-045）
+
+- **提出**：2026-11-27
+- **背景**：T-067 落地了 adoc 源码语言模式与 xref 跳转，但章节折叠只认 Markdown Lezer 树节点——adoc 是 StreamLanguage，树上没有标题节点，标题行拿不到折叠点；大纲侧标签跟随条件对 adoc 本就成立（adoc 标签 viewType 同为 `markdown`），`parseAsciiDoc` 也已产出 headings，缺的只是折叠分支与行构造的测试证据。本任务补 adoc 标题折叠，并把大纲行构造抽成纯函数补测；Markdown 折叠 / 大纲语义零改动。
+- **方法**：
+  1. `src/features/editor/folding.ts` 新增纯函数 `collectAdocHeadings` / `foldAdocSection`（输入源文本 + 行号 → `{ from, to } | null`），复用 batch-1 `scanAsciiDocLine` 的块状态：`----`/`....`/`++++`/`$$$$` 逐字块、`////` 块注释、`[source,…]` 块、`//` 行注释内的 `=` 行不算标题；`adocFoldRange` / `adocFoldService` 为 CodeMirror 适配器；foldService compartment 按 `isAdoc` 选 adoc / markdown 服务，`foldHeading` 开关对两者同样生效。
+  2. 大纲：`buildRows` 从 `OutlinePanel.tsx` 抽到 `src/features/outline/outlineRows.ts` 纯模块（行为不变）；adoc headings 经既有 `parseAsciiDoc` → metadata → rows 链路出层级、折叠键 `index`、`hasChildren`，点击按 `from` 偏移跳源码行。
+  3. 新增 `tests/adoc-fold-outline.test.ts`：相邻同级、层级跳跃到 `======`、末节、单行 / 空节、未闭合代码块、块注释、行注释、`[source]` 内 `=`；空文档、全代码块、500 行深层级不崩溃；服务装配轻量断言。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npx vitest run tests/adoc-fold-outline.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减（基线 266 passed + 1 expected fail + 1 skipped）；
+  4. `npm run verify` 退出码 0；
+  5. `git diff 7507b58 -- package.json package-lock.json` 为空（零新生产 / 开发依赖）。
+- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/adoc-fold-outline.test.ts` 0（21 用例）；`npm test -- --run` 287 passed + 1 expected fail + 1 skipped（基线 266，新增 21）；决策记录见 `DECISIONS.md` D-045。
+- **仍缺**：下划线式标题（文本行 + `===`/`---` 下划线）未识别；示例块 `====`、侧栏 `****`、引用 `____`、开放块 `--` 内部的 `=` 仍按标题处理（batch-1 词法未屏蔽这四类非逐字块）；真机 WebView 折叠展开与大纲点击未目检（E2E 范畴）。
+
 ### T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
 
 - **提出**：2026-11-27
