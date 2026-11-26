@@ -649,3 +649,22 @@
 - The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
 - Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
 - Verification recorded in TASKS and the external review receipt; not published or merged.
+
+---
+
+## D-041 AsciiDoc 编辑器源码模式：StreamLanguage 自作词法，零新增依赖（T-067）
+
+- **日期**：2026-11-27
+- **状态**：**已实施**（T-067）。
+- **背景**：D-17 定调先做 C 档（`xref:` 可点击），A 档（彩色高亮）后补；本任务把 A 档以零新增依赖方式一并落地。此前编辑器对 `.adoc` 一律套用 `@codemirror/lang-markdown`，源码模式下 `xref:` / `<<…>>` 不可点，标题、属性、注释等 token 也按 Markdown 规则着色。
+- **被采纳方案**：
+  - 词法：复用 `@codemirror/language` 已带的 `StreamLanguage` + 手写行扫描纯函数（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`）。token 类别覆盖标题（`=` 至 `======`）、属性行与 `{attr}` 引用、行注释 `//` 与块注释 `////`、`xref:` 宏、`<<…>>` 简写、`link:` 宏、`include::`、列表项、代码块（`----` / `[source,…]`）边界与源码内部。
+  - 路由：新增 language compartment，`.adoc` 挂 AsciiDoc 语言，`.md` 原样保留 `markdownSansHeaderFold()`；live preview 链路语义一字未改。
+  - 跳转：复用既有 `metadata.resolveMarkdownLink` / `resolveLink` 解析与 `workspace.openFile` / `requestReveal`；锚点回退为纯文本正则定位（不假装有语法树）；坏链弹可见提示 pill，不自动建笔记、不抛异常。
+  - 高亮样式复用现有 `HighlightStyle` 调色板（heading / comment / link / monospace / prop 等既有 class），只补三条既有 class 映射，不引入新主题或 CSS 变量。
+- **被否决的替代方案**：
+  - *引入 `codemirror-asciidoc` 之类现成包*：否决理由——硬约束零新增生产/开发依赖；该类包的维护活跃度与许可未核实，且其语法树能力超出 L3 所需，会把折叠/大纲一并绑死在第三方解析上。
+  - *直接上完整 Lezer grammar（L4）*：否决理由——章程分级 L3 只要求源码编辑 + 高亮；Lezer grammar 投入大，且与现有 Markdown 折叠/大纲树并存会引入双树一致性问题，留待 L4 单独立项。
+- **影响范围**：`src/features/editor/asciidocLanguage.ts`（新增）、`src/features/editor/adocXref.ts`（新增）、`src/features/editor/cmExtensions.ts`（language compartment + adoc 插件接线）、`src/features/editor/EditorPane.tsx`（compartment 装配 + 文件类型路由）、`src/core/i18n/dict.views.ts`（`editor.xrefUnresolved` 文案）、`tests/asciidoc-language.test.ts`（新增）。Canvas、三态校验、图谱边类型、发版签名、`.tauri-keys`、PR #5 相关文件均未触碰；Markdown 路径零回归。
+- **诚实缺口**：折叠与结构化导航仍依赖 Markdown 语法树，AsciiDoc 章节折叠未适配；锚点定位是正则行号级，不识别 Asciidoctor 生成的内部 id；行内粗体/斜体与宏参数模型未解析；`link:` 宏高亮但不作为本次点击目标；重命名改扩展名（md ↔ adoc）时语言模式不在原地重路由。
+- **复审条件**：若 L4 立项（完整语法树、大纲/折叠适配、宏参数模型），或现成 AsciiDoc CM 包的许可与维护状态核实可接受，再重新评估是否替换自写词法；三态校验落地时，需把 adoc 坏链展示与本任务的 unresolved pill 口径对齐。

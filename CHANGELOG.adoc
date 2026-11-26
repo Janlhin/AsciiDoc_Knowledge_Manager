@@ -23,6 +23,8 @@
 
 === 新增
 
+* **AsciiDoc 编辑器源码模式（T-067 / D-041）**：`.adoc` 在源码模式下改用自写的 CodeMirror 词法（`StreamLanguage`，零新增依赖），标题、属性行 / `{attr}`、行与块注释、`xref:` / `<<…>>` / `link:` / `include::`、列表项与代码块边界分别着色；`xref:path#anchor[text]` 与 `<<path,text>>` 支持 Ctrl/Cmd+Click 跳转，目标不存在时给出可见提示而不抛异常、不自动建笔记。Markdown 编辑器链路零回归；折叠与大纲仍走 Markdown 语法树，完整语法树（L4）未做。
+
 * **GPU 图谱原型（Q-011 / D-037）**：新增 `scripts/graph-scale-webgl-layout.html`。WebGL2 浮点纹理 ping-pong 做近似 GPU 力导，点/边直接从状态纹理渲染；10 万节点/20 万边在 RTX 5080 + Edge 上 **164.1fps、6.09ms/帧**，GPU 平均 14%、峰值 49%。这是原型，不是生产 `GraphView` 替换；无标签、拾取、拖拽、过滤与数据接线。
 
 * **Q-011 图谱规模 spike（D-036）**：新增 `scripts/graph-scale-bench.ts` 与 `scripts/graph-scale-webgl.html`，用可重复合成图分离布局与绘制成本。实测 10 万节点 WebGL 绘制约 0.6ms，但 d3-force 单 tick 约 925ms、15 秒仅 17 tick；当前 419 节点图谱绘制 0.4ms。结论是 WebGL 不是当前瓶颈，生产 `GraphView` 未改。

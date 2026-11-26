@@ -6,6 +6,15 @@
 
 ## 待办
 
+### T-067 章程 L3：AsciiDoc 编辑器源码模式语言模式 + 语法高亮 + xref 可点击（已完成 2026-11-27）
+
+- **提出**：2026-11-27
+- **背景**：按 D-17 结论先做 C 档（`xref:` 可点击），A 档高亮以零新增依赖方式补做。此前编辑器对 `.adoc` 一律套用 Markdown 语言模式，源码模式下 `xref:` / `<<…>>` 不可点，标题/属性/注释等 token 也按 Markdown 规则着色。
+- **方法**：`src/features/editor/asciidocLanguage.ts` 提供纯函数行扫描（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`），经 `@codemirror/language` 已有的 `StreamLanguage` 自作词法；新增 language compartment 做文件类型路由——`.adoc` 挂 AsciiDoc 语言，`.md` 保持 `lang-markdown` 不变。`src/features/editor/adocXref.ts` 复用 `resolveMarkdownLink` / `resolveLink` 解析与 `openFile` / `requestReveal` 跳转；锚点回退纯文本正则定位；坏链弹可见提示 pill，不建笔记、不抛异常。高亮复用现有 `HighlightStyle` 调色板，不新增主题/CSS 变量、不新增依赖。
+- **完成判据**：① `npm run typecheck` 退出码 0；② `npx vitest run tests/asciidoc-language.test.ts` 退出码 0；③ `npm test -- --run` 无新失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例只增不减）；④ `npm run verify` 退出码 0；⑤ `git diff 7f3addb -- package.json package-lock.json` 为空（零新生产/开发依赖）。
+- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.md` D-041。
+- **仍缺**：折叠/大纲仍依赖 Markdown 树；锚点定位为正则行号级；L4（完整语法树、宏参数模型、章节折叠适配）未做。
+
 ### T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
 
 - **提出**：2026-11-19

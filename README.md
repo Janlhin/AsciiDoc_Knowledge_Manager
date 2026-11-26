@@ -29,6 +29,7 @@ ADKM 不是"给某个 Markdown 工具加一个 AsciiDoc 渲染器"，而是在�
 - **AsciiDoc 进索引**：`xref:path[]`、`<<path,text>>`、`link:path[]`、`include::path[]` 四种写法都识别；文档头内的属性别名会求值，`xref:{spec}[]` 能解析到真实文件
   - 实测一份 130 篇 adoc / 220 条引用的真实语料：0 条未解析，全量索引 67 ms
 - **AsciiDoc 阅读视图**：官方 Asciidoctor.js 浏览器构建渲染，标题、表格、admonition、代码块、目录均正确；按需动态加载（约 1.3 MB 独立 chunk，不拖慢首屏），`xref:` 转成应用内可点链接
+- **AsciiDoc 源码编辑**：源码模式下 `.adoc` 使用独立语言模式与语法高亮（标题、属性行 / `{attr}`、注释、`xref:` / `<<…>>` / `link:` / `include::`、列表项、代码块）；`xref:path#anchor[text]` 与 `<<path,text>>` 可 Ctrl/Cmd+Click 跳转，目标不存在时给出提示而不报错
 - **文档体检**：失效 `xref` / `include::`、include 环、Antora 组件与版本资源 ID，并可按组件版本切换解析上下文
 - **多格式只读预览**：EPUB、FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）、Kindle（`.mobi` / `.azw` / `.azw3` / `.kf8`）、漫画 ZIP（`.cbz`）、PDF、Word、PowerPoint；图片与漫画共用同一阅读器（翻页 + 缩放）。Excel 是唯一仍可编辑的格式
 - 关系图谱（全局 / 局部、过滤、分组）、反向链接、出链、大纲、全文搜索、命令面板
@@ -39,7 +40,7 @@ ADKM 不是"给某个 Markdown 工具加一个 AsciiDoc 渲染器"，而是在�
 
 | 能力 | 状态 |
 | --- | --- |
-| AsciiDoc 编辑器语言模式 | 阅读视图已正确，但编辑器内仍是纯文本 + Markdown 高亮；折叠与结构化导航仍依赖 Markdown 语法树 |
+| AsciiDoc 结构化编辑 | 源码模式已有独立语言模式、语法高亮与 xref 点击跳转；但章节折叠与大纲导航仍依赖 Markdown 语法树，未适配 AsciiDoc 结构 |
 | 引用校验的深水区 | 仍缺锚点存在性、条件包含求值、按组件筛选扫描范围、发布前全量检查 |
 | 双语对齐 | 未开始 |
 | Canvas（`.canvas`） | 未开始；设置里有开关，门后是空的 |
