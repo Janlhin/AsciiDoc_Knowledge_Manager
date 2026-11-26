@@ -54,7 +54,7 @@ import { autoPairBrackets, autoPairMarkdown, foldHeading, hideReferenceMarks, in
 import { getEditorExtensions } from "@core/editorExtensions";
 import { linkPathFormat } from "@core/linkFormat";
 import { attachmentIngest } from "./attachments";
-import { markdownFolding, markdownFoldService } from "./folding";
+import { adocFoldService, markdownFolding, markdownFoldService } from "./folding";
 import { foldPersistence } from "./foldPersistence";
 import { livePreview, propertiesHostFacet } from "./livePreview";
 import { editorSearchPhrases } from "./searchCommands";
@@ -770,7 +770,8 @@ export function buildEditorExtensions(opts: {
     markdownFolding(),
     // R156: the foldService (gated by Fold heading / Fold indent settings) — base list like
     // markdownFolding so it survives live↔source; EditorPane reconfigures it on toggle.
-    foldServiceCompartment.of(markdownFoldService(foldHeading.get())),
+    // T-071: `.adoc` installs the scanner-based adoc service; `.md` keeps the markdown one.
+    foldServiceCompartment.of(isAdoc ? adocFoldService(foldHeading.get()) : markdownFoldService(foldHeading.get())),
     // R29 — capture fold state to localStorage (base list like markdownFolding:
     // must survive live<->source reconfigures); restore happens in EditorPane
     foldPersistence(getPath),
