@@ -52,6 +52,7 @@
 | [`docs/plans/`](docs/plans/) | 各层实施计划（L2 起） |
 | [`docs/product-placeholders.adoc`](docs/product-placeholders.adoc) | 产品身份占位符待填清单、系统默认值、未来 I18N 改造 |
 | [`docs/perf-1000-adoc.adoc`](docs/perf-1000-adoc.adoc) | T-069 千篇 adoc 性能基准：脚本、实测数值、与章程 §9.1 目标对照 |
+| [`docs/release-checklist.adoc`](docs/release-checklist.adoc) | T-072 发版清单：前置检查、五处版本号同步、unsigned/signed 构建命令、产物校验、回滚与 blocked 项 |
 
 ## 禁止事项
 

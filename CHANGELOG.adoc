@@ -23,6 +23,8 @@
 
 === 新增
 
+* **§9.2 稳定性补齐 + unsigned 发版链路（T-072 / D-046 / D-047）**：单文件读 / 解析失败不再只落控制台——进入内存注册表（`getParseErrors`）并在文件树以危险色 + tooltip 标记，文件修好重新解析后条目自动清除；索引行损坏或索引文件缺失时回退全量读盘重建，两条回退路径由可注入假 host 的测试覆盖；watcher 同批重复路径在 TS 侧兜底去重，Rust 侧原子写临时点文件 / 噪声目录过滤补了单元测试；backfill 增加协作式取消（切库先停旧任务，索引为逐行幂等写入、中途停跑不留半截批次，重置后重试收敛）。本机 unsigned 构建实测：`adkm.exe` 10,285,056 字节（9.81 MiB，SHA256 `E4A9E9E890B93172F4…`）；NSIS `ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB，SHA256 `494720715B460A41…`），`--config` 关闭 updater 产物后退出码 0、未产 `.sig`。裸 `npx tauri build` 因缺 `TAURI_SIGNING_PRIVATE_KEY` 在 updater 签名阶段退出 1（预期 blocked，非打包缺陷）；minisign 签名、Authenticode 代码签名与公开发布仍 blocked，清单见 `docs/release-checklist.adoc`。
+
 * **千篇 adoc 性能基准（T-069 / D-042）**：新增可复现脚本 `scripts/adoc-1000-bench.ts`（确定性夹具、冷热分轮、中位数 / p95 与逐轮样本），报告见 `docs/perf-1000-adoc.adoc`。本机实测（9800X3D / 32GB / Node v22.23.2）：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，对照章程 §9.1（30s / 5s / 500MB）三项达标；口径仅限 TS 侧计算路径，未测 Rust FTS5 写入与 WebView/Tauri 占用。
 
 * **`.txt` 入索引（T-068 / D-041）**：`.txt` 与 `.md` / `.adoc` 同索引——进入元数据索引与检索载荷、可走既有文本编辑 / 阅读视图、可被 `xref:` / `link:` 按路径解析。解析层对 txt 刻意产出**空结构**：不提取标题、章节、链接、标签、块与脚注，显示标题仍取 basename——纯文本不伪装成 Markdown / AsciiDoc 结构。

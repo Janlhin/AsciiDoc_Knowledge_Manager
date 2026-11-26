@@ -6,6 +6,25 @@
 
 ## 待办
 
+### T-072 章程 §9.2 稳定性补齐 + 1.0 发版准备（D-046 / D-047）
+
+- **提出**：2026-11-27
+- **背景**：章程 §9.2 四条稳定性要求——单文档解析失败单独记录且可见、索引损坏可从原文重建、watcher 重复事件与临时文件替换不乱序不重复索引、长任务可取消。同时做 1.0 发版准备：打包配置核查、unsigned 可复现构建、发版清单文档。不碰签名私钥，不开 PR、不 push。
+- **方法**：
+  1. 取证 `src/core/metadata.ts` / `src/core/indexer.ts` / `src/core/vault.ts` / `src-tauri/src/main.rs` 现状，已有能力补测试证据，缺项按最小方案补齐（不新造错误中心、不加依赖）。
+  2. 解析失败：`MetadataIndex` 加内存注册表（`getParseErrors` / `getParseError`），Explorer 行标记 + tooltip；索引回退：坏行跳过、索引缺失回退读盘，以可注入假 host 测试证明；watcher：TS `dedupePaths` 折叠同批重复路径，Rust `to_vault_relative` 补单测；取消：`cancelSearchIndex` / `resetSearchIndexCancel` 协作标志，切库先取消再重开。
+  3. 发版：核查 `tauri.conf.json`；`--no-bundle` 出 exe；缺私钥时用 `--config` 内联覆盖 `createUpdaterArtifacts=false` 出 unsigned NSIS，记录路径 / 体积 / SHA256 / 退出码；新增 `docs/release-checklist.adoc`，AGENTS 文档表加一行。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；`npm run typecheck:scripts` 退出码 0；
+  2. `npx vitest run tests/stability-92.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减（基线 266 passed + 1 expected fail + 1 skipped）；`npm run verify` 退出码 0；
+  4. `cargo check`（`src-tauri/`）退出码 0；`cargo test watcher_tests` 退出码 0；
+  5. `npx tauri build --no-bundle` 退出码 0，产物 `src-tauri/target/release/adkm.exe`，记录字节数与 SHA256；
+  6. unsigned 安装包命令退出码 0，产物 `src-tauri/target/release/bundle/nsis/ADKM_0.0.1_x64-setup.exe`，记录字节数与 SHA256；签名失败路径有原始报错留痕；
+  7. `docs/release-checklist.adoc` 存在；`AGENTS.md` 文档表含该行；`DECISIONS.md` 含 D-046 / D-047；`CHANGELOG.adoc` 未发布节新增一条。
+- **解决**：**完成（2026-11-27）**。`npm run typecheck` 退出 0；`npm run typecheck:scripts` 退出 0；`npx vitest run tests/stability-92.test.ts` 退出 0（7 用例）；`npm test -- --run` 退出 0（25 文件通过 / 1 跳过，273 passed + 1 expected fail + 1 skipped，基线 266 passed，净增 7）；`npm run verify` 退出 0；`cargo check` 退出 0，`cargo test` 26 passed / 0 failed。构建：`npx tauri build --no-bundle` 退出 0，`adkm.exe` 10,285,056 字节（9.81 MiB），当次 SHA256 `557AF558886026D91A3920B003E2CB2A181D794C2F8A5124F51E2073E05183E7`（后被打包构建重编，现哈希 `E4A9E9E890B93172F4BE786CB053CC4C5A48AE5320B08AB69113C4A0D5A287E7`）；unsigned `npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'` 退出 0，`ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB），SHA256 `494720715B460A4147D33C4033790B3EB8A7ED23B8CCA8A09578227FEC9D633E`；裸 `npx tauri build` 退出 1，报缺 `TAURI_SIGNING_PRIVATE_KEY`（预期 blocked）。决策见 D-046 / D-047，清单见 `docs/release-checklist.adoc`。
+- **仍缺**：GUI 真机冒烟（`adkm.exe demo-vault`）、安装 / 卸载 / 升级链路、Authenticode 签名、公开发布与 `latest.json` 均 blocked；版本号仍 `0.0.1`，1.0.0 范围另立任务；README 旧体积表述留待发布前随版本号更新。
+
 ### T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
 
 - **提出**：2026-11-27

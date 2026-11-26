@@ -1,0 +1,169 @@
+= ADKM 1.0 发版检查清单（T-072）
+:revnumber: 0.0.1
+:revdate: 2026-11-27
+:status: draft（签名与正式发布 blocked）
+
+== 这份文档管什么
+
+从「代码可构建」走到「可分发安装包」的前置清单、两条构建命令、产物校验与回滚方式。
+配套说明：`docs/DISTRIBUTION.md`（打包与签名链路）、`README.md`（开发构建）。
+
+**本轮状态**：unsigned 链路已在本机跑通；正式签名与公开发布**仍 blocked**——minisign
+私钥在被 gitignore 的 `.tauri-keys/` 中、不进仓库，Authenticode 代码签名证书未购。
+本清单不把 unsigned 产物写成「已可发版」。
+
+== 发版前置（代码通道，全部退出码 0）
+
+每条命令前把 Node 22.23.2 前置进 PATH（本机）：
+
+```powershell
+$env:PATH = "D:\Projects\_tools\node-v22.23.2;$env:PATH"
+```
+
+| 检查 | 命令 | 期望 |
+| --- | --- | --- |
+| 前端类型检查 | `npm run typecheck` | 退出码 0 |
+| 脚本类型检查 | `npm run typecheck:scripts` | 退出码 0 |
+| 单测（新增只增不减） | `npm test -- --run` | 退出码 0 |
+| 全量门禁 | `npm run verify` | 退出码 0 |
+| Rust 侧（改了 `.rs` 才需要） | `cargo check`（`src-tauri/`） | 退出码 0 |
+
+前置人工项：CHANGELOG「未发布」一节已收口为目标版本；TASKS.md 无未完成的阻塞项；
+README 仅在用户可见行为变化时更新（本轮无可见行为变化，未改 README）。
+
+== 版本号五处同步
+
+发版 bump 时，以下五处必须同一版本号（规则沿用 `docs/DISTRIBUTION.md`「发布一个新版本」
+第 1 步，SemVer 2.0.0）：
+
+1. `package.json` 的 `version`；
+2. `package-lock.json`：根 `"version"` 与 `packages[""]` 内 `"version"` 各一处；
+3. `src-tauri/tauri.conf.json` 的 `version`；
+4. `src-tauri/Cargo.toml` 的 `version`；
+5. `src-tauri/Cargo.lock` 中 `name = "adkm"` 条目下的 `version`。
+
+About 页版本取自 `package.json`，不需要另改界面文案。本轮未 bump：五处当前均为 `0.0.1`。
+
+== 构建命令
+
+### A. 只出可执行文件（最快，不打安装包）
+
+```powershell
+npx tauri build --no-bundle
+```
+
+产物：`src-tauri/target/release/adkm.exe`。用于本机冒烟与排查打包前的 Rust/前端问题。
+
+### B. unsigned NSIS 安装包（本轮验证链路；不带更新签名）
+
+缺私钥时**不要**改仓库里的 `createUpdaterArtifacts: true`（那是正式发版链路的默认值），
+改用命令行内联配置覆盖，关掉 updater 产物：
+
+```powershell
+npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
+```
+
+产物目录：`src-tauri/target/release/bundle/nsis/`。此包**无 `.sig` 更新签名**，也无
+Authenticode 代码签名，仅用于内部验证安装链路，不可对外分发。
+
+### C. signed 安装包（正式发布，当前 blocked）
+
+先设置签名环境变量（私钥内容 / 路径 + 口令，见 `docs/DISTRIBUTION.md`），再：
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keys/adkm.key -Raw)
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<密钥密码>"
+npm run tauri build
+```
+
+产出 `ADKM_<version>_x64-setup.exe` 与同名 `.sig`（minisign 更新签名）。Authenticode
+代码签名（防 SmartScreen 黄条）另需购买证书，配置位见 `docs/DISTRIBUTION.md` 末节。
+
+== 产物校验
+
+1. **体积与哈希**：记录产物字节数与 SHA256，同版本复构建时比对（Rust release + 前端
+   哈希打包，逐字节可复现；跨机器 / 跨工具链产物可能有细微差异，以本机基线为准）。
+
+   ```powershell
+   Get-Item src-tauri/target/release/adkm.exe | Select-Object Length
+   (Get-FileHash src-tauri/target/release/adkm.exe -Algorithm SHA256).Hash
+   (Get-FileHash src-tauri/target/release/bundle/nsis/ADKM_<version>_x64-setup.exe -Algorithm SHA256).Hash
+   ```
+
+2. **冒烟**：用内置示例库启动一次，确认窗口能起、库能加载、不白屏：
+
+   ```powershell
+   src-tauri/target/release/adkm.exe demo-vault
+   ```
+
+   冒烟要点：主界面渲染、文件树列出 `demo-vault/` 笔记、打开一篇 `.md` / `.adoc`
+   可读、搜索能命中。本轮未在后台自动化里启动 GUI（见下「未验证项」）。
+
+3. **安装包**：在干净环境（或快照虚拟机）安装一次，确认快捷方式、卸载入口、首次启动
+   与 `adkm.exe demo-vault` 一致；安装包内 WebView2 引导行为符合目标系统。
+
+== CHANGELOG 与 TASKS 收口
+
+- `CHANGELOG.adoc`：发布时把「未发布（Unreleased）」节改为目标版本号 + 日期，按
+  `=== 新增 / 变更 / 移除` 归类；条目必须写真实产物数字或实测结论，阻塞项如实写阻塞。
+- `TASKS.md`：发布前确认挂在该版本上的任务全部「完成」，遗留项要么并入本版要么顺延。
+- `DECISIONS.md`：发版相关取舍（版本号、签名策略、分发渠道）逐条留决策记录。
+
+== 回滚方式
+
+- **未发版**：产物只在本机 `target/` 下，不入库；撤回即删除产物目录，代码回退到上个
+  提交即可。
+- **已推送包但未公告**：从发布渠道撤下安装包与 `latest.json`；更新链路以
+  `latest.json` 为唯一清单，清单下架后旧实例不会拉到该包。
+- **已被实例安装**：更新签名是硬门槛——损坏或错误的包签名校验失败、不会被安装；
+  回滚靠发布一个版本号相同或更高、内容回退的新包，并在 `latest.json` 指向它。
+  私钥丢失 = 永远无法向已装机用户推送更新，`.tauri-keys/` 离线备份是硬前置。
+
+== Blocked（本轮不做、不冒称完成）
+
+- **minisign 更新签名**：私钥与口令不在仓库；本轮产出的 unsigned 包无 `.sig`，不能走
+  自动更新链路。
+- **Authenticode 代码签名**：证书未购，未配置 `bundle.windows.signCommand`。
+- **公开发布与 `latest.json`**：仓库可见性、发布渠道、版本号与公告文案待定。
+- **GUI 真机冒烟**：安装、升级、卸载、WebView2 引导未在本轮自动化中执行。
+
+== 本轮（T-072，2026-11-27）构建实测记录
+
+机器：Win11 企业版 Insider，Node v22.23.2，rustc / cargo 1.102.0-nightly。
+
+### `npx tauri build --no-bundle`
+
+- 退出码 **0**。
+- 产物：`src-tauri/target/release/adkm.exe`，10,285,056 字节（9.81 MiB）。
+- 该次构建测得 SHA256 `557AF558886026D91A3920B003E2CB2A181D794C2F8A5124F51E2073E05183E7`
+  （随后被下一轮打包构建覆盖重编，哈希以下一条 unsigned 记录为准）。
+
+### `npx tauri build`（未覆盖配置，预期失败路径）
+
+- 退出码 **1**。NSIS 安装包已先产出：
+  `src-tauri/target/release/bundle/nsis/ADKM_0.0.1_x64-setup.exe`，6,390,930 字节，
+  SHA256 `0A5A2E1305088F27D26D6FF36D5A866D29EE524E5E0F2B9F6A4C42DAC6AB670D`。
+- 失败发生在 updater 签名阶段，原始报错：
+
+  > A public key has been found, but no private key. Make sure to set
+  > `TAURI_SIGNING_PRIVATE_KEY` environment variable.
+
+  这是预期行为（私钥不在仓库），不是打包链路缺陷。
+
+### `npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'`（unsigned）
+
+- 退出码 **0**；未产出 `.sig`。
+- `adkm.exe`：10,285,056 字节（9.81 MiB），
+  SHA256 `E4A9E9E890B93172F4BE786CB053CC4C5A48AE5320B08AB69113C4A0D5A287E7`。
+- 安装包：`src-tauri/target/release/bundle/nsis/ADKM_0.0.1_x64-setup.exe`，
+  6,391,233 字节（6.10 MiB），
+  SHA256 `494720715B460A4147D33C4033790B3EB8A7ED23B8CCA8A09578227FEC9D633E`。
+
+== 本轮未验证项 / 已知缺口
+
+- `adkm.exe demo-vault` GUI 启动冒烟未执行（未在本轮弹窗）；安装 / 卸载 / 升级链路未实测。
+- unsigned 包未在干净 Windows 环境安装验证；WebView2 引导模式未显式配置（走 Tauri 默认）。
+- 跨机器可复现性（不同 cargo / rustc / Node 版本下的产物哈希）未比对。
+- 版本号仍为 `0.0.1`；1.0.0 的功能范围、版本号决策与公告文案另立任务。
+- `README.md` 中 exe 体积旧表述（约 6.2 MB）与本轮实测 9.81 MiB 不符；本轮按规则未改
+  README，留待发布前随版本号一并更新。
