@@ -61,6 +61,7 @@ import { editorSearchPhrases } from "./searchCommands";
 import { slashCommandSource } from "./slashCommands";
 import { tagCompletionSource } from "./tagCompletion";
 import { openWikilink, wikilinkTarget } from "./wikilinks";
+import { asciiDocLanguageSupport } from "./asciidocLanguage";
 
 /** Dispatched when the metadata index changes so wikilink resolution re-runs. */
 export const refreshWikilinks = StateEffect.define<null>();
@@ -233,6 +234,12 @@ const mdHighlight = HighlightStyle.define([
   { tag: [t.function(t.variableName), t.function(t.propertyName)], class: "cm-tok-fn" },
   { tag: [t.typeName, t.className, t.namespace], class: "cm-tok-type" },
   { tag: [t.propertyName, t.attributeName], class: "cm-tok-prop" },
+  // T-067: AsciiDoc StreamLanguage tokens reuse the existing palette — list
+  // markers / block attributes ride the mark class, attribute values the string
+  // class. No new theme or CSS variable is introduced.
+  { tag: t.list, class: "cm-md-mark" },
+  { tag: t.meta, class: "cm-md-mark" },
+  { tag: t.attributeValue, class: "cm-tok-string" },
 ]);
 
 /* ---------------- wikilink + tag decorations ---------------- */
@@ -650,10 +657,14 @@ export function buildEditorExtensions(opts: {
   /** R115: owned by EditorPane — plugin-contributed CM6 extensions
    *  (Plugin.registerEditorExtension); editorExtensionsRevision reconfigures it */
   compatExtensionCompartment: Compartment;
+  /** T-067: owned by EditorPane — base language support compartment (Markdown / AsciiDoc) */
+  languageCompartment: Compartment;
+  /** T-067: true when the open file is `.adoc`; false keeps the Markdown stack untouched */
+  isAdoc: boolean;
   /** stable container for the React PropertiesPanel portal (R22) */
   propertiesHost?: HTMLElement;
 }): Extension[] {
-  const { app, getPath, mode, modeCompartment, lineNumberCompartment, indentCompartment, closeBracketsCompartment, markdownWrapCompartment, smartListCompartment, vimCompartment, foldServiceCompartment, compatExtensionCompartment } =
+  const { app, getPath, mode, modeCompartment, lineNumberCompartment, indentCompartment, closeBracketsCompartment, markdownWrapCompartment, smartListCompartment, vimCompartment, foldServiceCompartment, compatExtensionCompartment, languageCompartment, isAdoc } =
     opts;
   return [
     // R33 — route command hotkeys through the app command layer (R32) while the
@@ -687,7 +698,11 @@ export function buildEditorExtensions(opts: {
     // order-independent updateListener, so a plugin extension can't outrank either by placement.)
     compatExtensionCompartment.of(getEditorExtensions()),
     revealFlashField,
-    markdownSansHeaderFold(),
+    // T-067: file-type language routing. `.md` keeps the bundled lang-markdown
+    // support (header-fold service stripped as before); `.adoc` gets the
+    // hand-written StreamLanguage lexer. Lives in a compartment so the slice
+    // can be swapped without rebuilding the view.
+    languageCompartment.of(isAdoc ? asciiDocLanguageSupport() : markdownSansHeaderFold()),
     // R232: the markdownKeymap (list/quote continuation + dedent), gated by Obsidian's
     // "Smart lists" toggle. Re-added here at the position+Prec.high it had inside markdown()'s
     // support (addKeymap:false above), so OFF→plain Enter/Backspace, ON→byte-identical to pre-R232.
