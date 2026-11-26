@@ -23,7 +23,7 @@
 
 === 新增
 
-* **§9.2 稳定性补齐 + unsigned 发版链路（T-072 / D-046 / D-047）**：单文件读 / 解析失败不再只落控制台——进入内存注册表（`getParseErrors`）并在文件树以危险色 + tooltip 标记，文件修好重新解析后条目自动清除；索引行损坏或索引文件缺失时回退全量读盘重建，两条回退路径由可注入假 host 的测试覆盖；watcher 同批重复路径在 TS 侧兜底去重，Rust 侧原子写临时点文件 / 噪声目录过滤补了单元测试；backfill 增加协作式取消（切库先停旧任务，索引为逐行幂等写入、中途停跑不留半截批次，重置后重试收敛）。本机 unsigned 构建实测：`adkm.exe` 10,285,056 字节（9.81 MiB，SHA256 `E4A9E9E890B93172F4…`）；NSIS `ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB，SHA256 `494720715B460A41…`），`--config` 关闭 updater 产物后退出码 0、未产 `.sig`。裸 `npx tauri build` 因缺 `TAURI_SIGNING_PRIVATE_KEY` 在 updater 签名阶段退出 1（预期 blocked，非打包缺陷）；minisign 签名、Authenticode 代码签名与公开发布仍 blocked，清单见 `docs/release-checklist.adoc`。
+* **§9.2 稳定性补齐 + unsigned 发版链路（T-072 / D-046 / D-047）**：单文件读 / 解析失败不再只落控制台——进入内存注册表（`getParseErrors`）并在文件树以危险色 + tooltip 标记，文件修好重新解析后条目自动清除；索引行损坏或索引文件缺失时回退全量读盘重建，两条回退路径由可注入假 host 的测试覆盖；watcher 同批重复路径在 TS 侧兜底去重，Rust 侧原子写临时点文件 / 噪声目录过滤补了单元测试；backfill 增加协作式取消（切库先停旧任务，索引为逐行幂等写入、中途停跑不留半截批次，重置后重试收敛）。本机 unsigned 构建实测：`adkm.exe` 10,285,056 字节（9.81 MiB，SHA256 `E4A9E9E890B93172F4…`）；NSIS `ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB，SHA256 `494720715B460A41…`），`--config` 关闭 updater 产物后退出码 0、未产 `.sig`。三条任务分支合并后在同机复构建：`adkm.exe` 10,289,152 字节（SHA256 `DC040D9EA75D8BB8…`）、NSIS 6,393,048 字节（SHA256 `9504392994E15807…`），退出码 0、无 `.sig`。裸 `npx tauri build` 因缺 `TAURI_SIGNING_PRIVATE_KEY` 在 updater 签名阶段退出 1（预期 blocked，非打包缺陷）；minisign 签名、Authenticode 代码签名与公开发布仍 blocked，清单见 `docs/release-checklist.adoc`。
 
 * **AsciiDoc 章节折叠 + 大纲收口（T-071 / D-045）**：`.adoc` 源码模式按标题层级（`=` 至 `======`）折叠章节，区间切到下一个同级或更高级标题之前；逐字代码块、`////` 块注释、`[source,…]` 块与 `//` 行注释内的 `=` 行不会被误判为标题，「折叠标题」开关对 adoc 同样生效。大纲直接展示 adoc 标题树（层级缩进、折叠键、子级标记），点击按源码偏移跳转；Markdown 折叠与大纲行为零改动，零新增依赖。
 

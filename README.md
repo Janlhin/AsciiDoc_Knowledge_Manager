@@ -82,7 +82,7 @@ src-tauri/target/release/adkm.exe demo-vault
 npx tauri build
 ```
 
-产物位于 `src-tauri/target/release/adkm.exe`（约 6.2 MB）与 `src-tauri/target/release/bundle/nsis/`。
+产物位于 `src-tauri/target/release/adkm.exe`（约 9.8 MiB，unsigned 构建实测 10,289,152 字节）与 `src-tauri/target/release/bundle/nsis/`。发版流程与产物校验见 `docs/release-checklist.adoc`。
 
 > **不要只跑 `cargo build --release`。** exe 里嵌入的前端资源由 `tauri build` 链路刷新，只编译 Rust 侧会得到一个能启动、但界面全白的 exe。改完前端代码必须走完整链路。
 
