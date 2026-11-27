@@ -1,0 +1,125 @@
+﻿= T-063 GPU 图谱视图：实现、验收与缺口
+
+本文记录 ADKM 独立「GPU 图谱 / 分析视图」的实现边界、复跑方式与实测证据。决策背景见 `DECISIONS.adoc` D-049，任务条目见 `TASKS.adoc` T-063。
+
+== 定位与入口
+
+- 独立单例视图，`viewType` = `graphgpu`；**不替换**普通 `GraphView`，不做节点数阈值自动切换（`RENDER_CAP` 仍是 3000）。
+- 三个入口：命令面板 `app:open-gpu-graph`、侧栏 ribbon 的图谱按钮、普通图谱工具条的「GPU 视图」按钮。
+- 面向 10 万节点级的浏览与分析：hover / 点击打开 / 拖拽 / pan-zoom / 框选 + 过滤，标签按缩放与 hover 做 LOD。
+
+== 模块与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/features/graph/gpu/types.ts` | 冻结的模块契约（节点/边、相机、布局状态、拾取索引、LOD 输入、渲染统计、调色板、能力探测） |
+| `layout.ts` | 确定性布局内核：种子化初始化 + 每 tick 重建均匀网格近邻斥力 + 四叉树 Barnes–Hut 远场 + 边弹簧 + 重力；typed arrays，tick 内零堆分配 |
+| `layout-worker.ts` / `layout-client.ts` | Worker 推进布局，transferable 回传位置；Worker 不可用时降级主线程 8ms 预算节流 |
+| `camera.ts` | world↔screen、以光标为锚缩放、fitBounds、平移 |
+| `lod.ts` | 标签 LOD：hover/selected/anchor 优先，其余按度数排序，单帧 ≤64 |
+| `picking.ts` | 均匀网格拾取索引：`pickAt` / `boxSelect` / `radiusOf` |
+| `renderer.ts` / `shaders.ts` / `geometry.ts` / `palette.ts` | WebGL2 渲染：instanced quads、`drawElements(LINES)` 静态索引、RGBA8 颜色 ID 拾取、资源幂等释放、能力探测 |
+| `model.ts` | 真实数据适配：`metadata.getGraph()` → 排除 → tag/attachment → 过滤 → 局部图 → 索引化 |
+| `GpuGraphView.tsx` / `gpu-graph.scss` / `entry.ts` | React 视图、交互状态机、降级横幅 + 回退、入口常量 |
+
+== 数据管线
+
+与 Canvas2D 版逐段对齐，保证同一设置下两个视图看到的是同一张图：
+
+1. `app.metadata.getGraph()` 取全库 `GraphData`；
+2. 用 `isExcluded()` 剔除被排除的文件及其边；
+3. 依 `prefs.display.tags` / `attachments` 合并 `buildTagGraph()` / `buildAttachmentGraph()` 的辅助节点与边；
+4. `applyGraphFilters()` 应用 existing-only / orphans / 搜索过滤；
+5. local 模式用 `localSubgraph(anchor, depth, 方向)` 取子图并剪边；
+6. 字符串 id ↔ 数组索引，`kind: "broken"` 映射为 `broken: true`，label 取 label 或 basename，分组色走 `nodeGroupColor`。
+
+== 布局：可复现优先
+
+- 初始化用固定 seed 的 xorshift 圆盘分布，不用 `Math.random()`。
+- 每 tick 重建均匀网格（按占用率自适应），近邻对做精确斥力；远场用四叉树（`theta` 默认 1.15）做 Barnes–Hut 近似。
+- 同输入 + 同 seed ⇒ `x/y` 逐元素相同；`fingerprint()` 取四舍五入后的位置哈希，作为单测断言。
+- 布局在 Worker 内推进，主线程每 tick 只做一次 800KB 级别的数组回填（100k 实测约 0.006ms），渲染帧不受拖累。
+
+== 渲染与拾取
+
+- 节点：instanced quads（4 角顶点 + 6 索引），实例元数据（半径、颜色、alpha、pickId）静态；位置缓冲每 tick 一次 `bufferSubData`。
+- 边：静态 `Uint32Array` 索引 + `drawElements(LINES)`，普通边与 broken 边分两个 draw call；顶点位置与节点共用位置缓冲。
+- 拾取：离屏 RGBA8 目标，节点索引编到 24 bit（1-based，0 = miss），`readPixels` 1×1 解码；失败/越界返回 -1，调用方回落 CPU `PickIndex`。
+- 标签：独立 2D canvas 覆盖层（`pointer-events: none`），按 `devicePixelRatio` 对齐。
+- 释放：`destroy()` 幂等，删除 3 个 program、6 个 buffer、3 个 VAO、拾取 texture/FBO，并摘掉上下文监听。
+
+== 降级矩阵
+
+[cols="a,a,a",options="header",]
+|===
+|触发 |判定 |用户可见结果
+|`canvas.getContext("webgl2")` 返回 null |`no-webgl2` |横幅「WebGL2 不可用」+ 同 tab 回退普通图谱 + 重试按钮
+|着色器编译 / 链接失败 |`program-link` |同上，原因写「着色器初始化失败」
+|超出显存预算（按节点/边估算字节） |`memory` |同上，原因写「图规模超出显存预算」
+|`webglcontextlost` |`context-lost` |同上；`webglcontextrestored` 自动重探一次
+|Worker 不可用（不涉及白屏） |布局转主线程 8ms 预算 |工具条显示 `mode: main`
+|===
+
+== 复跑方式
+
+[source,bash]
+----
+# 100k 节点 / 200k 边帧率基准（有头 Edge + 真 GPU；dev server 需已在 1420 运行）
+node scripts/graph-gpu-bench.mjs
+
+# E2E：入口 / 渲染 / 点击 / 降级 / context lost / 419 真实库对比
+node tests/e2e/gpu-graph.e2e.mjs
+----
+
+两份证据落在仓外：`063-tools/bench-100k.json`（含原始逐帧样本）与 `063-tools/gpu-e2e.json`。
+
+=== 帧率基准（`node scripts/graph-gpu-bench.mjs`）
+
+环境（脚本自动写入 JSON）：Windows 11、有头 Edge `Edg/159.0.4402.13`、WebGL2、GPU = `ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)`、dpr = 1、视口 1576×908、`visibilityState = "visible"`、非软件渲染（`softwareRenderer: false`）。原始逐帧样本见仓外 `063-tools/bench-100k.json`。
+
+[cols="a,a,a,a,a,a,a",options="header",]
+|===
+|图 |节点 / 边 |采样帧 |median |p95 |fps |布局模式
+|大图 |100 000 / 200 000 |120 |*5.40ms* |*6.20ms* |*185* |worker
+|小图对照 |400 / 800 |120 |4.50ms |4.60ms |222 |worker
+|===
+
+- 判定：`fps ≥ 60` 且 `p95 ≤ 20ms` → **大图达标**（185fps / 6.20ms）；120 条原始样本区间 3.30–7.10ms，无长尾毛刺。
+- 基线对照：同机 `d3-force` 到 10 万节点约 925ms/tick（Q-011），本视图的渲染帧与其不在同一量级。
+- **口径**：这是「渲染帧」的帧率；布局 tick 在 Worker 里推进，单 tick 仍是百毫秒级（见缺口 1），二者要分开看，不能拿 185fps 说布局也是 60fps。
+
+=== 交互与降级（`node tests/e2e/gpu-graph.e2e.mjs`）
+
+对 release exe（WebView2 + 真 GPU）跑 6 条，全部通过，证据见 `063-tools/gpu-e2e.json` 与 `063-tools/gpu-e2e-evidence/`：
+
+[cols="a,a,a",options="header",]
+|===
+|用例 |断言 |证据
+|`entry-open-gpu-graph` |命令入口后 `ready`，`data-gpu-graph-nodes = 403`，GPU 名可读 |JSON
+|`render-canvas-pixels` |画布非背景像素 100%（127 764/127 764），676×756 |`e2e-gpu-render.png`
+|`click-opens-note-tab` |点画布 → tab 1→2，标题 `…/S05E07.md`（**弱断言**：未做坐标映射，命中靠中心点） |JSON
+|`degrade-block-webgl` |把 `getContext("webgl2")` 真打成 null → 横幅 + `fallback` + 普通 GraphView |`e2e-fallback.png`
+|`context-lost-recovery` |`WEBGL_lose_context.loseContext()` 真丢上下文 → 降级路径，无黑屏 |`e2e-context-lost.png`
+|`compare-419-counts` |GPU 403 节点 / 0 边 vs 普通 403 / 0 边，两侧一致 |`e2e-gpu-419.png`、`e2e-plain-419.png`
+|===
+
+**419 库说明**：该夹具（370 个 `.md`）本身 `[[` 链接数为 0，所以 403 节点 / 0 边的一致只是「0=0」。有链接库的补证用仓库 `demo-vault` 的副本（7 节点 / 6 处 `[[`）：
+
+[cols="a,a,a,a",options="header",]
+|===
+|视图 |节点 |边 |图例原文
+|GPU 图谱 |7 |5 |HUD `节点: 7 连线: 5`
+|普通图谱 |7 |5 |`7 个节点·5 条连接`
+|===
+
+两侧 `nodesMatch = true`、`edgesMatch = true`、`edgesPositive = true`，证据见 `063-tools/e2e-demo-edges.json` 与 `gpu-e2e-evidence/e2e-demo-{gpu,plain}.png`。注意：这 5 条边都是正常链接，**断链边着色在有边样本上仍未单独验证**。
+
+== 已知缺口
+
+. 断链边（`kind: "broken"`）在渲染器里只换了颜色、没有复刻 Canvas2D 的虚线；E2E 的 demo 库样本 5 条边全是正常链接，**断链边的着色与过滤在有边样本上未单独验证**。
+. 纯 JS 布局单 tick 在 100k 下仍是百毫秒级（见上表），**未达 8ms**；本轮靠 Worker 把 tick 移出主线程保住渲染帧。
+. 未做视口剔除：10 万节点全量提交，GPU 端靠显存带宽硬扛；200k 以上需要瓦片化。
+. 标签覆盖层与 tooltip 全在 canvas 绘制，但不支持多行标签与避让；高密度区域标签会重叠。
+. GPU 与 CPU 拾取结果不一致时以 GPU 为准，只写 `console.debug`，没有可视化偏差统计。
+. WebView2 的 `webglcontextlost` 恢复依赖手动「重试」；自动重建资源未做。
+. 节点大小 / 连线粗细滑块未做（沿用全局 prefs 的 `nodeSize` / `linkThickness`）。

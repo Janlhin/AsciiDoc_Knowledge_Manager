@@ -55,6 +55,7 @@
 | [`docs/perf-1000-adoc.adoc`](docs/perf-1000-adoc.adoc) | T-069 千篇 adoc 性能基准：脚本、实测数值、与章程 §9.1 目标对照 |
 | [`docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`](docs/technical-decisions/ADR-0005-reference-status-boundary.adoc) | T-070 三态引用判定边界、二值歧义根因与锚点不判的已知缺口 |
 | [`docs/release-checklist.adoc`](docs/release-checklist.adoc) | T-072 发版清单：前置检查、五处版本号同步、unsigned/signed 构建命令、产物校验、回滚与 blocked 项 |
+| [`docs/gpu-graph-view.adoc`](docs/gpu-graph-view.adoc) | T-063 独立 GPU 图谱视图：模块边界、数据管线、降级矩阵、基准复跑命令、实测与已知缺口 |
 
 文档格式：除本文件、`CLAUDE.md`、`.claude/` 约定、`demo-vault/` 与 `compat-fixtures/` 测试载荷、`docs/CONTRIBUTING.md`、`docs/SECURITY.md`、`.github/pull_request_template.md` 外，项目文档一律 AsciiDoc（`.adoc`）；根 `README.md` 只作 GitHub 首页入口指针，因为 GitHub 不渲染 AsciiDoc。迁移理由见 `DECISIONS.adoc` D-048。
 

@@ -850,3 +850,26 @@
 ** `.github/dependabot.yml` 随 main 合并带入，不是本次改动；`AGENTS.md` 冲突按「保留本分支的文档表 + 补一行 `docs/README.adoc`」解决。
 ** 现存 `.md` 变为 20 个：18 个原白名单 + 根 `README.md` 入口指针 + `.github/pull_request_template.md`。
 * *复审条件*：GitHub 开始原生渲染 AsciiDoc 时，可把 `README.md` 指针合并回 `README.adoc` 并删掉指针；新增文档一律写 `.adoc`，需要 GitHub 识别名的文件（AGENTS/CLAUDE/社区文件）例外。
+
+'''
+
+== D-049 GPU 图谱视图独立成面：CPU 确定性布局 + Worker 推进，WebGL2 渲染，普通图谱不动（T-063）
+
+* *日期*：2026-11-28
+* *背景*：Q-011 两轮实测已把边界量清——真实库 419 节点用 Canvas2D 足够（draw 0.4ms）；`d3-force` 到 10 万节点约 925ms/tick，不可交互；WebGL2 原型在 10 万节点 / 20 万边做到 164.1fps / 6.09ms 帧，但只是独立页面：每节点 32 个**随机**斥力样本、无标签、无拾取、无拖拽、无过滤、无真实数据接线。
+* *决策*：
+** **独立视图、显式进入**：新增单例 `viewType: "graphgpu"`，入口只有命令 `app:open-gpu-graph`、侧栏 ribbon 与普通图谱工具条的「GPU 视图」按钮。**不做 `totalNodes > 3000` 自动替换**，普通 `GraphView` 的交互语义与 `RENDER_CAP = 3000` 一律不动——GPU 视图是分析面，不是默认面的替代品。
+** **只接真实数据**：数据取自 `app.metadata.getGraph()`，管线顺序与 Canvas2D 版逐段对齐（排除 `isExcluded` → 按开关合并 tag / attachment 辅助图 → `applyGraphFilters` → local 模式 `localSubgraph` + 边剪枝 → 索引化），`kind: "broken"` 边原样保留并单独着色。合成数据只允许出现在基准页与测试夹具。
+** **布局必须可复现**：种子化 xorshift 初始化 + 每 tick 重建均匀空间网格做近邻斥力 + 四叉树 Barnes–Hut 做远场（`theta` 可调），禁止原型的「每节点 K 个随机样本」；同输入同 seed 的位置数组逐元素相同，`fingerprint()` 作为验收断言。
+** **布局在 Worker 里推进**：Dedicated Worker 跑同一套内核，每个 tick 用 transferable 回传位置（`x/y` 两个 Float32Array），主线程只做回填 + 渲染；Worker 不可用时退回主线程模式并按 8ms 预算节流。这样 100k 的百毫秒级 tick 不再阻塞交互帧。
+** **渲染路径**：WebGL2 原生。节点用 instanced quads，边用 `drawElements(LINES)` 静态索引（顶点位置与节点共用一块动态缓冲），每 tick 只 `bufferSubData` 一次位置数组（100k ≈ 800KB）；拾取用离屏 RGBA8 颜色 ID（24 bit，1-based，0 为 miss）+ 1×1 `readPixels`，CPU `PickIndex` 作为降级路径；标签走独立 2D 覆盖层，按缩放 / hover / 选中做 LOD，单帧上限 64。
+** **降级必须可见**：`webgl2` 拿不到、program 链接失败、显存预算不足、`webglcontextlost` → 顶部横幅写原因 + 同 tab 内回退普通 `GraphView`；恢复要用户点「重试」，不静默重建。禁止白屏。
+** **零新增依赖**：不引 three.js / regl / d3 之外的包；现有 React + CM 栈 + 原生 WebGL2 就够。
+* *被否决的替代方案与理由*：
+** _three.js / regl_：新依赖 + 包体，且本视图只需要点、线、拾取三个最小 pass——否决。
+** _把 GPU 渲染塞进现有 `GraphView` 替换 Canvas2D_：会改既有交互语义，与「普通图谱无回归」判据直接冲突——否决。
+** _GPU 端 ping-pong 浮点纹理跑布局（原型做法）_：无法在 Node 里做确定性断言，调试与拾取成本高，且原型靠随机采样推进——否决；GPU 只负责画，不负责算。
+** _只在 3000 节点以上自动切换_：用户明确要独立分析面，自动替换会让普通图谱的交互随库大小变形——否决。
+* *影响范围*：新增 `src/features/graph/gpu/`（内核 + 渲染器 + 视图 + 入口）、`App.tsx` / `workspace.ts` / `types.ts` / `i18n` / `GraphView.tsx` 的最小入口改动（`GraphView` 只加一个按钮）、7 个 vitest 文件、基准与 E2E 脚本。
+* *遗留与接受的缺口*：纯 JS 单线程布局在 100k 下仍是百毫秒级单 tick（见 `docs/gpu-graph-view.adoc` 实测表），**未达 8ms**；本轮接受「渲染帧达标 + 布局后台推进」，后续路径是 WASM 重写 BH / 多 Worker 空间分片 / 增量预算。其余缺口（行内 `#` 之类与图形无关的不列）逐条写在该文档「已知缺口」。
+* *复审条件*：若后续把布局换成 WASM/并行且 100k 单 tick 进入 8ms 量级，可把 Worker 降级为可选、并把 `RENDER_CAP` 的自动切换重新评估；若 WebView2 在目标机器上稳定超过 200k 节点，再谈视口剔除与 LOD 内存预算。
