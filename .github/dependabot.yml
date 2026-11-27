@@ -1,4 +1,6 @@
 version: 2
+
+# 打开上限按生态各自计算：npm 与 GitHub Actions 合计最多 10 个更新 PR。
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -8,6 +10,12 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
