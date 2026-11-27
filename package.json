@@ -50,7 +50,7 @@
     "verify:commands": "node scripts/verify-command-registry.ts"
   },
   "dependencies": {
-    "@asciidoctor/core": "^4.2.1",
+    "@asciidoctor/core": "^4.3.0",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-markdown": "^6.5.2",
