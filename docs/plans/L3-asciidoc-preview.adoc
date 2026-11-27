@@ -1,7 +1,7 @@
 = L3 实施记录：AsciiDoc 阅读视图
 
 * *层*：L3（AsciiDoc 编辑与预览，本轮只交付阅读视图）
-* *前置*：L2 让 `.adoc` 进入索引（`docs/plans/L2-asciidoc-indexing.md`）
+* *前置*：L2 让 `.adoc` 进入索引（`docs/plans/L2-asciidoc-indexing.adoc`）
 * *状态*：已完成（2026-11-13）
 * *触发*：使用者打开 adoc 的阅读视图，发现标题、表格按 Markdown 渲染，显示不对
 

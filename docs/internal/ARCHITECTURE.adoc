@@ -112,10 +112,10 @@ ____
 ** 度数最高的一组节点 median radius 小于度数最低的一组节点 median radius；
 ** 关闭/调低 `graph-force-circle` 后 slider 仍可持久化，不要求视觉指标继续满足。
 . 回归 `r78`（graph prefs）、`r84`（filters）、`r90`（groups）、`r99`（tags）、`r101`（attachments）、`r103`（local depth/direction）、`r110`（neighbor links）、`r240`（open local graph）。R103/R110 尤其要证 local mode 未被 circle force 改写。
-. 性能：`?bench=10000` sampled 3k 仍不得明显退化；记录 `graphSettleMs` / `graphDrawMs` 到 `docs/PERFORMANCE.md` 的 R276 小节。目标口径：sampled graph settle 不超过 R7/R15 基线 2x，single draw 不因 circle force 增加可见成本。
+. 性能：`?bench=10000` sampled 3k 仍不得明显退化；记录 `graphSettleMs` / `graphDrawMs` 到 `docs/PERFORMANCE.adoc` 的 R276 小节。目标口径：sampled graph settle 不超过 R7/R15 基线 2x，single draw 不因 circle force 增加可见成本。
 . 视觉验收：浏览器模式截一张全局图谱截图（可用 bench=1000 或自造 fixture），确认整体不再横向/纵向拉长；桌面端按 by-equivalence 可不做 Rust probe（纯 React + d3-force + canvas，无 Tauri/Rust/FS 新路径），但若本轮已起 release probe，附一张桌面截图更好。
 
-*文件范围*：`src/features/graph/graphPrefs.ts`、`src/features/graph/GraphView.tsx`、`src/core/i18n/dict.views.ts`、`src/main.tsx`（仅 probe，如需要）、`.calibration/r276-e2e.mjs`、`docs/PERFORMANCE.md`（bench 记录）。不碰 `core/metadata.ts` 图数据模型，不碰 vault/documents/editor 写路径，不新增依赖。
+*文件范围*：`src/features/graph/graphPrefs.ts`、`src/features/graph/GraphView.tsx`、`src/core/i18n/dict.views.ts`、`src/main.tsx`（仅 probe，如需要）、`.calibration/r276-e2e.mjs`、`docs/PERFORMANCE.adoc`（bench 记录）。不碰 `core/metadata.ts` 图数据模型，不碰 vault/documents/editor 写路径，不新增依赖。
 
 *不做项*：不做 WebGL/Worker 仿真，不做 component packing 引擎，不做 DeepNotion 右侧预览/图谱内卡片，不做 chain/path 高亮，不改变节点点击打开逻辑，不改变 local graph 的锚点语义。
 
@@ -1490,7 +1490,7 @@ ____
 
 [quote]
 ____
-*状态：As-built（已交付）。* 表面复刻 G 系列——首次按 *R182 命令矩阵*（用户交付 `docs/G3-命令复刻矩阵.md`）的 §推进建议收割「ui-only→done」最快档。*Gate*：矩阵列 6 个 ui-only（功能在右键/按钮、未注册命令），本轮取其中*纯档两项*（无 vault 写）；写/UI-bridge 四项（复制文件/重命名/移动/新建文件夹 = data-safety + Explorer-node-bridge）留 R184。*契约（无跨模块签名变更，纯命令注册 + app-local toast）*：`app/App.tsx` 注册 2 命令（矩阵指定 id）：
+*状态：As-built（已交付）。* 表面复刻 G 系列——首次按 *R182 命令矩阵*（用户交付 `docs/G3-命令复刻矩阵.adoc`）的 §推进建议收割「ui-only→done」最快档。*Gate*：矩阵列 6 个 ui-only（功能在右键/按钮、未注册命令），本轮取其中*纯档两项*（无 vault 写）；写/UI-bridge 四项（复制文件/重命名/移动/新建文件夹 = data-safety + Explorer-node-bridge）留 R184。*契约（无跨模块签名变更，纯命令注册 + app-local toast）*：`app/App.tsx` 注册 2 命令（矩阵指定 id）：
 
 * `file-explorer:copy-path` → 复制 `workspace.getActiveFile()`（含扩展名的库内路径）；`workspace:copy-url` → 复制 `buildOpenUri(vault.vaultName, activeFile)`（R179 core 纯函数、去 .md 回环）。两者 `available=getActiveFile()!==null`、callback 取 path+守卫、`clipboard.writeText`（try/catch 吞 headless）。
 * 新 app-local `showCommandNotice`（瞬态底部 toast，*独立 class `command-notice`* + explorer.css 并列选择器复用样式；按 testid 清理——与 Explorer `.link-update-notice`[按 class 清理] 隔离防互删）。
@@ -1667,7 +1667,7 @@ ____
 
 [quote]
 ____
-*状态：As-built（已交付）。* 🔒 *heavy XSS 对抗评审 → 0 可执行绕过（clean）*——reviewer *对 live 编译代码实跑 ~50 向量电池*（每 payload adopt 进 live DOM + 300-500ms 后查 window flag），全部脚本/事件*未执行*：① 标签 FORBID_DROP 整除（script/style/iframe/object/embed/svg/math/form/audio/video…含子树）；② on* 全覆盖（toLowerCase 前置、onERROR/ontoggle/onanimationstart…）；③ scheme allowlist 拒 javascript:/vbscript:/data:/file:/blob:/about:；④ *控制字符+实体绕过全拦*（`java\tscript:`/`\n`/`\r`/NBSP/前导空格/`&pass:[#]106;avascript:`/`&pass:[#]x6a;`/`&Tab;`/`JaVaScRiPt:`——getAttribute 已解码实体 + `[-  ]` strip + toLowerCase）；⑤ namespace 混淆（svg>script / svg>a xlink:href / math>script / svg>foreignObject>iframe → svg/math 整除根除）；⑥ 非 URL_ATTRS 携 URL（longdesc/srcset/formaction → 非 allowlist 剥）；⑦ unwrap 提升安全（walk 先全树收集、结构变更在 walk 后、forbid remove 先于 unwrap、未知元素自身属性随移除无害）；⑧ mXSS 规避（直返 fragment 不 re-parse）；⑨ NUL `java\x00script:` → template 解析转 U+FFFD → 当相对路径放行但浏览器 resolve 为 http 相对、*不可执行*；⑩ 5000 层深嵌套不爆栈（迭代 TreeWalker）。*假绿反证*：reviewer 元测试喂未清洗 onerror→150ms 内确实 fire，证 e2e 的 `scriptDidNotRun`/`imgOnerrorDidNotFire`/`svgScriptDidNotRun` 是真测执行非查属性。可接受 nuance（非缺陷）：协议相对 `//host`（导航非脚本）、保留 id（exotic DOM-clobber、Obsidian 同款）、拒所有 data:（含 data:image，保守）、剥 style。简化门 *clean*（紧凑纯安全函数无 dup/死代码/脚手架；allowlist/isSafeUrl/双 post-walk 循环/迭代 TreeWalker 全 load-bearing 不可减）。验收：r173-e2e *31/31*（含 3 条 did-not-execute）、回归 r172 6/6·r171 14/14·r113 10/10·typecheck 0·cargo check·*生产构建成功*。*桌面 probe N/A*（纯 DOM 清洗、零 fs/Rust/平台分支、WKWebView≡Chromium）。*⚠️ 教训（文档写作）*：本节契约块的 `isSafeUrl` 正则初版误嵌*字面控制字符*（`/[ <ctrl> ]/`），令 ARCHITECTURE.md 被 `file`/`grep` 判为 binary（plain grep 找不到「Round 173」误报「节缺失」）→ 修=正则在*文档*里一律写转义形 `- `（实现 sanitize.ts 写 `\x00-\x20 ` 本就正确）；*markdown/doc 里写控制字符范围用转义、绝不嵌字面控制字节*。
+*状态：As-built（已交付）。* 🔒 *heavy XSS 对抗评审 → 0 可执行绕过（clean）*——reviewer *对 live 编译代码实跑 ~50 向量电池*（每 payload adopt 进 live DOM + 300-500ms 后查 window flag），全部脚本/事件*未执行*：① 标签 FORBID_DROP 整除（script/style/iframe/object/embed/svg/math/form/audio/video…含子树）；② on* 全覆盖（toLowerCase 前置、onERROR/ontoggle/onanimationstart…）；③ scheme allowlist 拒 javascript:/vbscript:/data:/file:/blob:/about:；④ *控制字符+实体绕过全拦*（`java\tscript:`/`\n`/`\r`/NBSP/前导空格/`&pass:[#]106;avascript:`/`&pass:[#]x6a;`/`&Tab;`/`JaVaScRiPt:`——getAttribute 已解码实体 + `[-  ]` strip + toLowerCase）；⑤ namespace 混淆（svg>script / svg>a xlink:href / math>script / svg>foreignObject>iframe → svg/math 整除根除）；⑥ 非 URL_ATTRS 携 URL（longdesc/srcset/formaction → 非 allowlist 剥）；⑦ unwrap 提升安全（walk 先全树收集、结构变更在 walk 后、forbid remove 先于 unwrap、未知元素自身属性随移除无害）；⑧ mXSS 规避（直返 fragment 不 re-parse）；⑨ NUL `java\x00script:` → template 解析转 U+FFFD → 当相对路径放行但浏览器 resolve 为 http 相对、*不可执行*；⑩ 5000 层深嵌套不爆栈（迭代 TreeWalker）。*假绿反证*：reviewer 元测试喂未清洗 onerror→150ms 内确实 fire，证 e2e 的 `scriptDidNotRun`/`imgOnerrorDidNotFire`/`svgScriptDidNotRun` 是真测执行非查属性。可接受 nuance（非缺陷）：协议相对 `//host`（导航非脚本）、保留 id（exotic DOM-clobber、Obsidian 同款）、拒所有 data:（含 data:image，保守）、剥 style。简化门 *clean*（紧凑纯安全函数无 dup/死代码/脚手架；allowlist/isSafeUrl/双 post-walk 循环/迭代 TreeWalker 全 load-bearing 不可减）。验收：r173-e2e *31/31*（含 3 条 did-not-execute）、回归 r172 6/6·r171 14/14·r113 10/10·typecheck 0·cargo check·*生产构建成功*。*桌面 probe N/A*（纯 DOM 清洗、零 fs/Rust/平台分支、WKWebView≡Chromium）。*⚠️ 教训（文档写作）*：本节契约块的 `isSafeUrl` 正则初版误嵌*字面控制字符*（`/[ <ctrl> ]/`），令 ARCHITECTURE.adoc 被 `file`/`grep` 判为 binary（plain grep 找不到「Round 173」误报「节缺失」）→ 修=正则在*文档*里一律写转义形 `- `（实现 sanitize.ts 写 `\x00-\x20 ` 本就正确）；*markdown/doc 里写控制字符范围用转义、绝不嵌字面控制字节*。
 
 *Gate（R160 教训：explorer 实查现状）*：compat 缺 `sanitizeHTMLToDom`（grep 零；现有 sanitize* 均无关——workspace sanitizeTab/Node 是状态校验、noteComposer sanitizeNoteName 是文件名）→ *须自写*。*🔒 安全敏感（heavy XSS 对抗评审）*：返回供插件注入 DOM 的 fragment，错一处=XSS。*保守优先于保真*（宁可多删合法内容也不漏一个向量）。
 
@@ -4289,7 +4289,7 @@ ____
 * *根因 ② MAJOR = formatLink markdown 分支 display 无 `]` 守卫。* 目标 basename 或 alias 含 `]`（macOS/Linux/Obsidian 合法）→ `[a]b](a]b.md)` 经 MARKDOWN_LINK_RE 的 display 组 `[^\]]*` 在首个 `]` 截断 → *不可重解析 → formatLink 返回非 null 坏链，违反自身「null→跳过」契约*（resolve-back 通过因 `]` 是合法 fs 字符）。wikilink 分支对同输入安全（WIKILINK_UNSAFE 含 `]`→null）。*修=display 含 `]`→null*（对齐 WIKILINK_UNSAFE，href 组容忍 `]` 故只守 display）。可经 unlinkedMentions（alias=surfaceText）+ 拖文件触发。
 * *注释 ③ NIT*：noteComposer extractReplacement 注释误称抽取笔记建在 vault 根（实为源笔记同目录）；行为正确（co-located 解析回），仅注释纠错。
 
-*验证*：typecheck 0 · `r72-e2e` *26/26*（wiki/md × 最短/相对/绝对 × embed/alias + 编码 + 守卫 a/b + round-trip + unlinked mention 三态[Note/spaced/ambiguous] + extract 三态 + `]` 守卫三态 + 默认不变）· `r72-probe` *15/15* 真 WKWebView+真 fs（含 spaced-name resolveByKind 修复落盘）· 回归 r24(12)/r44(25)/r67(9)/r70(23)/r71(17) 绿 · cargo check/build 绿。*简化门 clean*（无 ≥8 行重复：wikilinkPath/markdownHref 在 resolver/扩展/编码/相对/unsafe 分歧，合并需加参数=STOP；无死代码；2 新 data-testid 合 57/57 设置控件 DOM 约定）。*顺手修*：本节所在文件 ARCHITECTURE.md 在 R70 文档轮被写入 1 个 NUL 字节（offset~16724，line 132 map-key 分隔符 `" "` 被 NUL 替换，致 grep/rg 视为二进制截断）→ `tr '\000' ' '` 复原。
+*验证*：typecheck 0 · `r72-e2e` *26/26*（wiki/md × 最短/相对/绝对 × embed/alias + 编码 + 守卫 a/b + round-trip + unlinked mention 三态[Note/spaced/ambiguous] + extract 三态 + `]` 守卫三态 + 默认不变）· `r72-probe` *15/15* 真 WKWebView+真 fs（含 spaced-name resolveByKind 修复落盘）· 回归 r24(12)/r44(25)/r67(9)/r70(23)/r71(17) 绿 · cargo check/build 绿。*简化门 clean*（无 ≥8 行重复：wikilinkPath/markdownHref 在 resolver/扩展/编码/相对/unsafe 分歧，合并需加参数=STOP；无死代码；2 新 data-testid 合 57/57 设置控件 DOM 约定）。*顺手修*：本节所在文件 ARCHITECTURE.adoc 在 R70 文档轮被写入 1 个 NUL 字节（offset~16724，line 132 map-key 分隔符 `" "` 被 NUL 替换，致 grep/rg 视为二进制截断）→ `tr '\000' ' '` 复原。
 
 == Round 71 additions — markdown 内部链接渲染 + 点击导航（候选池第五梯队【中】㉞-b）【As-built v0.68】
 
@@ -4578,7 +4578,7 @@ ____
 
 === 文件所有权（本轮单人独占）
 
-* `src/core/markdown.ts`（parseEmbedSize + 图片分支 + 占位拼装）+ `src/features/editor/livePreview.ts`（EmbedWidget + 图片分支）+ `.calibration/r61-*` + `.calibration/r26-bytes.mjs`(+baseline 重捕) + 版本三处。*文档清理*：顺手剥 `ARCHITECTURE.md`/`HANDOFF.md` 各 1 个 NUL(0x00)+1 个 US(0x1f) 控制字节（R44/R46 教训那批，破 grep/diff——本轮 grep ARCHITECTURE 整段失灵才暴露；`tr -d` 逐字节核对行数不变）。
+* `src/core/markdown.ts`（parseEmbedSize + 图片分支 + 占位拼装）+ `src/features/editor/livePreview.ts`（EmbedWidget + 图片分支）+ `.calibration/r61-*` + `.calibration/r26-bytes.mjs`(+baseline 重捕) + 版本三处。*文档清理*：顺手剥 `ARCHITECTURE.adoc`/`HANDOFF.adoc` 各 1 个 NUL(0x00)+1 个 US(0x1f) 控制字节（R44/R46 教训那批，破 grep/diff——本轮 grep ARCHITECTURE 整段失灵才暴露；`tr -d` 逐字节核对行数不变）。
 
 === 已知偏差 / 待办（写给后续轮）
 
@@ -8665,7 +8665,7 @@ heading（from 精确匹配），取其在 document order 中的序号 n → pre
 * css：`.preview-reveal-flash` 与 `.cm-reveal-flash` 同源动画（--accent 透明度）。
 * 探针口径更新：r14-probe1 的 pendingInPreview 断言反转（preview 即消费）。
 
-=== 性能基线刷新（chief，零代码——纯测量 + PERFORMANCE.md 更新）
+=== 性能基线刷新（chief，零代码——纯测量 + PERFORMANCE.adoc 更新）
 
 * 浏览器 `?bench=10000`（headless Edge + CDP）：graphSettleMs/graphDrawMs、switcher
 开启、全文搜索、explorer 展开——对照 R3/R7 基线，回归超 20% 立案排查。
@@ -9160,7 +9160,7 @@ Frozen surfaces：`closeMissingFileTabs` 签名、`getPluginName/getPluginDescri
 
 == Round 9 additions — 自动更新链路（tauri-plugin-updater）+ compat suggest 余项
 
-P1 取 HANDOFF 预授权的备选路径：*无 Authenticode 证书也能完整落地的更新链路*——tauri 自带 minisign 更新签名（本地生成密钥，与商业代码签名证书无关）；Windows Authenticode （防 SmartScreen）做成 `bundle.windows.signCommand` 配置位，购证后填入即可（见 docs/DISTRIBUTION.md）。P2 清 R6 两条 compat 显式缺口：setInstructions 指令条渲染 +
+P1 取 HANDOFF 预授权的备选路径：*无 Authenticode 证书也能完整落地的更新链路*——tauri 自带 minisign 更新签名（本地生成密钥，与商业代码签名证书无关）；Windows Authenticode （防 SmartScreen）做成 `bundle.windows.signCommand` 配置位，购证后填入即可（见 docs/DISTRIBUTION.adoc）。P2 清 R6 两条 compat 显式缺口：setInstructions 指令条渲染 +
 纯光标移动重评估 onTrigger。
 
 === One-time dep decisions (chief) — implementation agents must NOT add further deps
@@ -9170,7 +9170,7 @@ P1 取 HANDOFF 预授权的备选路径：*无 Authenticode 证书也能完整�
 * capabilities/default.json 增加 `"updater:default"`, `"process:default"`。
 * tauri.conf.json：`bundle.createUpdaterArtifacts: true`；`plugins.updater = { pubkey, endpoints: [GitHub latest.json 占位 URL], windows: { installMode: "passive" } }`。
 * 更新签名密钥：`tauri signer generate` → `.tauri-keys/geode.key`（*gitignore，仓库内
-绝不提交私钥*；丢失即无法向已装机用户推送更新——备份责任在用户，DISTRIBUTION.md 写明）。
+绝不提交私钥*；丢失即无法向已装机用户推送更新——备份责任在用户，DISTRIBUTION.adoc 写明）。
 构建发布版时设 `TAURI_SIGNING_PRIVATE_KEY`(+`_PASSWORD`) 环境变量。
 
 === Core: update chain — `core/update.ts` (new, dual-end like core/net.ts)
@@ -9259,7 +9259,7 @@ finding citing the R8 release commits as precedent).
 variables* — PowerShell `$env:X = ""` DELETES the variable, and the tauri signer then
 blocks forever on an interactive password prompt in a non-interactive shell. The
 updater keypair therefore MUST have a password (regenerated; password in
-DISTRIBUTION.md, rotate before public release).
+DISTRIBUTION.adoc, rotate before public release).
 * Desktop E2E verified the FULL chain (running 0.8.5 app → check → download → minisign
 verify → NSIS passive install to %LOCALAPPDATA%\ADKM → auto-relaunch as v0.9.0) plus
 two negative cases: corrupted-encoding signature and validly-encoded-but-wrong
@@ -9445,7 +9445,7 @@ to depth ≤ N (1|2), unresolved neighbors included; simulation runs over the SU
 rebuild path + auto-fit. No anchor (null / not in graph) → empty-state card
 "Open a note to see its local graph." (`data-testid="graph-local-empty"`).
 
-*10k performance* (PERFORMANCE.md recommendations 1+2; targets measured at `?bench=10000`):
+*10k performance* (PERFORMANCE.adoc recommendations 1+2; targets measured at `?bench=10000`):
 
 * *Degree sampling*: `RENDER_CAP = 3000` nodes. `nodes > cap && !showAll` → keep top-cap by
 degree (stable tie-break by id), edges among kept nodes only, simulation over the sample;
@@ -9457,7 +9457,7 @@ redraw only via the batched path (no per-edge stroke loops).
 `requestAnimationFrame` scheduler — at most one canvas draw per frame, zero draws when idle
 (post-settle, no interaction).
 * Perf marks on `window.__geodePerf`: `graphDrawMs` (last full draw), `graphSettleMs`
-(rebuild → sim end). PERFORMANCE.md gains a before/after table for bench=10000 and
+(rebuild → sim end). PERFORMANCE.adoc gains a before/after table for bench=10000 and
 bench=1000 (no regression at 1k: 60fps).
 
 === Export — `core/export.ts` (new) + `features/export/` (new) + Rust
@@ -9534,7 +9534,7 @@ legend/toolbar looked alive. Static review missed it; only a screenshot caught i
 * *[runtime-only] per-edge strokes, NOT a batched mega-`Path2D`* — one 6.5k-segment
 stroked path rasterizes in ~197ms vs ~9ms for individual strokes (20x, compositor-side,
 invisible to JS timing); plus label suppression while the sim is hot (a 3k `fillText`
-pass throttled settle 43s → 5.8s). Numbers + "do not reintroduce" note in PERFORMANCE.md.
+pass throttled settle 43s → 5.8s). Numbers + "do not reintroduce" note in PERFORMANCE.adoc.
 
 === Round 7 file ownership (parallel agents — do not cross)
 
@@ -10011,7 +10011,7 @@ readonly settingsSections: Store<ReadonlyArray<PluginSettingsSection>>;
 
 === Compat layer — `src/compat/obsidian/`
 
-`loadObsidianPlugins(app: Omit<AppHandle, "ui"> & { plugins: PluginManager }, vault: Vault): Promise<void>` (from `@compat/obsidian/loader`) is idempotent like `loadExternal`: unloads previously loaded obsidian records first. Calibrated signatures live in `.calibration/API-REFERENCE.md` (regenerate per docs/internal/OBSIDIAN-COMPAT.md); implement EXACTLY against it, never from memory. Internal layout is the implementor's choice within `src/compat/`; fixed points:
+`loadObsidianPlugins(app: Omit<AppHandle, "ui"> & { plugins: PluginManager }, vault: Vault): Promise<void>` (from `@compat/obsidian/loader`) is idempotent like `loadExternal`: unloads previously loaded obsidian records first. Calibrated signatures live in `.calibration/API-REFERENCE.md` (regenerate per docs/internal/OBSIDIAN-COMPAT.adoc); implement EXACTLY against it, never from memory. Internal layout is the implementor's choice within `src/compat/`; fixed points:
 
 * `index.ts` exports the full `require("obsidian")` module surface.
 * `loader.ts`: discover → validate manifest (missing id/name/version rejects; other gaps warn;

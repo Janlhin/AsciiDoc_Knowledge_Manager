@@ -18,9 +18,9 @@ ADKM is still in active alpha, so the best contributions are focused, well-scope
 Please read:
 
 - [README.md](README.md)
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- [docs/internal/ARCHITECTURE.md](docs/internal/ARCHITECTURE.md)
-- [docs/internal/OBSIDIAN-COMPAT.md](docs/internal/OBSIDIAN-COMPAT.md), if your change touches plugin compatibility
+- [docs/DEVELOPMENT.adoc](docs/DEVELOPMENT.adoc)
+- [docs/internal/ARCHITECTURE.adoc](docs/internal/ARCHITECTURE.adoc)
+- [docs/internal/OBSIDIAN-COMPAT.adoc](docs/internal/OBSIDIAN-COMPAT.adoc), if your change touches plugin compatibility
 
 ## Local setup
 

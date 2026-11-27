@@ -10,7 +10,7 @@ Since then the codebase was rebuilt and deeply modified: AsciiDoc reading
 view and cross-format link index, UI/workspace layer rewrites, editor and
 settings behaviour changes, and removal of upstream branding strings.
 
-The full modification record is in PROVENANCE.adoc and DECISIONS.md.
+The full modification record is in PROVENANCE.adoc and DECISIONS.adoc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this product except in compliance with the License. You may obtain a copy

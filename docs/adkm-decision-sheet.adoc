@@ -26,7 +26,7 @@ ____
 |A-06 |block 标记扫描剪枝（不再按行数计成本） |✅ 已提交，PR #9
 |A-07 |3 个可复跑的 profiling 工具 |✅ 已提交，PR #9
 |A-08 |清临时目录 1.35GB |✅ 已删，原库完好
-|A-09 |提交 TASKS.md（T-027 / T-028） |✅ 已提交
+|A-09 |提交 TASKS.adoc（T-027 / T-028） |✅ 已提交
 |A-10 |push 两个分支 |✅ 已推，开了 PR #9
 |A-11 |邀请 nqble 为 `Janlhin/adkm` 协作者（write 权限） |✅ 邀请已发出，等对方接受
 |A-12 |查明 `nul` 文件来源 |✅ 是 `CHANGELOG.adoc` 的渲染产物（Windows 坑）
@@ -76,7 +76,7 @@ ____
 
 ☑ *我的建议：A* —— identifier 是「用户数据的家」，改它要写迁移；productName 和 exe 名纯属显示，改零风险
 
-*实际执行（2026-11-16）*：按 B 落地——`identifier` 已改为 `com.adkm.knowledgebase`；因公开前从未分发，未写自动迁移代码，本机旧数据目录一次性复制到新目录（见 `TASKS.md` 的 Q-004）。
+*实际执行（2026-11-16）*：按 B 落地——`identifier` 已改为 `com.adkm.knowledgebase`；因公开前从未分发，未写自动迁移代码，本机旧数据目录一次性复制到新目录（见 `TASKS.adoc` 的 Q-004）。
 
 *备注*：
 
@@ -87,7 +87,7 @@ ____
 现状：pubkey = *上游作者的签名公钥*；endpoint 指向一个*不存在的组织*（死链）。若将来有人填了 endpoint 却没换 pubkey → 我们自己签的包会被拒；若指向原作者的 feed → ADKM 会把上游的更新当成自己的装上。
 ____
 
-* ☒ *A* 现在就明确禁用（endpoint 置空 / 移除 updater 插件），并在 `docs/DISTRIBUTION.md` 写死「配 endpoint 必须同时换成自己的 pubkey 密钥对」
+* ☒ *A* 现在就明确禁用（endpoint 置空 / 移除 updater 插件），并在 `docs/DISTRIBUTION.adoc` 写死「配 endpoint 必须同时换成自己的 pubkey 密钥对」
 * ☐ *B* 只改文档警示，代码不动
 * ☐ *C* 维持现状
 
@@ -114,10 +114,10 @@ ____
 
 [quote]
 ____
-`docs/product-placeholders.adoc` 里有一条 D-011 标注「待归档到 DECISIONS.md」，推迟原因（PR 冲突）*已解除*。归档后它回归「清单」单一职责。
+`docs/product-placeholders.adoc` 里有一条 D-011 标注「待归档到 DECISIONS.adoc」，推迟原因（PR 冲突）*已解除*。归档后它回归「清单」单一职责。
 ____
 
-* ☐ *A* 把 D-011 移进 `DECISIONS.md`（补上跳号 D-010 → D-012），`product-placeholders.adoc` 降级为清单
+* ☐ *A* 把 D-011 移进 `DECISIONS.adoc`（补上跳号 D-010 → D-012），`product-placeholders.adoc` 降级为清单
 * ☐ *B* 留在原地不动
 * ☐ *C* 重新编号为 D-015
 
@@ -141,7 +141,7 @@ ____
 * ☐ *A* 写 ADR-0006《底座可替换性》，内容：① 四条硬条件出处修正 ② 新增第五条「真实 Obsidian 插件宿主能力」为可替换触发条件 ③ 条件分支：若将来接受 GPL 且愿意开源，可改 fork opensidian
 * ☐ *B* A 但不含 GPL 条件分支
 * ☐ *C* 撤销 ADR-0003 的底座决策
-* ☐ *D* 不写 ADR，只在 `DECISIONS.md` 加一行
+* ☐ *D* 不写 ADR，只在 `DECISIONS.adoc` 加一行
 
 ☑ *我的建议：A* —— GPL 是不可逾越的硬约束，把条件分支写下来，免得将来重开话题时重复调研
 
@@ -169,7 +169,7 @@ ____
 
 === D-09　兼容层要不要按 opensidian 清单排期
 
-* ☐ *A* 写进 TASKS.md 作为一条独立待办（Canvas / Keymap / FileManager 逐项对标）
+* ☐ *A* 写进 TASKS.adoc 作为一条独立待办（Canvas / Keymap / FileManager 逐项对标）
 * ☐ *B* 只在 ADR-0006 里提一句，不排期
 * ☐ *C* 不做
 
@@ -222,7 +222,7 @@ ____
 *你已定：暂缓。* 这里只确认是否要留个「以后再说」的标记。
 ____
 
-* ☐ *A* 暂缓，但在 TASKS.md 留一条待办（注明是书籍化流水线的产物，改的是内容生成流程不是代码）
+* ☐ *A* 暂缓，但在 TASKS.adoc 留一条待办（注明是书籍化流水线的产物，改的是内容生成流程不是代码）
 * ☐ *B* 彻底不管（不入待办）
 * ☐ *C* 暂缓，但同时给 geode 加一条「超大文件保护」（超阈值跳过部分解析），作为通用兜底
 
@@ -276,7 +276,7 @@ ____
 
 ☑ *我的建议：A*
 
-*备注*：2026-11-27 用户指示制作，按此档落地。三态判定见 `DECISIONS.md` D-043 与 ADR-0005；锚点存在性本轮不判，见 D-20。
+*备注*：2026-11-27 用户指示制作，按此档落地。三态判定见 `DECISIONS.adoc` D-043 与 ADR-0005；锚点存在性本轮不判，见 D-20。
 
 === D-15　校验结果的呈现形态
 
@@ -337,7 +337,7 @@ ____
 
 ☑ *我的建议：B* —— `broken` 是三态校验的*必需品*（否则断链边画不出来），其余类型不急
 
-*备注*：2026-11-27 用户指示制作，按 B 档落地；`GraphEdge` 只加 `kind?: "broken"`，其余边类型见 `DECISIONS.md` D-044。
+*备注*：2026-11-27 用户指示制作，按 B 档落地；`GraphEdge` 只加 `kind?: "broken"`，其余边类型见 `DECISIONS.adoc` D-044。
 
 === D-20　锚点级断链要不要判（charter §11.2 要求「锚点不存在时为断链」）
 
@@ -530,7 +530,7 @@ ____
 
 [quote]
 ____
-执行结果：11 个文件全部落位（`CHANGELOG.adoc` → 仓根；5 份 `.adoc` → `docs/`；4 份 ADR → `docs/technical-decisions/`；决策单 → `docs/adkm-decision-sheet.md`），*+4438 −4*，提交 `ae0a696`，PR #10。 顺带修了 7 处引用：`DECISIONS.md` ×2 与 `TASKS.md` ×2 的 `ADKM/docs/…` → `docs/…`；`obsidian-clone-report.adoc` ×2 的 `geode/src/…` → `src/…`。全仓复查 `ADKM/docs` / `Desktop/ADKM` / `geode/src` 均 *0 处残留*。 `nul` *未入库*（`CHANGELOG.adoc` 的渲染产物，重跑 `asciidoctor -o nul CHANGELOG.adoc` 可逐字节复现 38455 字节）。 10 个 AsciiDoc 文件全部渲染零警告；全部 LF、无 BOM；与仓内既有 docs 零同名冲突。
+执行结果：11 个文件全部落位（`CHANGELOG.adoc` → 仓根；5 份 `.adoc` → `docs/`；4 份 ADR → `docs/technical-decisions/`；决策单 → `docs/adkm-decision-sheet.adoc`），*+4438 −4*，提交 `ae0a696`，PR #10。 顺带修了 7 处引用：`DECISIONS.adoc` ×2 与 `TASKS.adoc` ×2 的 `ADKM/docs/…` → `docs/…`；`obsidian-clone-report.adoc` ×2 的 `geode/src/…` → `src/…`。全仓复查 `ADKM/docs` / `Desktop/ADKM` / `geode/src` 均 *0 处残留*。 `nul` *未入库*（`CHANGELOG.adoc` 的渲染产物，重跑 `asciidoctor -o nul CHANGELOG.adoc` 可逐字节复现 38455 字节）。 10 个 AsciiDoc 文件全部渲染零警告；全部 LF、无 BOM；与仓内既有 docs 零同名冲突。
 ____
 
 *备注*：

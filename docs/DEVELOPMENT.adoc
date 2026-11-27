@@ -2,7 +2,7 @@
 
 [quote]
 ____
-给未来的开发轮次（人类或 AI agent）的最短上手路径。核心使命见 xref:internal/ROADMAP.adoc[ROADMAP.md]。
+给未来的开发轮次（人类或 AI agent）的最短上手路径。核心使命见 xref:internal/ROADMAP.adoc[ROADMAP.adoc]。
 ____
 
 == 5 分钟上手
@@ -20,15 +20,15 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 
 == 阅读顺序
 
-. `docs/internal/ARCHITECTURE.md` — *必读*，分层规则 + 核心 API + 组件契约 + 本轮新增契约
+. `docs/internal/ARCHITECTURE.adoc` — *必读*，分层规则 + 核心 API + 组件契约 + 本轮新增契约
 . `src/core/types.ts` → `vault.ts` → `metadata.ts` → `workspace.ts` — 数据模型主线
 . 你要改的 feature 目录（`src/features/<name>/`）
-. 插件相关看 `docs/PLUGINS.md`
+. 插件相关看 `docs/PLUGINS.adoc`
 
 == 不变的开发纪律
 
 * *分层*：core 不依赖 React 组件 / features 互不 import / 颜色一律走 CSS 变量
-* *契约先行*：跨模块接口改动先写进 ARCHITECTURE.md 再动代码
+* *契约先行*：跨模块接口改动先写进 ARCHITECTURE.adoc 再动代码
 * *每轮节奏*（已验证两轮的编排模式）：
 .. 契约扩展（types/events/adapter 接口 + 外壳 stub，构建常绿）
 .. 并行开发（每个 agent 独占目录，prompt 冻结跨区签名）
@@ -42,7 +42,7 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 
 * 浏览器：Playwright（dev server :1420，`data-testid` 全覆盖）
 * 性能：`http://localhost:1420/?bench=10000` 生成确定性合成 vault（不持久化，
-不污染正常 workspace）；`window.__geodePerf` 暴露各环节耗时，口径见 docs/PERFORMANCE.md
+不污染正常 workspace）；`window.__geodePerf` 暴露各环节耗时，口径见 docs/PERFORMANCE.adoc
 * 核心 API 断言：浏览器里 `window.geode.registerPlugin({id,name,onload(app){window.__app=app}})`
 拿 AppHandle，直接驱动 workspace/vault 验证 core 行为（R3 回归即此法）
 * 桌面：`adkm.exe demo-vault` + 截图；外部改 `demo-vault/*.md` 验证 watcher；
@@ -51,7 +51,7 @@ npm run tauri build  # NSIS 安装包 → src-tauri/target/release/bundle/nsis/
 core/i18n/dict.*.ts 片段）；验证用设置页 `settings-language` 下拉 + localStorage
 `geode.locale`；watcher 回声口径：+++window.__geodeWatchEcho+++ 计数器、浏览器
 +++window.__geodeFireWatch(paths)+++ 模拟外部事件
-* 自动更新（R9）：发布/密钥/签名全流程见 docs/DISTRIBUTION.md；本地 E2E 口径——
+* 自动更新（R9）：发布/密钥/签名全流程见 docs/DISTRIBUTION.adoc；本地 E2E 口径——
 `.update-test/server.mjs` 起 :17321 静态服务器 + 测试构建（conf 临时指 localhost +
 `dangerousInsecureTransportProtocol`，不得提交），探针 `.calibration/r9-up1~3.js`
 （检查/负向篡改签名/正向安装），负向必须含"合法编码错误签名"用例

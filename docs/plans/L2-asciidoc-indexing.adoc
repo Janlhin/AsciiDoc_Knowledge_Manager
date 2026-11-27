@@ -4,7 +4,7 @@
 
 * *层*：L2（解析与索引）
 * *前置*：ADR-0004 七层结构；ADR-0001 解析分层；ADR-0002 解析上下文
-* *任务编号*：`TASKS.md` T-012
+* *任务编号*：`TASKS.adoc` T-012
 * *状态*：已完成（2026-11-13）
 
 '''
@@ -176,8 +176,8 @@ src/core/linkAtCursor.ts:12（自有局部类型）
 * [x] Blueprint 的 130 篇 adoc 出现在文件树与图谱
 * [x] md 部分的图谱结果与接入前完全一致
 * [x] `scripts/adoc-index-report.ts` 可复跑并给出耗时
-* [x] `README.md` 的「还不能用的」表格中，移除「AsciiDoc 进入文件树与图谱」一行
-* [x] `TASKS.md` T-012 移入已决
+* [x] `README.adoc` 的「还不能用的」表格中，移除「AsciiDoc 进入文件树与图谱」一行
+* [x] `TASKS.adoc` T-012 移入已决
 
 '''
 

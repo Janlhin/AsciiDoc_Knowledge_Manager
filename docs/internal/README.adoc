@@ -5,10 +5,10 @@
 [options="header"]
 |===
 |文件 |内容
-|`ARCHITECTURE.md` |架构分层、模块契约与 As-built 记录
-|`HANDOFF.md` |轮次交接：本轮做了什么、下一轮从哪接
-|`OBSIDIAN-COMPAT.md` |兼容层矩阵与逐条行为对齐记录
-|`ROADMAP.md` |路线图与各轮验收结论
+|`ARCHITECTURE.adoc` |架构分层、模块契约与 As-built 记录
+|`HANDOFF.adoc` |轮次交接：本轮做了什么、下一轮从哪接
+|`OBSIDIAN-COMPAT.adoc` |兼容层矩阵与逐条行为对齐记录
+|`ROADMAP.adoc` |路线图与各轮验收结论
 |===
 
 公开文档面（`docs/` 顶层）只保留可读的规范与基线；需要追溯「为什么这么做」时再进这里查。

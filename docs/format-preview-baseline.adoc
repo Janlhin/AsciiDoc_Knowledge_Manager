@@ -8,7 +8,7 @@
 分两片：
 
 . **T-054（零新增依赖）**：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`；B 档格式完成「先搜寻后自研」评估但未引入任何新包。
-. **T-055（Q-005 放行，仅 1 个依赖）**：引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 `.mobi/.azw/.prc` 与 `.azw3/.kf8` 只读预览，逐项登记见 `MANIFEST.md`、决策见 D-024。
+. **T-055（Q-005 放行，仅 1 个依赖）**：引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 `.mobi/.azw/.prc` 与 `.azw3/.kf8` 只读预览，逐项登记见 `MANIFEST.adoc`、决策见 D-024。
 
 * `npx vitest run tests/ebook-formats.test.ts` → 7/7
 * `npx vitest run tests/mobi.test.ts tests/mobi-preview.test.tsx` → 6 + 5
@@ -91,7 +91,7 @@
 
 == 检索评估（B 档）与 Q-005 放行结果
 
-按规范检索顺序 0→3 执行：0/1（标准库 + 已有依赖）已满足 T-054 目标；2/3 对 MOBI/AZW3/DJVU/CBR/HEIC 等做了两轮检索（npm 包注册表 + GitHub + 包信息站点）。候选与排除理由逐项登记在 `MANIFEST.md`「格式扩展检索评估与放行记录」。要点：
+按规范检索顺序 0→3 执行：0/1（标准库 + 已有依赖）已满足 T-054 目标；2/3 对 MOBI/AZW3/DJVU/CBR/HEIC 等做了两轮检索（npm 包注册表 + GitHub + 包信息站点）。候选与排除理由逐项登记在 `MANIFEST.adoc`「格式扩展检索评估与放行记录」。要点：
 
 . `foliate-js`（MIT）覆盖最广但作者明示 API 不稳定、维护放缓，替换现有 epub.js 链路风险过高。
 . `@mdgate/mobi`（MIT）只输出 Markdown，丢图片/结构，作为「只读预览」会静默丢内容。
@@ -129,4 +129,4 @@
 * `scripts/verify-format-libs.ts`（+4 项 + mobi-parser 导出回归）、`tests/ebook-formats.test.ts`（7 用例）、`tests/mobi.test.ts`（6）/ `tests/mobi-preview.test.tsx`（5）
 * `package.json` / `package-lock.json`（`@lingo-reader/mobi-parser@0.4.6` 钉选）
 * `tests/e2e/run.mjs`（夹具 + 第 10、12 条用例）、`docs/e2e-cdp-baseline.adoc`
-* `MANIFEST.md`（检索评估 + 依赖放行登记）、`DECISIONS.md` D-022 / D-024、`TASKS.md` T-054 / T-055 / Q-005、`CHANGELOG.adoc`
+* `MANIFEST.adoc`（检索评估 + 依赖放行登记）、`DECISIONS.adoc` D-022 / D-024、`TASKS.adoc` T-054 / T-055 / Q-005、`CHANGELOG.adoc`

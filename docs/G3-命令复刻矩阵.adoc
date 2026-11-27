@@ -15,7 +15,7 @@ ____
 * *状态* 六态：`done` 真命令+真 handler+可绑键、对齐 Obsidian ｜ `partial` 命令在但不全（缺变体/缺默认键/缺部分行为）｜ `ui-only` 功能在但只在右键/按钮、无注册命令 ｜ `stub` 有命令但 handler 空/假 ｜ `missing` 完全缺 ｜ `oos` out-of-scope（依赖未建大件 Canvas/Bases/Sync，或不适用）。
 * *Obsidian cmd id* = 推断的规范 id；核心命令高置信，最终以 `obsidian.d.ts` / 实测命令面板为准（F2 类型对齐时复核）。
 
-*最后更新*：2026-06-24（R181 建立；R187 §4 方向性聚焦 4 partial→done；R188 §15 折叠/展开 2 partial→done；R189 §2 插入内部链接 partial→done + 补录 R186 §2 设为/移除小标题 7 项 missing→done；R190 §4 关闭其他/此组/组内其他 3 ui-only→done；R191 §3 多光标上/下 2 missing→done；R192 §2 清除格式 missing→done；R193 §11 收藏所有标签页 + 移除当前文件书签 2 missing→done；R194 §3 清除笔记属性 missing→done；R195 §5 切换新标签页默认视图 missing→done + 补录 R185 §5 功能区/行号/行宽/拼写检查 4 项 missing/partial→done；R196 §3 添加别名/添加标签 2 missing→done；R197 §3 删除段落 missing→done；R198 §2 行内数学 + 插入数学块 + 插入分隔线 3 项 missing→done；R199 §2 插入脚注 missing→done；R200 §3 光标处上下文菜单 missing→done · §3 全清；R201 §4 打开光标处链接 partial→done + 在新标签页打开 missing→done；R202 §4 在新标签组打开 missing→done；R203 §1 管理/切换仓库 2 missing→done[C1 首片] + §2 小标题切换 partial→done[据实纠误·已全级循环]；R204 §2 重命名小标题 片 A missing→done；R218 §6 在系统中显示 + 用默认应用打开 2 missing→done[tauri-plugin-opener]；R219 §8 backlinks-in-document ui-only→done + backlink:open-in-new-tab partial→oos[phantom] + 据实纠误 §1/§6/§7 共 6 项 R183/R184-命令 ui-only→done · *ui-only 真·全清*）。*实时 done/partial/missing tally 以 `ROADMAP.md` 取用纪律段为准*（§20 是 R181/R182 快照，未逐轮重排 R183–R187 增量；§1–15 各组小结已随轮更新）。
+*最后更新*：2026-06-24（R181 建立；R187 §4 方向性聚焦 4 partial→done；R188 §15 折叠/展开 2 partial→done；R189 §2 插入内部链接 partial→done + 补录 R186 §2 设为/移除小标题 7 项 missing→done；R190 §4 关闭其他/此组/组内其他 3 ui-only→done；R191 §3 多光标上/下 2 missing→done；R192 §2 清除格式 missing→done；R193 §11 收藏所有标签页 + 移除当前文件书签 2 missing→done；R194 §3 清除笔记属性 missing→done；R195 §5 切换新标签页默认视图 missing→done + 补录 R185 §5 功能区/行号/行宽/拼写检查 4 项 missing/partial→done；R196 §3 添加别名/添加标签 2 missing→done；R197 §3 删除段落 missing→done；R198 §2 行内数学 + 插入数学块 + 插入分隔线 3 项 missing→done；R199 §2 插入脚注 missing→done；R200 §3 光标处上下文菜单 missing→done · §3 全清；R201 §4 打开光标处链接 partial→done + 在新标签页打开 missing→done；R202 §4 在新标签组打开 missing→done；R203 §1 管理/切换仓库 2 missing→done[C1 首片] + §2 小标题切换 partial→done[据实纠误·已全级循环]；R204 §2 重命名小标题 片 A missing→done；R218 §6 在系统中显示 + 用默认应用打开 2 missing→done[tauri-plugin-opener]；R219 §8 backlinks-in-document ui-only→done + backlink:open-in-new-tab partial→oos[phantom] + 据实纠误 §1/§6/§7 共 6 项 R183/R184-命令 ui-only→done · *ui-only 真·全清*）。*实时 done/partial/missing tally 以 `ROADMAP.adoc` 取用纪律段为准*（§20 是 R181/R182 快照，未逐轮重排 R183–R187 增量；§1–15 各组小结已随轮更新）。
 ____
 
 '''
@@ -240,7 +240,7 @@ ADKM 现注册命令：*88 条字面 id + 8 条动态 `app:go-to-tab-1…8` = �
 
 小结：done 7 · partial 0 · oos 1（*R211：反链标签页 partial→done·主区视图 host 首片；R212：出链+大纲标签页 partial→done·续片[`isFilelessSingletonView` 守卫统一序列化触点·消 R211 漏判类]；R219：backlink:open-in-new-tab partial→oos·web 实证 phantom*）。*模式：主面板都 done；R211 建主区视图 host（viewType "backlinks"）→ R212 复用基建把 outgoinglinks/outline 也搬进主区*。partial 清零；§8 补遗的 backlink:toggle-backlinks-in-document 亦经 R219 ui-only→done。
 
-*§8 补遗（并自侧栏 stub `G3-COMMAND-MATRIX.md` @70e2730，2026-06-24 收编）*：该 stub 另抓到 3 条本表未列的细项（收编后建议删除原 stub 文件，留本表为单一权威矩阵——删除命令见文末或交收尾轮执行）——
+*§8 补遗（并自侧栏 stub `G3-COMMAND-MATRIX.adoc` @70e2730，2026-06-24 收编）*：该 stub 另抓到 3 条本表未列的细项（收编后建议删除原 stub 文件，留本表为单一权威矩阵——删除命令见文末或交收尾轮执行）——
 
 [options="header"]
 |===
@@ -423,7 +423,7 @@ ____
 
 [quote]
 ____
-计数经 `awk`/`grep` 实测（§1–15 详表 status 列：done 80 · partial 19 · ui-only 6 · missing 58 · oos 2；§16 Canvas 4 oos；§17 表格 ~15 missing；§18 Bases ~6 oos；§19 Sync ~4 oos）。*⚠️ 此为 R182 建表快照·未逐轮重排——live tally 以 `ROADMAP.md` 取用纪律段为准（live：done ~153 · ui-only 0[R183/R184/R219 全清] · §1–15 各组小结已逐轮更新）。****总计可见 ~196 行*具名命令。截图页眉「280」与之差额 ≈ 各组完整细变体 + 第三方插件（Calendar/Claudien/ePub Reader/Folo）自带命令 + 本表归并表述的细项。*280 全量逐条仍以 16 张截图为准*；本矩阵覆盖核心 + 全部来源组，足以指导「补哪些、勿重做哪些」。
+计数经 `awk`/`grep` 实测（§1–15 详表 status 列：done 80 · partial 19 · ui-only 6 · missing 58 · oos 2；§16 Canvas 4 oos；§17 表格 ~15 missing；§18 Bases ~6 oos；§19 Sync ~4 oos）。*⚠️ 此为 R182 建表快照·未逐轮重排——live tally 以 `ROADMAP.adoc` 取用纪律段为准（live：done ~153 · ui-only 0[R183/R184/R219 全清] · §1–15 各组小结已逐轮更新）。****总计可见 ~196 行*具名命令。截图页眉「280」与之差额 ≈ 各组完整细变体 + 第三方插件（Calendar/Claudien/ePub Reader/Folo）自带命令 + 本表归并表述的细项。*280 全量逐条仍以 16 张截图为准*；本矩阵覆盖核心 + 全部来源组，足以指导「补哪些、勿重做哪些」。
 
 *复核状态*：所有 `done`/`partial` 行的 ADKM id 已 `comm` 对账真实注册表（`src` grep），*零虚标*；Obsidian 侧 id 为推断，待 `obsidian.d.ts`/实测命令面板复核（F2 类型对齐时）。
 ____

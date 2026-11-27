@@ -4,7 +4,7 @@
 
 [quote]
 ____
-*定位*：辅助开发的单一差距来源。整合自三份历史文档—— `OBSIDIAN_REPLICA_GAP_AUDIT_2026-06-23.md`（页面/视觉/设置 IA/右键菜单）、 `OBSIDIAN_FUNCTIONAL_GAP_SUPPLEMENT_2026-06-23.md`（功能契约/命令/核心插件/桌面宿主/兼容 API）、 `geode-设计讨论/11-复刻完成度盘点.md`（R22 早期盘点，已退化为指向本文的占位）。 本文取代上述三份；排期前以本文 + `ROADMAP.md` G/F 系列最新段落 + 当前代码为准。
+*定位*：辅助开发的单一差距来源。整合自三份历史文档—— `OBSIDIAN_REPLICA_GAP_AUDIT_2026-06-23.md`（页面/视觉/设置 IA/右键菜单）、 `OBSIDIAN_FUNCTIONAL_GAP_SUPPLEMENT_2026-06-23.md`（功能契约/命令/核心插件/桌面宿主/兼容 API）、 `geode-设计讨论/11-复刻完成度盘点.md`（R22 早期盘点，已退化为指向本文的占位）。 本文取代上述三份；排期前以本文 + `ROADMAP.adoc` G/F 系列最新段落 + 当前代码为准。
 
 *最近审计*：2026-06-23 · 基线 ADKM v0.173.0（开发服 `http://127.0.0.1:1420/`），代码线已至 R178（v0.175）。 *对照基准*：Obsidian 1.9.10 简中截图（`reference/_截图/` 42 张，`2940×1912`）+ `reference/00–08`（注：`reference/` 当前位于工作区根、不在 `geode/` 仓库内，G 系列「逐像素验收」暂据审计文字 + Obsidian 实测，真·像素级须先补截图资产）。 *维护约定*：活文档——每轮若改动复刻表面/功能闭环，顺手更新对应行的状态标注；勿再新建带日期的快照审计。
 ____
@@ -122,7 +122,7 @@ Obsidian：安装版本·检查更新·自动更新·语言·帮助·账户·Cat
 
 [quote]
 ____
-本文 = 差距来源；`ROADMAP.md`「表面复刻差距（G 系列）」「功能复刻补充」「兼容深化（F 系列）」= 执行队列与出队记录。条目编号与 ROADMAP 保持同步。
+本文 = 差距来源；`ROADMAP.adoc`「表面复刻差距（G 系列）」「功能复刻补充」「兼容深化（F 系列）」= 执行队列与出队记录。条目编号与 ROADMAP 保持同步。
 ____
 
 === P0 · 先修「看起来不像」的面（迁移感知第一）
@@ -180,7 +180,7 @@ Backlinks、Graph / local graph、Quick switcher、Command palette、Templates�
 
 == 六、插件兼容层差距（高价值缺口 + 推进顺序）
 
-`OBSIDIAN-COMPAT.md` 结论：高频核心 API 覆盖不错，bounded 项基本清空；剩余高价值缺口多需新依赖、Rust/Tauri host、CM6 跨层或 app-shell 接线。
+`OBSIDIAN-COMPAT.adoc` 结论：高频核心 API 覆盖不错，bounded 项基本清空；剩余高价值缺口多需新依赖、Rust/Tauri host、CM6 跨层或 app-shell 接线。
 
 [options="header"]
 |===
@@ -290,7 +290,7 @@ ____
 
 == 相关文档
 
-* `ROADMAP.md` — G 系列「表面复刻差距」、功能复刻补充、F 系列「兼容深化」的执行队列与出队记录。
-* `OBSIDIAN-COMPAT.md` — 插件兼容层 Tier 表、校准机制、验收套件、越界表。
+* `ROADMAP.adoc` — G 系列「表面复刻差距」、功能复刻补充、F 系列「兼容深化」的执行队列与出队记录。
+* `OBSIDIAN-COMPAT.adoc` — 插件兼容层 Tier 表、校准机制、验收套件、越界表。
 * `reference/00–08` + `reference/_截图/` — 像素级验收基准。
-* `ARCHITECTURE.md` — R16 改写引擎 / R17 折叠摄入等显式口径与技术债根因。
+* `ARCHITECTURE.adoc` — R16 改写引擎 / R17 折叠摄入等显式口径与技术债根因。
