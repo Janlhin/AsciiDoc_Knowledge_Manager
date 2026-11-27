@@ -50,7 +50,9 @@ export async function runReferenceCheck(deps: ReferenceCheckDeps): Promise<Refer
 
     const report = buildReferenceReport(notes, {
       resolveByKind: (link, fromPath) => metadata.resolveByKind(link, fromPath),
-      files: files.map((f) => f.path),
+      // Resolve against every vault path (attachments included); only the
+      // scanned *bodies* stay limited to indexable files.
+      files: allPaths,
       antora,
     });
     workspace.referenceReport.set(report);

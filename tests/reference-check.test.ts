@@ -26,6 +26,8 @@ import {
   type ReferenceReport,
   type ReferenceReportNote,
 } from "@core/referenceReport";
+import { runReferenceCheck } from "@core/referenceReportRunner";
+import { Store } from "@core/store";
 import {
   classifyReferenceStatus,
   hasUnresolvedAttribute,
@@ -314,5 +316,20 @@ describe("T-070 graph edges — kind only on broken edges", () => {
     const ghost = graph.edges.find((e) => e.target.startsWith("unresolved:"));
     expect(aToB?.kind).toBeUndefined();
     expect(ghost?.kind).toBe("broken");
+  });
+});
+
+describe("T-070 runner — attachments stay resolvable", () => {
+  it("resolves an adoc link to an existing attachment", async () => {
+    const { vault, metadata } = await makeVault({
+      "docs/guide.adoc": "= Guide\n\nlink:manual.pdf[Manual]\n",
+      "manual.pdf": "%PDF-1.4",
+    });
+    const workspace = { referenceReport: new Store<ReferenceReport | null>(null) };
+    const report = await runReferenceCheck({ vault, metadata, workspace });
+    const entry = report.entries.find(
+      (e) => e.path === "docs/guide.adoc" && e.target === "manual.pdf",
+    );
+    expect(entry?.status).toBe("resolved");
   });
 });
