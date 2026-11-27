@@ -6,6 +6,62 @@
 
 ## 待办
 
+### T-072 章程 §9.2 稳定性补齐 + 1.0 发版准备（D-046 / D-047）
+
+- **提出**：2026-11-27
+- **背景**：章程 §9.2 四条稳定性要求——单文档解析失败单独记录且可见、索引损坏可从原文重建、watcher 重复事件与临时文件替换不乱序不重复索引、长任务可取消。同时做 1.0 发版准备：打包配置核查、unsigned 可复现构建、发版清单文档。不碰签名私钥，不开 PR、不 push。
+- **方法**：
+  1. 取证 `src/core/metadata.ts` / `src/core/indexer.ts` / `src/core/vault.ts` / `src-tauri/src/main.rs` 现状，已有能力补测试证据，缺项按最小方案补齐（不新造错误中心、不加依赖）。
+  2. 解析失败：`MetadataIndex` 加内存注册表（`getParseErrors` / `getParseError`），Explorer 行标记 + tooltip；索引回退：坏行跳过、索引缺失回退读盘，以可注入假 host 测试证明；watcher：TS `dedupePaths` 折叠同批重复路径，Rust `to_vault_relative` 补单测；取消：`cancelSearchIndex` / `resetSearchIndexCancel` 协作标志，切库先取消再重开。
+  3. 发版：核查 `tauri.conf.json`；`--no-bundle` 出 exe；缺私钥时用 `--config` 内联覆盖 `createUpdaterArtifacts=false` 出 unsigned NSIS，记录路径 / 体积 / SHA256 / 退出码；新增 `docs/release-checklist.adoc`，AGENTS 文档表加一行。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；`npm run typecheck:scripts` 退出码 0；
+  2. `npx vitest run tests/stability-92.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减（基线 266 passed + 1 expected fail + 1 skipped）；`npm run verify` 退出码 0；
+  4. `cargo check`（`src-tauri/`）退出码 0；`cargo test watcher_tests` 退出码 0；
+  5. `npx tauri build --no-bundle` 退出码 0，产物 `src-tauri/target/release/adkm.exe`，记录字节数与 SHA256；
+  6. unsigned 安装包命令退出码 0，产物 `src-tauri/target/release/bundle/nsis/ADKM_0.0.1_x64-setup.exe`，记录字节数与 SHA256；签名失败路径有原始报错留痕；
+  7. `docs/release-checklist.adoc` 存在；`AGENTS.md` 文档表含该行；`DECISIONS.md` 含 D-046 / D-047；`CHANGELOG.adoc` 未发布节新增一条。
+- **解决**：**完成（2026-11-27）**。`npm run typecheck` 退出 0；`npm run typecheck:scripts` 退出 0；`npx vitest run tests/stability-92.test.ts` 退出 0（7 用例）；`npm test -- --run` 退出 0（25 文件通过 / 1 跳过，273 passed + 1 expected fail + 1 skipped，基线 266 passed，净增 7）；`npm run verify` 退出 0；`cargo check` 退出 0，`cargo test` 26 passed / 0 failed。构建：`npx tauri build --no-bundle` 退出 0，`adkm.exe` 10,285,056 字节（9.81 MiB），当次 SHA256 `557AF558886026D91A3920B003E2CB2A181D794C2F8A5124F51E2073E05183E7`（后被打包构建重编，现哈希 `E4A9E9E890B93172F4BE786CB053CC4C5A48AE5320B08AB69113C4A0D5A287E7`）；unsigned `npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'` 退出 0，`ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB），SHA256 `494720715B460A4147D33C4033790B3EB8A7ED23B8CCA8A09578227FEC9D633E`；裸 `npx tauri build` 退出 1，报缺 `TAURI_SIGNING_PRIVATE_KEY`（预期 blocked）。决策见 D-046 / D-047，清单见 `docs/release-checklist.adoc`。
+- **仍缺**：GUI 真机冒烟（`adkm.exe demo-vault`）、安装 / 卸载 / 升级链路、Authenticode 签名、公开发布与 `latest.json` 均 blocked；版本号仍 `0.0.1`，1.0.0 范围另立任务；README 旧体积表述留待发布前随版本号更新。
+
+### T-071 AsciiDoc 折叠 + 大纲（0.6 收口，D-045）
+
+- **提出**：2026-11-27
+- **背景**：T-067 落地了 adoc 源码语言模式与 xref 跳转，但章节折叠只认 Markdown Lezer 树节点——adoc 是 StreamLanguage，树上没有标题节点，标题行拿不到折叠点；大纲侧标签跟随条件对 adoc 本就成立（adoc 标签 viewType 同为 `markdown`），`parseAsciiDoc` 也已产出 headings，缺的只是折叠分支与行构造的测试证据。本任务补 adoc 标题折叠，并把大纲行构造抽成纯函数补测；Markdown 折叠 / 大纲语义零改动。
+- **方法**：
+  1. `src/features/editor/folding.ts` 新增纯函数 `collectAdocHeadings` / `foldAdocSection`（输入源文本 + 行号 → `{ from, to } | null`），复用 batch-1 `scanAsciiDocLine` 的块状态：`----`/`....`/`++++`/`$$$$` 逐字块、`////` 块注释、`[source,…]` 块、`//` 行注释内的 `=` 行不算标题；`adocFoldRange` / `adocFoldService` 为 CodeMirror 适配器；foldService compartment 按 `isAdoc` 选 adoc / markdown 服务，`foldHeading` 开关对两者同样生效。
+  2. 大纲：`buildRows` 从 `OutlinePanel.tsx` 抽到 `src/features/outline/outlineRows.ts` 纯模块（行为不变）；adoc headings 经既有 `parseAsciiDoc` → metadata → rows 链路出层级、折叠键 `index`、`hasChildren`，点击按 `from` 偏移跳源码行。
+  3. 新增 `tests/adoc-fold-outline.test.ts`：相邻同级、层级跳跃到 `======`、末节、单行 / 空节、未闭合代码块、块注释、行注释、`[source]` 内 `=`；空文档、全代码块、500 行深层级不崩溃；服务装配轻量断言。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npx vitest run tests/adoc-fold-outline.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减（基线 266 passed + 1 expected fail + 1 skipped）；
+  4. `npm run verify` 退出码 0；
+  5. `git diff 7507b58 -- package.json package-lock.json` 为空（零新生产 / 开发依赖）。
+- **解决**：**完成（2026-11-27）**。验证：`npm run typecheck` 0；`npx vitest run tests/adoc-fold-outline.test.ts` 0（21 用例）；`npm test -- --run` 287 passed + 1 expected fail + 1 skipped（基线 266，新增 21）；决策记录见 `DECISIONS.md` D-045。
+- **仍缺**：下划线式标题（文本行 + `===`/`---` 下划线）未识别；示例块 `====`、侧栏 `****`、引用 `____`、开放块 `--` 内部的 `=` 仍按标题处理（batch-1 词法未屏蔽这四类非逐字块）；真机 WebView 折叠展开与大纲点击未目检（E2E 范畴）。
+
+### T-070 三态引用校验报告 + 图谱断链边（章程 §5.1 / §5.4，D-043 / D-044）
+
+- **提出**：2026-11-27
+- **背景**：现状索引只产出二值（`resolveByKind` 返回 `string | null`），`null` 同时表示「目标文件不存在」和「无法确定目标」，校验与图谱都只能把两者混在一起。章程 §5.1 要求有效 / 断链 / 未解析三态，§5.4 要求断链边可见。决策表档位：D-14 A / D-15 A / D-16 D / D-19 B / D-20 B。
+- **范围**：
+  1. `LinkRef` 只新增 `status`（resolved / broken / unresolved）与 `sourceLine`（1-based，解析阶段记录）；其余章程字段不加。
+  2. 纯函数 `classifyReferenceStatus`（`src/core/referenceStatus.ts`）承担二值→三态判定；纯报告引擎 `buildReferenceReport`（`src/core/referenceReport.ts`）按源码位置去重，产出全库三态条目。
+  3. 独立 fileless 单例视图「引用校验」：列全库非有效条目，按 status / 格式筛选，点击跳转定位源码行；不做任何导出。
+  4. `GraphEdge` 只加 `kind?: "broken"`；断链边虚线 + 独立配色，图例新增「断链」条；其余边类型不动。
+  5. 锚点（subpath）存在性本轮不判：文件存在即有效（D-20 B）。
+- **方法**：解析阶段记录行号（md wikilink / markdown 链接；adoc `xref:` / `<<>>` / `link:` / `include::`）；adoc 目标经既有 `resolveXref` / `resolveInclude` 的 `DocResolution` 三态直接映射，md 目标按 `resolvedPath` 判；属性占位符残留、include 越界判未解析。面板 runner 复用既有 Antora 描述符加载规则，不与文档体检的 category 语义混用。
+- **完成判据**：
+  1. `npm run typecheck` 退出码 0；
+  2. `npx vitest run tests/reference-check.test.ts` 退出码 0；
+  3. `npm test -- --run` 退出码 0，通过数只增不减；
+  4. `npm run verify` 退出码 0；
+  5. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0，`audit-hot` p95 ≤5000ms。
+- **解决**：**完成（2026-11-27）**。三态模型、校验面板、图谱断链边与 18 个新单测落地；千篇基准 audit-hot median 347.92 ms / p95 359.4 ms（≤5000ms 目标内）。决策记录见 `DECISIONS.md` D-043 / D-044；边界与已知缺口见 `docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`。
+- **仍缺**：锚点级断链不判（文件存在即有效，锚点存在性留待复审）；txt 正文不扫引用；条件块外求值失败、Antora 多候选歧义的细分场景仅部分覆盖；不做 CSV / JSON / AsciiDoc 导出；未在真机 WebView 目检面板与图谱配色。
+
 ### T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
 
 - **提出**：2026-11-27

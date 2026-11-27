@@ -31,6 +31,14 @@ export interface FolderNode {
 
 export type VaultNode = FileNode | FolderNode;
 
+/** T-070: charter §5.1 three-state reference verdict.
+ *  - `resolved`   — resolved to a file that exists in the index;
+ *  - `broken`     — path resolved but the target file is missing from the index;
+ *  - `unresolved` — grammar-level undecidable (undefined attribute, dynamic/non-path
+ *                   target, rejected/out-of-jail include path, conditional-block eval failure).
+ *  Anchor (subpath) existence is NOT judged this round (D-20 B). */
+export type LinkRefStatus = "resolved" | "broken" | "unresolved";
+
 /** A wikilink or markdown link found inside a note. */
 export interface LinkRef {
   /** raw link target as written. wikilink: "Welcome" / "Notes/Welcome";
@@ -53,6 +61,13 @@ export interface LinkRef {
    *  layer, so adding members would silently send those branches to `else`
    *  (renaming a file would stop rewriting adoc xrefs). Additive only. */
   syntax?: "xref" | "xref-short" | "link-macro" | "include";
+  /** T-070: three-state verdict against the index (charter §5.1). Filled by the
+   *  resolution/report pass; parsers never guess it. Optional for backward
+   *  compatibility with hydrated metadata written before T-070. */
+  status?: LinkRefStatus;
+  /** T-070: 1-based source line, recorded at parse time (never reverse-searched
+   *  from the string later, which misaligns on repeated lines). */
+  sourceLine?: number;
 }
 
 export interface HeadingRef {
@@ -139,6 +154,9 @@ export interface GraphNode {
 export interface GraphEdge {
   source: string;
   target: string;
+  /** T-070 (D-19 B): edge pointing at an unresolved/missing target. This is the
+   *  ONLY extra edge member this round — other edge types stay out of scope. */
+  kind?: "broken";
 }
 
 export interface GraphData {
@@ -176,7 +194,7 @@ export interface TabState {
    *  "attachment" shows a non-md file READ-ONLY (image/binary, never autosaved);
    *  R211/R212 "backlinks"/"outgoinglinks"/"outline" show that panel in the main
    *  area (fileless singletons, like graph — see workspace.isFilelessSingletonView). */
-  viewType: "markdown" | "graph" | "attachment" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign";
+  viewType: "markdown" | "graph" | "attachment" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign" | "refcheck";
   filePath: string | null;
   mode: ViewMode;
   title: string;

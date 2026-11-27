@@ -124,6 +124,20 @@
   color: var(--text-faint);
 }
 
+/* T-070 (D-19 B): broken-edge legend swatch — dashed line in the danger colour */
+.graph-legend-broken {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--danger, #e06c75);
+}
+
+.graph-legend-broken-line {
+  width: 18px;
+  height: 0;
+  border-top: 1.5px dashed var(--danger, #e06c75);
+}
+
 .graph-empty {
   position: absolute;
   inset: 0;

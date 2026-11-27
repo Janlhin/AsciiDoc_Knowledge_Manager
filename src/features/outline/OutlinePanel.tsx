@@ -3,29 +3,9 @@ import { useApp } from "@app/AppContext";
 import { Icon } from "@app/icons";
 import { useStore } from "@core/store";
 import { useI18n } from "@core/i18n";
-import type { HeadingRef } from "@core/types";
 import { findActiveTab } from "@core/workspace";
+import { buildRows, type OutlineRow } from "./outlineRows";
 import "./outline.scss";
-
-interface OutlineRow {
-  /** index into the original headings array — used as collapse key */
-  index: number;
-  heading: HeadingRef;
-  /** true when deeper-level headings immediately follow */
-  hasChildren: boolean;
-}
-
-/** Build rows and child info from the flat heading list. */
-function buildRows(headings: HeadingRef[]): OutlineRow[] {
-  return headings.map((heading, index) => {
-    const next = headings[index + 1];
-    return {
-      index,
-      heading,
-      hasChildren: next !== undefined && next.level > heading.level,
-    };
-  });
-}
 
 /**
  * Filter out rows hidden under a collapsed ancestor.

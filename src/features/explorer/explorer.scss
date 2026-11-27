@@ -67,6 +67,12 @@
   opacity: 0.45;
 }
 
+/* §9.2: a note that failed to read/parse in the last index pass — name in the
+ * danger color, full error in the row tooltip. The registry lives in MetadataIndex. */
+.explorer-item.is-parse-error .explorer-name {
+  color: var(--danger);
+}
+
 .explorer-chevron {
   width: 15px;
   flex-shrink: 0;

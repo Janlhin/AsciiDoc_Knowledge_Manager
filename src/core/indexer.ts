@@ -45,6 +45,23 @@ const BACKFILL_CHUNK = 8;
 let started = false;
 let activeVault: string | null = null;
 
+/** §9.2: cooperative cancel for a running backfill/rebuild. Raised on vault
+ *  switch (and available to the host for window teardown / a future cancel
+ *  command); the sync loop checks between notes and stops. Index writes are
+ *  per-row and idempotent, so stopping mid-run leaves no half-written batch —
+ *  the next sync resumes from where it stopped and converges. */
+let cancelRequested = false;
+
+/** Request any running `syncSearchIndex` to stop after the current note. */
+export function cancelSearchIndex(): void {
+  cancelRequested = true;
+}
+
+/** Clear the cancel flag before starting a fresh sync (new vault / manual rebuild). */
+export function resetSearchIndexCancel(): void {
+  cancelRequested = false;
+}
+
 /** `path -> parsed metadata` restored from the persisted index. */
 type HydrationRows = Map<string, { mtime: number; size: number; meta: NoteMetadata }>;
 
@@ -159,6 +176,7 @@ export async function syncSearchIndex(host: IndexHost): Promise<number> {
   let written = 0;
   let sinceYield = 0;
   for (const file of files) {
+    if (cancelRequested) break; // §9.2: stop cooperatively; rows so far are committed
     const prev = known.get(file.path);
     // 1s slack: FAT/exFAT timestamps are coarse, and a false "unchanged" only
     // costs a stale excerpt, while a false "changed" costs a full re-parse.
@@ -222,6 +240,9 @@ export function startSearchIndex(host: IndexHost): void {
   host.events.on("vault:changed", ({ reason }) => {
     if (reason !== "load") return;
     void (async () => {
+      // §9.2: stop any in-flight backfill bound to the previous vault before
+      // tearing its connection down; the new vault's sync starts uncancelled.
+      cancelSearchIndex();
       const target = host.vault.getVaultPath();
       // At boot primeIndexHydration() has already opened this exact vault;
       // closing it here would race the hydrator's indexKnown() read.
@@ -231,6 +252,7 @@ export function startSearchIndex(host: IndexHost): void {
         activeVault = null;
         if (!(await openFor(host))) return;
       }
+      resetSearchIndexCancel();
       await syncSearchIndex(host);
     })();
   });
@@ -244,6 +266,7 @@ export function startSearchIndex(host: IndexHost): void {
   // disk. A warm start skips every unchanged note and finishes almost instantly.
   void (async () => {
     await yieldToUi();
+    resetSearchIndexCancel();
     if (await openFor(host)) await syncSearchIndex(host);
   })();
 }

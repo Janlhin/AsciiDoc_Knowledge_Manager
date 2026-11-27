@@ -109,7 +109,9 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
   let inBlock = false;
   let blockChar = "";
 
-  for (const { text: line, start: lineStart } of lines) {
+  for (let lineNo = 0; lineNo < lines.length; lineNo += 1) {
+    const { text: line, start: lineStart } = lines[lineNo];
+    const sourceLine = lineNo + 1;
     const delim = VERBATIM_FENCE.exec(line);
     if (delim) {
       const ch = delim[1];
@@ -157,6 +159,7 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
         context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
         syntax: "xref",
+        sourceLine,
       });
     }
 
@@ -173,6 +176,7 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
         context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
         syntax: "link-macro",
+        sourceLine,
       });
     }
 
@@ -195,6 +199,7 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
         context: makeSnippet(content, from, from + m[0].length),
         kind: "markdown",
         syntax: "xref-short",
+        sourceLine,
       });
     }
 
@@ -209,6 +214,7 @@ export function parseAsciiDoc(path: string, content: string): NoteMetadata {
         context: makeSnippet(content, lineStart, lineStart + line.length),
         kind: "markdown",
         syntax: "include",
+        sourceLine,
       });
     }
   }

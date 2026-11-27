@@ -1,0 +1,98 @@
+= ADR-0005：三态引用判定边界与锚点不判的已知缺口
+:revnumber: 1.0.0
+:revdate: 2026-11-27
+:status: accepted
+:toc:
+:toclevels: 2
+
+== 状态
+
+已接受。依据用户 2026-11-27 指示制作（决策表 D-14 A / D-15 A / D-16 D / D-19 B / D-20 B），对应任务 T-070，决策记录见 `DECISIONS.md` D-043 / D-044。
+
+== 背景
+
+此前索引只产出二值结果：`resolveByKind` 返回 `string | null`，`null` **同时**表示两种完全不同的情况：
+
+. 目标路径解析完成，但文件不在索引中（文件被删 / 从未存在）；
+. 语法层根本无法确定目标是什么（属性未定义、动态路径、include 越界被拒、条件块外求值失败）。
+
+校验规则和图谱幽灵节点都只能把两者混在一起，面板无法回答「这条到底是真断了，还是我看不懂」。章程 §5.1 要求把引用校验拆成有效 / 断链 / 未解析三态，§5.4 要求断链边在图谱中可见。
+
+== 决策
+
+引用校验按章程 §5.1 拆三态，判定收敛到纯函数 `classifyReferenceStatus`（`src/core/referenceStatus.ts`），可脱离 Tauri 运行单测；报告由纯引擎 `buildReferenceReport`（`src/core/referenceReport.ts`）按源码位置去重产出。
+
+`LinkRef` 本轮只新增两个字段：
+
+- `status: "resolved" | "broken" | "unresolved"` —— 对照索引后的判定结论，由解析后的判定阶段填充，解析器不猜；
+- `sourceLine: number` —— 1-based 源码行号，在解析阶段记录（md 的 wikilink / markdown 链接；adoc 的 `xref:` / `<<>>` / `link:` / `include::` 四类），不事后按目标字符串反推行号（重复行会错位）。
+
+其余章程字段（reftext / subpath 等）本轮不加；已有 `subpath` 不动。
+
+== 三态定义
+
+[cols="1,3,3",options="header"]
+|===
+|状态 |判定条件 |典型输入
+
+|有效（resolved）
+|路径解析到索引中已存在的目标文件（targetDocId 非空）
+|`[[Existing]]`、`xref:existing.adoc[]`、`include::partial.adoc[]` 且目标在库
+
+|断链（broken）
+|路径解析完成，但目标文件不在索引（文件被删 / 不存在），含 include 目标缺失
+|`[[Ghost]]`、`xref:missing.adoc[]`、`include::gone.adoc[]`
+
+|未解析（unresolved）
+|语法层无法确定：属性未定义、动态 / 非路径目标、include 路径被拒绝或越出仓库根、条件块外求值失败
+|`xref:{undefined-attr}[]`、`include::../../escape.adoc[]`、Antora 资源 id 多候选歧义
+|===
+
+路由口径：
+
+- md wikilink / markdown 链接：按索引解析结果判，非空路径＝有效；`null` 且残留未替换的 `{attr}` 占位符＝未解析（属性），其余＝断链。
+- adoc `xref:` / `<<>>` / `link:` / `include::`：复用既有 `resolveXref` / `resolveInclude` 的 `DocResolution` 三态直接映射；include 越出仓库根判未解析（rejected）。
+- 同一源码位置（path + from + to）只产出一条记录；同一目标被 wikilink 与 markdown 各写一次属两个不同位置，保留两条。
+- `.txt` 只作为被引用目标，其正文不解析引用。
+
+== 二值歧义的根因
+
+二值 `null` 的问题不在返回值本身，而在**解析与判定混层**：解析器只看语法，拿不到索引，无法判断文件是否存在；而索引层把「查不到」和「看不懂」压成同一个 `null`。本轮的拆法是把判定单独收成一个纯函数：解析阶段只记录位置与原文，判定阶段对照索引和 `DocResolution` 结论映射三态。这样「二值 → 三态」的边界只有一处，且可在无 Tauri 环境下逐例单测。
+
+== 已知缺口：锚点存在性本轮不判（D-20 B）
+
+**锚点（subpath / 标题书签）是否存在，本轮一律不判。** `foo.adoc#missing-anchor` 且文件存在 → 判**有效**；不采用「带锚点一律归未解析」的误报策略。
+
+原因：锚点校验要动解析器（抽出锚点）+ 索引结构（收录标题 / 书签位置），与三态核心改动耦合很深；在没有锚点索引之前强行判定，只能靠猜，会产生大量误报。
+
+当前边界：
+
+- 锚点随路径一起被剥掉，目标文件在库即有效；锚点缺失既不报断链，也不报未解析。
+- md 的 `#heading` 与 adoc 的 `#anchor` 口径一致，本轮都不查。
+
+== 复审条件
+
+满足以下条件后另立任务补锚点级断链判定：
+
+. 索引收录了可查询的标题 / 书签位置（md 标题、adoc 标题与显式书签）；
+. 解析器能稳定分离路径与锚点，且锚点语法在 md / adoc 两侧口径一致；
+. 有真实库样本验证锚点命中率，避免误报压过有效信号。
+
+其余已知缺口：条件块外求值失败、Antora 多候选歧义的细分场景覆盖有限；txt 正文不扫引用；不做 CSV / JSON / AsciiDoc 导出（D-16 D）。
+
+== 影响范围
+
+- 核心模型：`src/core/types.ts`（`LinkRef.status` / `LinkRef.sourceLine`、`GraphEdge.kind`）。
+- 判定与报告：`src/core/referenceStatus.ts`、`src/core/referenceReport.ts`、`src/core/referenceReportRunner.ts`；解析器行号记录。
+- 面板：`src/features/refcheck/` 独立 fileless 单例视图，按 status / 格式筛选，点击跳转定位源码行。
+- 图谱：`GraphEdge` 只加 `kind?: "broken"`；断链边虚线 + 独立配色，图例新增「断链」条；常规边视觉不变。
+- 不改 `src-tauri`、`.tauri-keys`、PR #5 三路径；不动 Canvas、导出、其他图谱边类型；零新增依赖。
+
+== 修订记录
+
+[cols="1,2,3",options="header"]
+|===
+|版本 |日期 |说明
+
+|1.0.0 |2026-11-27 |初版，T-070 三态边界与锚点缺口登记。
+|===

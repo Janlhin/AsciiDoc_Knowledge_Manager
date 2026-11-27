@@ -54,7 +54,10 @@ function applyForces(sim: Simulation<SimNode, SimLink>, f: GraphForces): void {
 /* ---------------- types & helpers ---------------- */
 
 interface SimNode extends SimulationNodeDatum, GraphNode {}
-type SimLink = SimulationLinkDatum<SimNode>;
+interface SimLink extends SimulationLinkDatum<SimNode> {
+  /** T-070 (D-19 B): edge to a missing / unresolved target. Only this member rides along. */
+  kind?: "broken";
+}
 
 interface Transform {
   x: number;
@@ -72,6 +75,8 @@ interface Palette {
   unresolved: string;
   tag: string;
   attachment: string;
+  /** T-070: broken-edge stroke (missing / unresolved target). */
+  broken: string;
 }
 
 const FALLBACK_PALETTE: Palette = {
@@ -84,6 +89,7 @@ const FALLBACK_PALETTE: Palette = {
   unresolved: "#8b7cf680",
   tag: "#3aa655",
   attachment: "#e0b341",
+  broken: "#e06c75",
 };
 
 type DragState =
@@ -159,6 +165,7 @@ function readPalette(el: HTMLElement): Palette {
     unresolved: v("--link-unresolved", FALLBACK_PALETTE.unresolved),
     tag: v("--graph-tag", FALLBACK_PALETTE.tag),
     attachment: v("--graph-attachment", FALLBACK_PALETTE.attachment),
+    broken: v("--danger", FALLBACK_PALETTE.broken),
   };
 }
 
@@ -226,6 +233,7 @@ export function GraphView() {
     totalNodes: 0,
     capped: false,
     localEmpty: false,
+    brokenEdges: 0,
   });
   const firstBuild = useRef(true);
   /** user panned/zoomed since mount — suppresses the first-settle auto-fit */
@@ -319,13 +327,18 @@ export function GraphView() {
       // endpoints out is rare and clipped for a frame at most)
       if (!inView(ax, ay) && !inView(bx, by)) continue;
       const lit = hovered !== null && (a.id === hovered.id || b.id === hovered.id);
-      ctx.strokeStyle = lit ? p.accent : p.borderStrong;
+      const broken = link.kind === "broken";
+      ctx.strokeStyle = lit ? p.accent : broken ? p.broken : p.borderStrong;
       ctx.globalAlpha = lit ? 0.8 : dimAlpha;
       ctx.lineWidth = (lit ? disp.linkThickness * 1.6 : disp.linkThickness) / t.k;
+      // T-070 (D-19 B): broken edges render dashed in the broken palette colour;
+      // resolved-to-resolved edges keep the prior solid border-strong look.
+      ctx.setLineDash(broken ? [4 / t.k, 4 / t.k] : []);
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx, by);
       ctx.stroke();
+      ctx.setLineDash([]);
       // R78: optional directional arrowhead, placed just outside the target node
       if (disp.arrows) {
         const dx = bx - ax;
@@ -662,7 +675,8 @@ export function GraphView() {
       const dist = baseRadius * (0.55 + 0.45 * ((h % 1000000) / 1000000));
       return { ...n, x: Math.cos(angle) * dist, y: Math.sin(angle) * dist };
     });
-    const links: SimLink[] = renderedEdges.map((e) => ({ source: e.source, target: e.target }));
+    const links: SimLink[] = renderedEdges.map((e) => ({ source: e.source, target: e.target, kind: e.kind }));
+    const brokenEdges = renderedEdges.filter((e) => e.kind === "broken").length;
 
     s.sim?.stop();
     let sim: Simulation<SimNode, SimLink> | null = null;
@@ -713,7 +727,7 @@ export function GraphView() {
     s.sim = sim;
     s.anchorNode = anchorId !== null ? nodes.find((n) => n.id === anchorId) ?? null : null;
     if (s.hovered && !nodes.includes(s.hovered)) s.hovered = null;
-    setInfo({ nodes: nodes.length, edges: links.length, totalNodes, capped, localEmpty });
+    setInfo({ nodes: nodes.length, edges: links.length, totalNodes, capped, localEmpty, brokenEdges });
     if (reAnchor) {
       // show the new neighborhood immediately, then re-fit once it settles
       fitOnSettleRef.current = true;
@@ -1275,6 +1289,15 @@ export function GraphView() {
               count: fmt(info.edges),
             })}
           </span>
+          {info.brokenEdges > 0 && (
+            <>
+              <span className="graph-legend-sep">·</span>
+              <span className="graph-legend-broken" data-testid="graph-legend-broken">
+                <span className="graph-legend-broken-line" />
+                {t("graph.legendBroken")}
+              </span>
+            </>
+          )}
           {info.totalNodes > RENDER_CAP && (
             <button
               type="button"

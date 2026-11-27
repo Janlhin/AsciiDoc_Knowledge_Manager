@@ -723,3 +723,94 @@
   - *把 Rust 索引写入、WebView 占用一并写进同一达标结论*：本进程测不到这些层，混写会夸大达标余量——否决，留待真机复测。
 - **影响范围**：仅新增基准脚本 `scripts/adoc-1000-bench.ts` 与报告 `docs/perf-1000-adoc.adoc`；不改生产索引、校验、图谱或模型代码；零新增依赖。
 - **复审条件**：桌面端 Rust 索引 / WebView 路径具备可测条件后，另立任务补端到端基准，并与本报告的 TS 侧数字分开陈述。
+
+## D-043 三态引用判定边界：有效 / 断链 / 未解析，锚点存在性本轮不判
+
+- **日期**：2026-11-27
+- **依据**：用户 2026-11-27 指示制作（决策表 D-14 A / D-15 A / D-16 D / D-19 B / D-20 B）。
+- **决策**：引用校验按章程 §5.1 拆三态——**有效**（解析到索引中已存在的目标文件，targetDocId 非空）；**断链**（路径解析完成但目标文件不在索引，含 include 目标缺失）；**未解析**（语法层无法确定：属性未定义、动态 / 非路径目标、include 路径被拒绝或越界、条件块外求值失败）。判定收敛到纯函数 `classifyReferenceStatus`，可脱离 Tauri 单测。锚点（subpath）存在性本轮一律不判：`foo.adoc#missing` 且文件存在 → 判**有效**，不采用「带锚点一律未解析」的误报策略。
+- **背景**：此前 `resolveByKind` 返回 `string | null` 二值，`null` 同时混装「文件缺失」与「无法确定目标」两种语义；校验规则与图谱幽灵节点都无法区分它们。Q9 边界只允许在 `LinkRef` 上加 `status` 与 `sourceLine` 两个字段，行号必须在解析阶段记录，禁止事后按目标字符串反推行号（重复行会错位）。
+- **被采纳方案**：
+  - md wikilink / markdown 链接按索引解析结果判：非空路径＝有效；`null` 且残留未替换的 `{attr}` 占位符＝未解析（属性），其余＝断链。
+  - adoc `xref:` / `<<>>` / `link:` / `include::` 复用既有 `resolveXref` / `resolveInclude` 的 `DocResolution` 三态直接映射；include 越出仓库根判未解析（rejected）。
+  - 同一源码位置（path + from + to）只产出一条记录；同一目标被 wikilink 与 markdown 各写一次属两个不同位置，保留两条。
+  - `.txt` 只作为被引用目标，其正文不解析引用。
+- **被否决的替代方案与理由**：
+  - *带锚点的引用一律归未解析*：会把大量指向已存在文件的合法链接误报成问题，与 D-20 B「先不判锚点」的口径冲突——否决。
+  - *在解析阶段就猜三态结论*：解析器拿不到索引，无法判断文件是否存在；状态只能由解析后、对照索引的判定阶段填充——否决。
+  - *复用文档体检（docaudit）的 category 语义*：体检是规范 lint 分类，三态是引用解析状态，两套语义混用会让面板口径漂移——否决，新面板独立实现。
+- **影响范围**：`src/core/types.ts`（`LinkRef.status` / `LinkRef.sourceLine`）、`src/core/referenceStatus.ts`、`src/core/referenceReport.ts`、解析器行号记录、校验面板与 runner；不改 `src-tauri`、Canvas、导出与其他图谱边类型；零新增依赖。
+- **已知缺口 / 复审条件**：锚点（标题 / 书签）存在性未查证；条件块外求值失败、Antora 多候选歧义的细分覆盖有限。待解析器与索引结构具备锚点索引后，另立任务补锚点级断链判定。
+
+## D-044 图谱本轮只加 `broken` 边类型，其余边类型后补
+
+- **日期**：2026-11-27
+- **依据**：用户 2026-11-27 指示制作（决策表 D-14 A / D-15 A / D-16 D / D-19 B / D-20 B）。
+- **决策**：`GraphEdge` 本轮只新增 `kind?: "broken"` 一个成员；指向未解析 / 缺失目标（幽灵节点）的边标记为 `broken`。`links-to` / `includes` / `references` / `related-to` 等其余边类型一律后补，不在本轮模型里占位。
+- **背景**：章程 §5.4 规划了五种边类型，但三态校验落地时只有断链边是必需品——没有它断链边画不出来；其余类型要等引用语义细分后再设计，提前加字段只会留下空语义。
+- **被采纳方案**：
+  - 断链边在画布上用虚线 + 独立配色（`--danger`），图例新增「断链」条；常规边视觉不变。
+  - 断链判定复用图谱既有的幽灵节点装配路径，不引入每帧计算；419 节点真实库的绘制耗时量级保持不变。
+  - 图谱把断链与未解析目标合并归入 `broken` 样式桶；三态细分以校验面板为准。
+- **被否决的替代方案与理由**：
+  - *本轮一次性补齐五种边类型字段*：多数类型缺少可稳定区分的解析信号，提前字段会变成无人填充的死结构——否决。
+  - *断链边单独建一套节点 / 边装配管线*：与既有幽灵节点路径重复，性能与维护成本都更高——否决，只在既有装配上补 `kind`。
+- **影响范围**：`src/core/types.ts`（`GraphEdge.kind`）、`src/core/metadata.ts` 图谱装配、`src/features/graph/` 渲染与图例；不改标签 / 附件辅助节点、不改过滤与局部子图逻辑；零新增依赖。
+- **复审条件**：三态校验在真实库稳定运行后，按引用语义（双链 / 显式 include / Antora 资源引用）另立任务细分其余边类型。
+
+---
+
+## D-045 AsciiDoc 折叠走文本扫描复用词法状态，大纲复用 metadata headings（T-071）
+
+- **日期**：2026-11-27
+- **依据**：用户 2026-11-27 指示制作。
+- **决策**：`.adoc` 标题折叠不引入第二套语法树，而是复用 batch-1 `scanAsciiDocLine` 纯行扫描收集真实标题（块状态逐行传递），折叠区间由纯函数按标题层级切出；大纲不另造 adoc 导航树，直接消费 `parseAsciiDoc` 已产出的 metadata headings（level / text / from），行构造抽成格式无关的纯函数。Markdown 折叠继续走冻结的 Lezer-tree 语义，一字未改。
+- **背景**：T-067 之后，编辑器折叠服务只认 Lezer 节点（ATXHeading / SetextHeading / ListItem）；adoc 是 StreamLanguage，树上没有这些节点，因此 adoc 标题行拿不到折叠点。大纲侧取证：adoc 标签的 `viewType` 与 md 同为 `"markdown"`（`fileViewType` 对非附件一律返回 markdown），`parseDocument` 分派 `parseAsciiDoc` 已产出 headings，`buildRows` / 跳转链路本就格式无关——断点只在折叠服务缺 adoc 分支，以及行构造没有单测证据。
+- **被采纳方案**：
+  - 折叠：`collectAdocHeadings(source)` 逐行跑 `scanAsciiDocLine` 并线程块状态；`foldAdocSection(source, line, on)` 返回标题行尾到「下一个同级或更高级标题前一行末」的区间，末节到 EOF；`adocFoldService` 以 `Prec.high` 注入，仅 `.adoc` 视图装配；`foldHeading` 关闭时 adoc 同样不折叠标题。
+  - 大纲：`buildRows` 迁入 `features/outline/outlineRows.ts` 纯模块，Markdown / AsciiDoc 共用；层级缩进、折叠键 `index`、子级标记全由 headings 的 level / from 推导。
+  - 缓存：标题列表按不可变 doc 对象身份经 WeakMap 记忆，避免折叠槽位逐行重复全文档扫描。
+- **被否决的替代方案与理由**：
+  - *为 adoc 补 Lezer grammar*：超出 L3 边界，投入大且会与 Markdown 树形成双树一致性问题，留待 L4 单独立项——否决。
+  - *在折叠服务里另写一套代码块 / 注释判定*：会与 batch-1 词法漂移（同一个 `=` 行两处给出不同结论）——否决；复用 `scanAsciiDocLine` 单一真源。
+  - *大纲为 adoc 另建一棵导航树*：metadata 已有 headings，重复建模且偏移会与索引漂移——否决。
+- **影响范围**：`src/features/editor/folding.ts`（adoc 纯函数 + 服务 + fold-all 路由）、`src/features/editor/cmExtensions.ts`（服务按 isAdoc 选路）、`src/features/editor/EditorPane.tsx`（compartment 重配选路）、`src/features/outline/outlineRows.ts`（新增）、`src/features/outline/OutlinePanel.tsx`（抽取，行为不变）、`tests/adoc-fold-outline.test.ts`（新增）。未触碰 `src-tauri/`、`.tauri-keys/`、Canvas、三态校验、图谱与 PR #5 三路径；零新增依赖；Markdown 路径零回归。
+- **诚实缺口**：下划线式标题，以及示例 `====` / 侧栏 `****` / 引用 `____` / 开放块 `--` 内部的结构屏蔽未做（见 T-071「仍缺」）；真机 WebView 折叠展开与大纲点击未目检。
+- **复审条件**：L4 立项完整语法树后，评估以 Lezer 树替换文本扫描；词法若新增块类型屏蔽范围，需同步 `collectAdocHeadings` 的状态线程。
+
+---
+
+## D-046 §9.2 稳定性四条：最小补齐，不新造错误中心 / 取消框架
+
+- **日期**：2026-11-27
+- **决策**：章程 §9.2 四条按「先取证、缺什么补什么」处理——单文件解析失败进入内存注册表并在文件树可见；索引损坏 / 缺失回退原文重建；watcher 事件去抖去重与临时文件过滤在既有 Rust 监听 + TS 消费链路上补兜底；backfill 增加协作式取消标志。不新建独立错误中心、不引入取消库或任务编排框架，零新增依赖。
+- **背景**：依据：用户 2026-11-27 指示制作（T-072）。取证发现：per-file try/catch 隔离与损坏行跳过回退读盘在代码中已存在，但失败只落 `console.warn`、无内存可查记录；watcher Rust 侧已有 400ms 去抖 + 排序去重 + 点目录 / 点文件过滤，TS 侧同批重复路径未折叠；backfill 循环没有任何取消路径，切库时在途任务继续写旧索引。
+- **被采纳方案**：
+  - 解析失败：`MetadataIndex` 内维护 `path → message` 的 `parseErrors` 表，成功解析后清除；`getParseErrors()` / `getParseError()` 查询；Explorer 行按注册表加危险色与 tooltip。不做独立诊断面板。
+  - 索引重建：沿用既有「坏行 JSON.parse 跳过 → 回退读盘；`index_open` 返回 null → 空 hydration → 全量读盘」链路，以可注入假 host 的测试证明损坏行与索引缺失两条回退路径，不改持久化索引格式。
+  - watcher：TS 侧新增纯函数 `dedupePaths()` 折叠同批重复路径；Rust 侧补 `to_vault_relative` 单元测试覆盖点文件临时件、噪声目录、库外路径与 Windows 反斜杠；不自建去抖队列（复用既有 400ms 窗口）。
+  - 取消：模块级 `cancelRequested` 标志 + `cancelSearchIndex()` / `resetSearchIndexCancel()`，循环在每篇之间检查；切库 `vault:changed(load)` 先置取消再关闭旧连接、新同步前复位。索引写入是逐行幂等 upsert，中途停跑不留半截批次，下一轮从断点收敛。
+- **被否决的替代方案与理由**：
+  - *建一套全局错误 / 诊断中心*：本轮只有解析失败一类落点，新造中心属于过度设计，后续真有多处诊断再演进——否决。
+  - *引入 AbortController 库或任务编排框架*：backfill 是单循环、内存内任务，协作标志足够；加依赖违反零新增约束——否决。
+  - *给编辑器加独立「取消索引」按钮*：取消路径先覆盖切库与关窗；UI 取消入口留待有真实长任务进度展示需求时再做——本轮不补。
+- **影响范围**：`src/core/metadata.ts`、`src/core/indexer.ts`、`src/core/vault.ts`、`src/features/explorer/Explorer.tsx` 与样式、`src-tauri/src/main.rs`（仅测试）、新增 `tests/stability-92.test.ts`；不碰三态校验模型、编辑器 / 图谱 / 大纲 / 双语代码、`.tauri-keys/` 与签名链路。
+- **复审条件**：出现第二类可观察失败（例如附件读取、LLM 调用）需要集中展示时，再评估错误中心；长任务需要可见进度条 / 用户中途取消按钮时，再补 UI 取消入口。
+
+---
+
+## D-047 本机只产 unsigned 包；正式签名与发布维持 blocked
+
+- **日期**：2026-11-27
+- **决策**：1.0 发版准备本轮只打通可复现的 unsigned 构建链路：`--no-bundle` 出 exe；缺私钥时用命令行 `--config` 内联覆盖 `bundle.createUpdaterArtifacts=false` 出 unsigned NSIS。仓库内默认配置 `createUpdaterArtifacts: true` 不改；minisign 私钥、口令与 Authenticode 证书一律不进仓库，正式签名与公开发布标为 blocked。
+- **背景**：依据：用户 2026-11-27 指示制作（T-072）。`tauri.conf.json` 已带 `plugins.updater.pubkey`，跑 `npx tauri build` 会在 updater 签名阶段因缺 `TAURI_SIGNING_PRIVATE_KEY` 退出；私钥在被 gitignore 的 `.tauri-keys/`，本轮不读不碰。
+- **被采纳方案**：
+  - unsigned 命令：`npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'`；不产出 `.sig`，不改变仓库默认值。
+  - 产物校验记录路径、字节数、SHA256 与退出码，写入 `docs/release-checklist.adoc`；signed 命令模板同文档列出，待私钥环境就位后执行。
+  - 未做版本号 bump：五处版本号当前均为 `0.0.1`，1.0.0 范围与版本决策另立任务。
+- **被否决的替代方案与理由**：
+  - *把仓库默认 `createUpdaterArtifacts` 改成 false 绕过报错*：会破坏正式发版链路，且让无签名包被误当可分发产物——否决；覆盖只走命令行。
+  - *在文档里把 unsigned 包写成「已可发版」*：无 minisign 签名不能走自动更新、无 Authenticode 签名会有 SmartScreen 警告——否决，如实标 blocked。
+  - *本轮购买 / 配置代码签名证书*：超出任务范围且需要账号与付款流程——否决，留 blocked。
+- **影响范围**：`docs/release-checklist.adoc`（新增）、`AGENTS.md` 文档表一行、`CHANGELOG.adoc` / `TASKS.md` 收口记录；不改打包默认配置、不碰 `.tauri-keys/`、`.github` 与 PR #5 路径。
+- **复审条件**：私钥与口令就位、证书采购完成后，按清单 C 节跑 signed 构建；发布渠道与 `latest.json` 策略确定后更新本决策。
