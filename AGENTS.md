@@ -51,11 +51,12 @@
 | [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单、许可义务 |
 | [`docs/plans/`](docs/plans/) | 各层实施计划（L2 起） |
 | [`docs/product-placeholders.adoc`](docs/product-placeholders.adoc) | 产品身份占位符待填清单、系统默认值、未来 I18N 改造 |
+| [`docs/README.adoc`](docs/README.adoc) | docs/ 目录文档索引：仓内文档与子目录入口（原 PR #5 的 `docs/README.md` 已转 AsciiDoc，见 `DECISIONS.adoc` D-048 补充） |
 | [`docs/perf-1000-adoc.adoc`](docs/perf-1000-adoc.adoc) | T-069 千篇 adoc 性能基准：脚本、实测数值、与章程 §9.1 目标对照 |
 | [`docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`](docs/technical-decisions/ADR-0005-reference-status-boundary.adoc) | T-070 三态引用判定边界、二值歧义根因与锚点不判的已知缺口 |
 | [`docs/release-checklist.adoc`](docs/release-checklist.adoc) | T-072 发版清单：前置检查、五处版本号同步、unsigned/signed 构建命令、产物校验、回滚与 blocked 项 |
 
-文档格式：除本文件、`CLAUDE.md`、`.claude/` 约定、`demo-vault/` 与 `compat-fixtures/` 测试载荷、`docs/CONTRIBUTING.md`、`docs/SECURITY.md` 外，项目文档一律 AsciiDoc（`.adoc`）；根 `README.md` 只作 GitHub 首页入口指针，因为 GitHub 不渲染 AsciiDoc。迁移理由见 `DECISIONS.adoc` D-048。
+文档格式：除本文件、`CLAUDE.md`、`.claude/` 约定、`demo-vault/` 与 `compat-fixtures/` 测试载荷、`docs/CONTRIBUTING.md`、`docs/SECURITY.md`、`.github/pull_request_template.md` 外，项目文档一律 AsciiDoc（`.adoc`）；根 `README.md` 只作 GitHub 首页入口指针，因为 GitHub 不渲染 AsciiDoc。迁移理由见 `DECISIONS.adoc` D-048。
 
 ## 禁止事项
 

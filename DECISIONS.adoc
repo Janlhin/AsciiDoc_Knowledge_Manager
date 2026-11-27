@@ -843,5 +843,10 @@
 ** _把转换脚本与校验脚本纳入仓库并加依赖_：与「零新增生产/开发依赖」约束冲突，且脚本只为一次性迁移存在——否决，脚本留在仓库外。
 ** _把白名单文件也强制转 `.adoc`_：智能体约定、测试载荷与 GitHub 社区文件会失效——否决。
 ** _README 只留 `.adoc`_：GitHub 首页显示生源码——否决，保留 `.md` 入口指针。
-* *影响范围*：22 个新 `.adoc`（含 `README.adoc`）、`README.md` 改写为指针、`AGENTS.md` 文档表、`CHANGELOG.adoc`、`TASKS.adoc`、`DECISIONS.adoc` 自身，以及全仓约 300 个文件里的旧 `.md` 路径引用（脚本注释、钩子、UI 文案、文档内链）。不碰 `src-tauri/`、`.tauri-keys/`、`.github/` 与 PR #5 的 `docs/README.md`。
+* *影响范围*：22 个新 `.adoc`（含 `README.adoc`）、`README.md` 改写为指针、`AGENTS.md` 文档表、`CHANGELOG.adoc`、`TASKS.adoc`、`DECISIONS.adoc` 自身，以及全仓约 300 个文件里的旧 `.md` 路径引用（脚本注释、钩子、UI 文案、文档内链）。不碰 `src-tauri/`、`.tauri-keys/`、PR #5 的 `docs/README.md`。（#5 兼容时的补充见下条。）
+* *补充（2026-11-28，#5 兼容提交）*：main 的 #5 治理提交（`0122648`）带来 `docs/README.md`（文档索引，66 行）、`.github/pull_request_template.md`、`.github/dependabot.yml` 与 `AGENTS.md` 一行。处理口径：
+** `docs/README.md` 按本决策同一口径转为 `docs/README.adoc`：5 张表 / 38 行 / 37 条链接，链接目标全部指向现存文件；原 `.md` 删除，避免合并后两套索引并存。转换只做结构映射（标题 `= / ==`、GFM 表 → `[cols,options="header"]` + `|===`），不用 pandoc 的 asciidoc 写出器（它会把单元格拆到多行，表格会坏）。
+** `.github/pull_request_template.md` 加入白名单：GitHub 只认这个固定路径与文件名，改名后 PR 模板直接不生效，扩展名不在我们手里；理由与 `AGENTS.md` 同类。
+** `.github/dependabot.yml` 随 main 合并带入，不是本次改动；`AGENTS.md` 冲突按「保留本分支的文档表 + 补一行 `docs/README.adoc`」解决。
+** 现存 `.md` 变为 20 个：18 个原白名单 + 根 `README.md` 入口指针 + `.github/pull_request_template.md`。
 * *复审条件*：GitHub 开始原生渲染 AsciiDoc 时，可把 `README.md` 指针合并回 `README.adoc` 并删掉指针；新增文档一律写 `.adoc`，需要 GitHub 识别名的文件（AGENTS/CLAUDE/社区文件）例外。
