@@ -1,7 +1,7 @@
 /**
  * R106 frontmatter aliases in suggesters E2E — browser mode :1420.
  * Run: node .calibration/r106-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 106 additions" (㉟ 续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 106 additions" (㉟ 续).
  *
  * Aliases already RESOLVE as link targets (rebuildNameMap → nameToPaths); R106 surfaces
  * them in the two SUGGESTERS: `[[` autocomplete (insert `[[canonical|alias]]`) + QuickSwitcher

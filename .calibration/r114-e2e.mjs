@@ -1,7 +1,7 @@
 /**
  * R114 compat MetadataCache.getTags E2E — browser mode :1420.
  * Run: node .calibration/r114-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 114 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 114 additions" (compat 商业主轴).
  *
  * Obsidian `metadataCache.getTags(): Record<string, number>` — every tag (key carries the
  * leading '#') → how many notes use it. Backed by core getTagMap (tag→note-path Set, cached);

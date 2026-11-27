@@ -1,7 +1,7 @@
 /**
  * R83 Properties enhancement E2E — browser mode :1420.
  * Run: node .calibration/r83-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 83 additions" (㊼).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 83 additions" (㊼).
  *
  * Covers ㊼ tags-chip click → search (#tag) + keyboard navigation between
  * property rows (rows tabIndex=-1: ↑/↓ move rows, Enter focuses value editor,

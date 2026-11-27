@@ -1,0 +1,627 @@
+= ADKM 决策单
+:toc: left
+:toclevels: 2
+
+[quote]
+____
+生成时间：2026-11-13 +
+*用法*：把你要选的那一项前面的 `[ ]` 改成 `[x]`。想写补充就在该条的「备注」行写。 +
+*不确定的就留空* —— 留空的项我按「我的建议」执行，并在动手前告诉你。 +
+填完跟我说一声（回「填好了」就行），我按单子执行，不再追问。 +
+图例：`[x]` = 已勾选 ｜ `☑ 我的建议` = 勾这个就不用改 ｜ 留空 = 按建议走
+____
+
+'''
+
+== 0 · 已经做掉的（不用再选，只确认）
+
+[options="header"]
+|===
+|# |事项 |状态
+|A-01 |修正 `geode-baseline.adoc` 的虚构断言（「已有引用校验三态」→ 标注为未实现） |✅ 已改
+|A-02 |删除 baseline 里会过期的 diff 计数，改为定性描述 + 可复现命令 |✅ 已改
+|A-03 |修 baseline 指向不存在的「ADR-0004 复审条件」的引用 |✅ 已改
+|A-04 |修 `obsidian-reverse-engineering.adoc` 两处失真（L3/L4 缺口、多真源漂移） |✅ 已改
+|A-05 |Rust 侧 18 个命令改 async（IO 离开主线程） |✅ 已提交，PR #9
+|A-06 |block 标记扫描剪枝（不再按行数计成本） |✅ 已提交，PR #9
+|A-07 |3 个可复跑的 profiling 工具 |✅ 已提交，PR #9
+|A-08 |清临时目录 1.35GB |✅ 已删，原库完好
+|A-09 |提交 TASKS.adoc（T-027 / T-028） |✅ 已提交
+|A-10 |push 两个分支 |✅ 已推，开了 PR #9
+|A-11 |邀请 nqble 为 `Janlhin/adkm` 协作者（write 权限） |✅ 邀请已发出，等对方接受
+|A-12 |查明 `nul` 文件来源 |✅ 是 `CHANGELOG.adoc` 的渲染产物（Windows 坑）
+|===
+
+* ☒ A-01 ~ A-10 我确认无误，可以继续
+
+*备注*：
+
+'''
+
+== 1 · 品牌与身份
+
+=== D-01　占位符替换范围（Q21）
+
+[quote]
+____
+现状：`src/core/product.ts` 是唯一真源，7 个值已于 2026-11-16 全部填实（记录见 `docs/product-placeholders.adoc`）。此前这些 token 没有构建期替换，窗口标题曾字面显示 `APP_NAME`。
+____
+
+* ☐ *A* 只换*用户可见文案*（实测 8 处：错误页中英双版、设置页、插件列表、debug info、compat 层的 warn 文案等），不动类型名 / 存储键 / CSS 类
+* ☐ *B* 连构建期标识也一起换（productName / identifier / crate name / 包名全换）
+* ☒ *C* 全换，含 `window.geode` 插件契约、72 个 localStorage 键、35 个 CSS 类
+* ☐ ☑ *我的建议：A* —— 换 localStorage 键 = 用户全部设置失效；换 `window.geode` 破坏有公开文档的插件 API 契约
+
+*实际执行（2026-11-16）*：按 A 落地——只改用户可见文案与构建期显示名；`window.geode`、localStorage 键、CSS 类、内部类型名全部原样保留。
+
+*备注*：
+
+=== D-02　占位符填什么值（Q22）
+
+* ☐ *A* 只填 `PRODUCT.name = "ADKM"`，其余 5 个（标语 / 描述 / 技术栈行 / 图形 / 署名）留占位符
+* ☒ *B* 全部留占位符
+* ☐ *C* 全部填满（我代写文案，你再改）
+
+☑ *我的建议：A* —— 其余 5 项确实还没有内容，硬填等于我替你编
+
+*实际执行（2026-11-16）*：按 C 落地——7 个值全部填实（标语、描述、技术栈、图形、署名都已写入 `product.ts`）。
+
+*备注*：
+
+=== D-03　构建期标识（Q23）
+
+* ☒ *A* 改 `productName` + crate name（安装包名、exe 文件名变成 ADKM），*`identifier` 保持不变*
+* ☐ *B* 全改，*包括 `identifier`*（代价：现有用户数据与设置全部失联，需要写迁移逻辑）
+* ☐ *C* 全不改
+
+☑ *我的建议：A* —— identifier 是「用户数据的家」，改它要写迁移；productName 和 exe 名纯属显示，改零风险
+
+*实际执行（2026-11-16）*：按 B 落地——`identifier` 已改为 `com.adkm.knowledgebase`；因公开前从未分发，未写自动迁移代码，本机旧数据目录一次性复制到新目录（见 `TASKS.adoc` 的 Q-004）。
+
+*备注*：
+
+=== D-04　自动更新 updater（Q24）
+
+[quote]
+____
+现状：pubkey = *上游作者的签名公钥*；endpoint 指向一个*不存在的组织*（死链）。若将来有人填了 endpoint 却没换 pubkey → 我们自己签的包会被拒；若指向原作者的 feed → ADKM 会把上游的更新当成自己的装上。
+____
+
+* ☒ *A* 现在就明确禁用（endpoint 置空 / 移除 updater 插件），并在 `docs/DISTRIBUTION.adoc` 写死「配 endpoint 必须同时换成自己的 pubkey 密钥对」
+* ☐ *B* 只改文档警示，代码不动
+* ☐ *C* 维持现状
+
+☑ *我的建议：A* —— 现状「检查更新」必然报错；真正危险的是将来有人填了 endpoint 忘了换 pubkey
+
+*备注*：
+
+=== D-05　`.calibration/` 目录（Q25）
+
+[quote]
+____
+该目录有大量自动生成的 e2e 脚本与基线数据，含旧品牌名。改了会被下次生成覆盖。
+____
+
+* ☐ *A* 不动，在 T-008 里注明「自动生成产物，不做品牌替换」
+* ☒ *B* 一并替换
+* ☐ *C* 整个目录加进 .gitignore
+
+☑ *我的建议：A*
+
+*备注*：
+
+=== D-06　D-011 决策归档（Q28）
+
+[quote]
+____
+`docs/product-placeholders.adoc` 里有一条 D-011 标注「待归档到 DECISIONS.adoc」，推迟原因（PR 冲突）*已解除*。归档后它回归「清单」单一职责。
+____
+
+* ☐ *A* 把 D-011 移进 `DECISIONS.adoc`（补上跳号 D-010 → D-012），`product-placeholders.adoc` 降级为清单
+* ☐ *B* 留在原地不动
+* ☐ *C* 重新编号为 D-015
+
+☑ *我的建议：A*
+
+*备注*：
+
+'''
+
+== 2 · 底座与插件
+
+=== D-07　ADR-0006 记什么（Q15 / Q26 / Q27 / Q30 / Q32）
+
+[quote]
+____
+事实：ADR-0005 号*已被 REA 逆向占用* → 下一个可用号是 *ADR-0006*。 +
+事实：「四条硬条件」实际在 `route-evaluation.adoc`，ADR-0003 / ADR-0004 引用它却没指出处 → ADR-0006 顺手补一句出处。 +
+事实：ADR-0004 的 D3 *已经*记录了「冻结上游 + 按需摘取」——所以「不跟了」不用再写，要写的是*新增的触发条件*。
+____
+
+* ☐ *A* 写 ADR-0006《底座可替换性》，内容：① 四条硬条件出处修正 ② 新增第五条「真实 Obsidian 插件宿主能力」为可替换触发条件 ③ 条件分支：若将来接受 GPL 且愿意开源，可改 fork opensidian
+* ☐ *B* A 但不含 GPL 条件分支
+* ☐ *C* 撤销 ADR-0003 的底座决策
+* ☐ *D* 不写 ADR，只在 `DECISIONS.adoc` 加一行
+
+☑ *我的建议：A* —— GPL 是不可逾越的硬约束，把条件分支写下来，免得将来重开话题时重复调研
+
+*备注*：
+
+=== D-08　Obsidian 插件支持走哪条路（Q31）
+
+[quote]
+____
+已查实的硬约束：
+
+* *Obsidian 本体*：ToS 禁止反编译 / 衍生作品 → 死的
+* *跟随上游 Geode*：它自己的兼容层也是 T0/T1，*T3（Canvas 等）明确不承诺*，且已停更 → 解决不了插件问题
+* *其他底座*（Logseq / 思源 / SilverBullet / Zettlr / Foam / AFFiNE / Trilium）：插件 API *全部与 Obsidian 不通用*
+* *唯一真宿主*：opensidian（Rust + Tauri v2，`require("obsidian")` 真能用，API 覆盖比 ADKM 更全）——但 *GPL-3.0* + 前端是原生 JS 不是 React/TS
+____
+
+* ☐ *A* 继续自建兼容层，把 opensidian 的 API 导出表当*功能对标清单*补缺口（Canvas / Keymap / FileManager 这些 ADKM 标 T3 不做的）——两边同为 clean-room（只参照 MIT 的 `obsidian.d.ts`），无法律冲突
+* ☐ *B* fork opensidian，接受 GPL-3.0 + 把前端重写成 React/TS
+* ☐ *C* 维持现状，不补缺口
+
+☑ *我的建议：A* —— B 的 GPL 传染性直接封死闭源分发；「重写前端」恰好是 UI 层，等于 fork 了个空壳
+
+*备注*：
+
+=== D-09　兼容层要不要按 opensidian 清单排期
+
+* ☐ *A* 写进 TASKS.adoc 作为一条独立待办（Canvas / Keymap / FileManager 逐项对标）
+* ☐ *B* 只在 ADR-0006 里提一句，不排期
+* ☐ *C* 不做
+
+☑ *我的建议：A*
+
+*备注*：
+
+'''
+
+== 3 · 性能与体验
+
+=== D-10　T-028（BacklinksPanel 未链接提及扫描）的缓存细节（Q2 方向已定）
+
+[quote]
+____
+*你已定*：结果缓存，按 metadata revision 失效。 +
+依据：`MetadataIndex.revision` 已经是 Store，索引每次变更就 bump → revision 直接当缓存键，*不需要额外失效机制*。 +
+好处：面板打开时秒开（有缓存），而不是每次重扫全库。
+____
+
+剩下要定的：
+
+* ☐ *D-10a* 缓存范围：*全部来源文件*都缓存，还是只缓存「被搜过的那些路径」？
+** ☐ 全量缓存（一次建索引，之后按 revision 整体失效）
+** ☐ 按路径缓存（只缓存实际搜过的路径，命中不了就实时搜） +
+☑ *我的建议：全量缓存* —— 简单、行为可预测；代价是首次仍要扫一遍
+* ☐ *D-10b* 缓存放哪：
+** ☐ 内存（`MetadataIndex` 旁边，关掉应用就没了）
+** ☐ 落盘到 `<vault>/.geode/sync/` 那类点目录 +
+☑ *我的建议：内存* —— 跨会话缓存要处理「应用被杀在中途」的脏状态，收益不匹配复杂度
+
+*备注*：
+
+=== D-11　T-027（Rust 侧 rayon 并行读文件）
+
+* ☐ *A* 做，但排在 P0 之后（它优化的是后台等待，用户几乎感知不到）
+* ☐ *B* 做，且排在 T-028 之前（先让打开更快）
+* ☐ *C* 不做（引入新依赖不划算）
+* ☐ *D* 暂缓，之后再定
+
+☑ *我的建议：A* —— 用户体感的「卡一下」是 T-028 那条；T-027 是后台等待，不阻塞界面
+
+*备注*：
+
+=== D-12　那个 50MB 的巨型 md 文件（Q5）
+
+[quote]
+____
+已知事实：它是 epub 转单文件 md 的产物（20 卷书塞一个文件），占全库体量的大头，单文件解析是启动期最大的单点。 +
+*你已定：暂缓。* 这里只确认是否要留个「以后再说」的标记。
+____
+
+* ☐ *A* 暂缓，但在 TASKS.adoc 留一条待办（注明是书籍化流水线的产物，改的是内容生成流程不是代码）
+* ☐ *B* 彻底不管（不入待办）
+* ☐ *C* 暂缓，但同时给 geode 加一条「超大文件保护」（超阈值跳过部分解析），作为通用兜底
+
+☑ *我的建议：C* —— A 只记事不防；C 那一层保护对*任何*用户的超大文件都有效，不依赖你的库结构
+
+*备注*：
+
+=== D-13　实施顺序（Q33）
+
+[quote]
+____
+*你已定*：先清干净（已完成）→ 文档纠错（部分已完成）→ 占位符 → T-028 → P0 → 路线图。
+____
+
+* ☐ *A* 保持这个顺序
+* ☐ *B* 改成：文档纠错 → *P0 引用校验* → 占位符 → T-028 → 路线图
+* ☐ *C* 我来排（按「用户能立刻感知」和「解锁后续」两条轴排）
+
+☑ *我的建议：A* —— 与你 Q11「包含 P0 但先做体验类」一致
+
+*备注*：
+
+'''
+
+== 4 · 引用校验 P0（charter 价值主线）
+
+[quote]
+____
+*已定方向*：
+
+* Q7 = *A 改核心模型*（不搞启发式假三态）
+* Q8 优先级 = *引用校验三态 → adoc 语法高亮 → 图谱边类型*
+* Q9 = 借 Q7 一起归一 `LinkRef`，*只归一 `status` + `sourceLine`*（其余 charter 字段等真要用时再加）
+* Q11 = 包含 P0，但先做体验类
+____
+
+=== D-14　三态的判定边界
+
+[options="header"]
+|===
+| |
+|===
+
+[quote]
+____
+现状：索引只产出二值（`resolveByKind` 返回 `string | null`），`null` *同时*表示「目标文件不存在」和「无法确定目标」。要拆开必须改核心。
+____
+
+* ☒ *A* 三态定义：*有效*（解析到目标）/ *断链*（目标确定存在但内容里没有这个引用，或文件已被删）/ *未解析*（语法层无法确定，如属性未定义、动态路径）
+* ☐ *B* 断链与未解析的边界我定（你来拍）
+
+☑ *我的建议：A*
+
+*备注*：2026-11-27 用户指示制作，按此档落地。三态判定见 `DECISIONS.adoc` D-043 与 ADR-0005；锚点存在性本轮不判，见 D-20。
+
+=== D-15　校验结果的呈现形态
+
+[quote]
+____
+charter §5.4 说「目标不存在时显示为断链，*点击可跳转到校验报告对应条目*」——所以需要一个「校验报告」的落点。
+____
+
+* ☒ *A* 独立的「校验」面板（像现在的 OutgoingLinks / Backlinks 那样一个侧栏页），列出全库所有非「有效」的引用，可点击定位
+* ☐ *B* 只在现有的 OutgoingLinks 面板里把二态拆成三态，不做独立报告
+* ☐ *C* 独立面板 + 一个汇总徽章（多少断链）挂在侧栏
+
+☑ *我的建议：C* —— A 是最小可交付，C 加一个徽章能让「有问题」变得可见；两者工作量差很小
+
+*备注*：2026-11-27 用户指示制作，按 A 档落地（独立 fileless 单例校验面板；建议的 C 侧栏徽章未采纳）。
+
+=== D-16　校验结果要不要导出（charter §5.1 提到导出）
+
+* ☐ *A* 导出 AsciiDoc 报告
+* ☐ *B* 导出 JSON
+* ☐ *C* 导出 CSV
+* ☒ *D* 不做导出（先不承诺）
+
+☑ *我的建议：D* —— charter 是规划文档，允许分期；先把「看得见」做出来
+
+*备注*：2026-11-27 用户指示制作，按 D 档落地；CSV / JSON / AsciiDoc 导出本轮均不做。
+
+=== D-17　adoc 语法高亮怎么做（Q8 第二项）
+
+[quote]
+____
+现状：CodeMirror 一律用 Markdown 语言模式，源码模式下 `xref:` 不可点。
+____
+
+* ☐ *A* 用 CodeMirror 的 `StreamLanguage` + 自写 AsciiDoc 词法（轻量，只覆盖标题/属性/xref/link/include 等关键 token）
+* ☐ *B* 引入 `codemirror-asciidoc` 之类的现成包（若存在且许可可接受）
+* ☐ *C* 只做「`xref:` 可点击」，不做彩色高亮
+
+☑ *我的建议：C 先做、A 后补* —— 「可点击」是功能缺口，「彩色」是体验偏好；A 涉及新依赖
+
+*备注*：
+
+=== D-18　adoc 阅读视图图片不显示（`embeds.ts` 水合选择器不匹配）
+
+* ☐ *A* 扩展水合选择器，让 Asciidoctor 输出的原生 `<img>` 也被接管
+* ☐ *B* 在 Asciidoctor 输出阶段就把 `<img>` 改写成 geode 的 embed 标记
+* ☐ *C* 暂不修
+
+☑ *我的建议：B* —— 改写发生在渲染阶段，能拿到 vault 相对路径语义，比事后匹配 DOM 选择器更可靠
+
+*备注*：
+
+=== D-19　图谱边类型（charter §5.4 要求 `links-to` / `includes` / `references` / `related-to` / `broken`）
+
+* ☐ *A* 现在就加边类型字段（跟 Q7 一起改 `types.ts`，一次到位）
+* ☒ *B* 先只加 `broken`（三态校验落地时必须有），其余类型后补
+* ☐ *C* 等三态校验做完再一起设计
+
+☑ *我的建议：B* —— `broken` 是三态校验的*必需品*（否则断链边画不出来），其余类型不急
+
+*备注*：2026-11-27 用户指示制作，按 B 档落地；`GraphEdge` 只加 `kind?: "broken"`，其余边类型见 `DECISIONS.adoc` D-044。
+
+=== D-20　锚点级断链要不要判（charter §11.2 要求「锚点不存在时为断链」）
+
+[quote]
+____
+现状：adoc 解析器把 `path.adoc#anchor` 整体当 target，解析时锚点被剥掉 → *无法判定锚点是否存在*。
+____
+
+* ☐ *A* 要判 → 解析器要额外抽出锚点，并在目标文档里查证锚点是否存在（改动面较大）
+* ☒ *B* 先不判，锚点缺失暂归为「未解析」，并把这条写进 ADR 留作已知缺口
+* ☐ *C* 只对 md 的 `#heading` 做，不对 adoc 做
+
+☑ *我的建议：B* —— 锚点校验要动解析器 + 索引结构，与三态的核心改动耦合很深；先归为「未解析」诚实且不撒谎
+
+*备注*：2026-11-27 用户指示制作，按 B 档落地。落地口径与建议文案略有收紧：锚点存在性本轮不判，*文件存在即判有效*（不把带锚点的引用归为未解析）；该已知缺口与复审条件见 ADR-0005。
+
+'''
+
+== 5 · 云同步
+
+[quote]
+____
+*已定方向*：
+
+* Q12 = *B 自建同步引擎*（不靠桌面客户端）
+* Q13 = *C 基于内容的三方合并*（最难的一档）
+* Q14 = *OneDrive + Google Drive + Dropbox*，百度/阿里后续再看
+____
+
+=== D-21　Google Drive 排第几（Q35）
+
+[quote]
+____
+硬成本事实：`drive.file`（非敏感 scope）*看不见 app 未创建的文件* → 同步既有 vault *必须*用受限 scope `drive`；受限 scope 的验证周期约 6 周，且*每年*要做一次 CASA 安全评估（第三方估 $500–1000/年）；未验证应用有 100 用户终身上限。
+____
+
+* ☐ *A* *OneDrive → Dropbox → Google*（Google 实现放最后，但*验证申请今天就启动*）
+* ☐ *B* OneDrive → Google → Dropbox（你原顺序）
+* ☐ *C* 只做 OneDrive + Dropbox，Google 缓到 P0 落地之后再说
+
+☑ *我的建议：A* —— Google 的瓶颈是审批流程不是编码，越早启动越好；实现顺序按「无审批依赖」排
+
+*备注*：
+
+=== D-22　OAuth 回调通道（Q36）
+
+[quote]
+____
+现状：仓库里*零基础设施* —— 无 deep-link、无 loopback 监听、无自定义协议。这撞仓库的「硬边界 #5」，*必须你签字*。
+____
+
+* ☐ *A* Rust 侧起一个 loopback 监听（随机端口，浏览器回调 127.0.0.1）—— OAuth 规范本身就推荐 native app 用 loopback，纯进程内，不改打包配置
+* ☐ *B* `tauri-plugin-deep-link`（`adkm://` 自定义协议）—— 要改协议注册与安装器配置，Windows 上还要写注册表
+* ☐ *C* 只有 Dropbox 用手动贴 code，OneDrive/Google 暂不支持
+
+☑ *我的建议：A*
+
+*备注*：
+
+=== D-23　三方合并的 base 快照存哪（Q37）
+
+[quote]
+____
+事实：hash-only *不可行*（没法从 hash 还原 base）。行业做法（Remotely Save PRO）是*每个可合并文件存一份纯文本快照*，合并时 local=a / remote=b / snapshot=o 跑 diff3；无 base 就退化为 keep-newer。
+____
+
+* ☐ *A* `<vault>/.geode/sync/base/<路径哈希>.base`（纯文本快照），*并排除出远端同步范围*（否则 base 本身被同步，制造冲突风暴）
+* ☐ *B* 只存 hash + patch
+* ☐ *C* 不存 base，接受退化为 keep-newer
+
+☑ *我的建议：A*
+
+*备注*：
+
+=== D-24　token 存哪（Q38）
+
+* ☐ *A* `keyring` crate（系统钥匙串：Windows Credential Manager / macOS Keychain），在 Rust 侧调用，*不需要改 capabilities*
+* ☐ *B* `tauri-plugin-stronghold`（加密文件保险库）
+* ☐ *C* 明文存 localStorage
+
+☑ *我的建议：A* —— token 是长期凭据，明文存 localStorage 在桌面应用里等于裸奔
+
+*备注*：
+
+=== D-25　测试基建什么时候引入（Q39）
+
+[quote]
+____
+事实：`vitest` *已在 node_modules 里*（vite-plus 的传递依赖），`npx vp test` 直接可用，但项目现在*零测试文件*，现有风格是自建 `ok()` + PASS/FAIL + 退出码。 +
+三态解析 + 三方合并是逻辑密集、边界极多的代码（CRLF、行尾空白、两边同改、嵌套冲突）。
+____
+
+* ☐ *A* *现在*就加 vitest，再写三态 / 合并逻辑
+* ☐ *B* 先按现有 `scripts/` 自建 `ok()` 脚本风格写
+* ☐ *C* 不写测试
+
+☑ *我的建议：A* —— 引入成本接近零（依赖已在树里），而这类逻辑没测试几乎必然出 bug
+
+*备注*：
+
+=== D-26　Google Drive 的合规成本现在定吗（Q40）
+
+* ☐ *A* 现在就按完整 `drive` scope 设计并*今天启动验证申请*（接受 6 周周期 + 每年 CASA 年审）
+* ☐ *B* Google 排第三，等前两个云做完再考虑
+* ☐ *C* 不做 Google Drive（OneDrive + Dropbox + 后续 WebDAV 覆盖）
+
+☑ *我的建议：A* —— 且*必须*从第一天就是完整 `drive` scope，绝不能交付一个「悄悄列不出用户既有文件」的连接器，那是用户可见的功能性欺骗
+
+*备注*：
+
+=== D-27　WebDAV 的定位（Q17，因 Q12 改判而调整）
+
+* ☐ *A* WebDAV 作为*后续*接百度/阿里云盘的备用通道（经 AList 挂载），主线先走各家官方 API
+* ☐ *B* WebDAV 提前，作为「一套代码通吃四家」的主线
+* ☐ *C* 不做 WebDAV
+
+☑ *我的建议：A* —— 既然你选了自建官方 API，WebDAV 就不该抢主线；但它是国内两家唯一可行的标准路径，留着
+
+*备注*：
+
+=== D-28　不可合并 / 合并失败的文件怎么办（Q18）
+
+[quote]
+____
+事实：纯行级 diff3 在散文上会*显著夸大冲突*（一处改动推移大量后续行）。Remotely Save PRO 为此自研了递归多粒度引擎——那是月级工作量。
+____
+
+* ☐ *A* v1 只对 `.md` / `.markdown` 做行级 diff3；其余文件、以及合并失败的情况，保留*两份冲突副本*（放 vault *外*的专用目录，不进同步范围）+ 冲突记录
+* ☐ *B* v1 只对 `.md` 做 diff3，其余文件直接 keep-newer（败者丢弃）
+* ☐ *C* 一开始就上递归多粒度合并（对齐 Remotely Save PRO 的形状）
+
+☑ *我的建议：A* —— 静默丢内容不可接受；C 的工作量会拖垮整个同步项目
+
+*备注*：
+
+=== D-29　要不要先实测 reparse point（Q19）
+
+[quote]
+____
+事实：OneDrive / Google Drive 的「仅联机」占位文件是 reparse point，目录遍历会把它当符号链接*跳过*，或触发按需下载导致 IO 阻塞 —— 这直接决定「把 vault 放进同步目录」到底能不能用。
+____
+
+* ☐ *A* 要测（做一个最小实测：建同步目录放几个文件，看索引能不能列全）
+* ☐ *B* 不测
+
+☑ *我的建议：A* —— 这是同步方案的*前提假设*，不测就等于在猜
+
+*备注*：
+
+=== D-30　同步什么时候开始做（Q20）
+
+* ☐ *A* 进路线图，*排在 P0 落地之后*
+* ☐ *B* 进路线图，和 P0 并行推进
+* ☐ *C* 立刻开始做
+
+☑ *我的建议：A* —— charter 定的主线是引用完整性校验；同步是基础设施型大功能，插队会拖慢主线
+
+*备注*：
+
+'''
+
+== 6 · 待批准的动作
+
+=== D-31　PR #9
+
+[quote]
+____
+PR #9 = 6 个 commit / 8 文件 / +535 −36（Rust async 化、block 扫描剪枝、3 个 profiling 工具、Cargo.lock 同步、TASKS 记录） https://github.com/Janlhin/adkm/pull/9
+____
+
+* ☐ *A* 我审阅后合并
+* ☐ *B* 我自己合并
+* ☐ *C* 先别合，我还要改点东西
+
+*备注*：
+
+=== D-32　桌面 ADKM 文档要不要入库（新增事实后重问）
+
+[quote]
+____
+*新查清的事实*：
+
+* `<ADKM 工作目录>` *根本不属于任何 git 仓* —— 它落在 `<家目录>/.git`（你家目录那个*只跟踪 README.md、无 remote* 的空仓）里，ADKM 目录本身零跟踪。所以这批文档*从来没进过版本库，也没 push 过*。
+* 内容共 11 个文件：`CHANGELOG.adoc`（6.8KB）、`docs/project-charter-v2.adoc`（27.8KB，*章程本体*）、`docs/route-evaluation.adoc`（22.7KB）、`docs/obsidian-clone-report.adoc`（15.4KB）、`docs/obsidian-reverse-engineering.adoc`（6.7KB）、`docs/geode-baseline.adoc`（10KB，今天改过）、`docs/technical-decisions/ADR-0001..0004`（4 份，合计约 38KB）。
+* 与 `Janlhin/adkm` 仓内的 `docs/` *零重叠* —— 仓里没有 charter / baseline / route-evaluation，也没有 `technical-decisions/` 目录。
+* `nul`（38KB）*是 `CHANGELOG.adoc` 的渲染产物*：实测 `asciidoctor -o nul CHANGELOG.adoc` 重跑一遍得到一模一样的 38455 字节。成因是 Windows 上 `nul` 是空设备名，`asciidoctor -o nul` 没把它当特殊设备，于是写出真文件。这就是 T-010「清除根目录 nul」那条待办的本体。
+____
+
+* ☒ *A* 整个并入 `Janlhin/adkm` 的 `docs/` —— *已执行（2026-11-13）*
+
+[quote]
+____
+执行结果：11 个文件全部落位（`CHANGELOG.adoc` → 仓根；5 份 `.adoc` → `docs/`；4 份 ADR → `docs/technical-decisions/`；决策单 → `docs/adkm-decision-sheet.adoc`），*+4438 −4*，提交 `ae0a696`，PR #10。 顺带修了 7 处引用：`DECISIONS.adoc` ×2 与 `TASKS.adoc` ×2 的 `ADKM/docs/…` → `docs/…`；`obsidian-clone-report.adoc` ×2 的 `geode/src/…` → `src/…`。全仓复查 `ADKM/docs` / `Desktop/ADKM` / `geode/src` 均 *0 处残留*。 `nul` *未入库*（`CHANGELOG.adoc` 的渲染产物，重跑 `asciidoctor -o nul CHANGELOG.adoc` 可逐字节复现 38455 字节）。 10 个 AsciiDoc 文件全部渲染零警告；全部 LF、无 BOM；与仓内既有 docs 零同名冲突。
+____
+
+*备注*：
+
+=== D-33　`feat/l3-asciidoc-preview` 分支
+
+[quote]
+____
+已推，但它没有 PR，且内容已通过 PR #8 进 main —— 现在只是历史备份。
+____
+
+* ☐ *A* 删掉这个分支（本地 + 远程）
+* ☐ *B* 留着当备份
+
+☑ *我的建议：B* —— 删了没坏处，但留着也不占空间
+
+*备注*：
+
+=== D-34　Blueprint 库是 git 仓库这件事
+
+[quote]
+____
+意外发现：你的笔记库本身是 git 仓库（`.git` 体积很大，历史里存过大文件），且当前有 *4 条未提交改动*（含你手改的 `Finance/Debts.adoc` 和那个 50MB 书籍文件）。
+____
+
+* ☐ *A* 不影响 ADKM，忽略
+* ☐ *B* 同步方案要考虑「vault 本身是 git 仓库」这一层（避免两套版本管理打架）
+* ☐ *C* 帮你查一下那 4 条未提交改动是什么
+
+*备注*：
+
+=== D-35　`adkm-web/` 是什么，要不要入库
+
+[quote]
+____
+查清了：这是一个*独立的第二套 ADKM 实现* —— 「浏览器界面的本地优先知识库（AsciiDoc + Markdown，*Git 版本*）」。技术栈 React 18 + markdown-it + Node server（`server/git.ts` / `parsers` / `render.ts` / `workspace.ts` + `shared/types.ts`），有独立的 `verify` 脚本（`check:styles` + `typecheck`）。*非 git 仓，完全没入库。*
+____
+
+* ☐ *A* 入库（进 `Janlhin/adkm` 的子目录，或新建独立仓）
+* ☐ *B* 先归档进 `Janlhin/adkm` 的 `docs/prototypes/adkm-web/`（当参考实现，不当主线）
+* ☐ *C* 不入库（它可能是被 Tauri 桌面版取代的早期尝试）
+* ☐ *D* 先不动，我要自己确认它是否还有价值
+
+☑ *我的建议：B 或 C* —— 它描述里写着「Git 版本」，和现在的自建同步引擎方向重叠，值得先确认定位再决定；但它不该和 Tauri 桌面版混成一条主线
+
+*备注*：
+
+=== D-36　`spike/` 目录要不要入库
+
+[quote]
+____
+43 个根文件 + 一个 `adoc-browser-test/` 子项目。内容是 AsciiDoc 渲染的浏览器端 spike（`adoc-spike.mjs`、`adoc-spike2.mjs`）、DOM 抓取产物（`adoc-dom.txt`）、错误日志、截图（`after-rebuild.png`）。*非 git 仓，完全没入库。*
+____
+
+* ☐ *A* 不入库（纯实验产物，含 node_modules / dist）
+* ☐ *B* 只把有价值的部分（`adoc-spike.mjs` 之类的探针脚本）收进 `Janlhin/adkm` 的 `scripts/`，其余丢弃
+* ☐ *C* 整个入库
+
+☑ *我的建议：A* —— spike 的结论早已固化进 `src/core/asciidoctorPreview.ts`，脚本本身是推导过程的脚手架，不是交付物
+
+*备注*：
+
+=== D-37　桌面 `ADKM` 目录怎么处理（入库后的新问题）
+
+[quote]
+____
+入库后*权威副本已在仓库*，但桌面目录仍然保留 —— 于是同一份文档存在两处，即我们前面反复警惕的「多真源漂移」：以后在桌面改，仓库不会跟着。
+____
+
+* ☐ *A* 删掉桌面目录（内容已完整入库，且桌面那份的 `nul` 是垃圾）
+* ☐ *B* 改名为 `ADKM-archived` 留作备份，并放一个 `MOVED.md` 指向仓库位置
+* ☐ *C* 原样保留，你自己心里清楚哪份是准的
+
+☑ *我的建议：B* —— 删掉不可逆（虽然仓库里有），留个指向说明既消除歧义又不丢东西
+
+*备注*：
+
+'''
+
+== 7 · 备注 / 补充
+
+[quote]
+____
+这里可以写我完全没想到的、或者要推翻上面某条的。
+____
+
+[source,text]
+----
+
+----
+
+'''
+
+*填完请保存这份文件，然后跟我说一声。*

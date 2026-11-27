@@ -1,6 +1,6 @@
 /**
  * hoverController.ts — document-level delegated hover controller (R25 page
- * preview). See ARCHITECTURE.md "Round 25 additions — 悬停预览" (frozen
+ * preview). See ARCHITECTURE.adoc "Round 25 additions — 悬停预览" (frozen
  * contract). PURE READ-ONLY: this controller only RESOLVES links and writes
  * the shared `hoverStore`; it never writes any vault file and never mutates
  * workspace/tab state.

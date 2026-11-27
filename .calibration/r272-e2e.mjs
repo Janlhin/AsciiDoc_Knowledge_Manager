@@ -7,7 +7,7 @@
  *
  * 关键忠实行为：edit-mode 偏好跨 read↔edit 持久。
  * Run: node .calibration/r272-e2e.mjs   (dev server :1420 up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 272 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 272 additions".
  */
 import { chromium } from "playwright";
 

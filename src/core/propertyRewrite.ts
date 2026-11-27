@@ -1,7 +1,7 @@
 /**
  * Property rewrite engine (R30) — rename a frontmatter property key across
  * EVERY file in the vault that uses it (old→new) and update the
- * .obsidian/types.json registry. See ARCHITECTURE.md "Round 30 additions" for
+ * .obsidian/types.json registry. See ARCHITECTURE.adoc "Round 30 additions" for
  * the frozen algorithm. This is a verified-rewrite, data-safety round: it is a
  * byte-for-byte mirror of the R16 link-rewrite discipline — NEVER blind-write,
  * read fresh (open files read their buffer, not the cache), every file goes

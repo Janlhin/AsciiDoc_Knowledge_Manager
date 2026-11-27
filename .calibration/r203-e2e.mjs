@@ -1,6 +1,6 @@
 /**
  * R203 — G C1: vault switcher first slice — recentVaults store + switcher modal + app:switch-vault.
- * Browser :1420.   Run: node .calibration/r203-e2e.mjs   Contract: docs/internal/ARCHITECTURE.md "Round 203 additions".
+ * Browser :1420.   Run: node .calibration/r203-e2e.mjs   Contract: docs/internal/ARCHITECTURE.adoc "Round 203 additions".
  *
  * A = recentVaults store CRUD via __geodeRecentVaults (load/push/remove, dedupe, cap, defensive parse).
  * B = command + modal: app:switch-vault opens the modal; recents render (basename + path); empty state.

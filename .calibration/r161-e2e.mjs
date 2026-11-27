@@ -1,7 +1,7 @@
 /**
  * R161 — Tier 7 A1: "app:delete-file" delete-current-note command — browser :1420.
  * Run: node .calibration/r161-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 161 additions" (Tier 7 A1).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 161 additions" (Tier 7 A1).
  *
  * Reuses the Explorer's vetted flush-before-trash path (recoverable .trash, R42),
  * markdown-only via workspace.getActiveFile(), confirm via shared @core/confirm.

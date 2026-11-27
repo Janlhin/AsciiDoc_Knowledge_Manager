@@ -1,7 +1,7 @@
 /**
  * R64 Outline filter E2E — browser mode against dev :1420.
  * Run: node .calibration/r64-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 64 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 64 additions".
  *
  * Covers ㉗ Outline filter (Obsidian core Outline plugin's filter bar):
  * case-insensitive substring filter that shows matching headings + their

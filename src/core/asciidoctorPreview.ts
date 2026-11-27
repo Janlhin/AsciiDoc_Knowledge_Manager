@@ -2,7 +2,7 @@
  * ADKM L3: AsciiDoc reading-view renderer.
  *
  * The index path deliberately does NOT use Asciidoctor (see
- * docs/plans/L2-asciidoc-indexing.md, P3) — it is a pure regex scan so the
+ * docs/plans/L2-asciidoc-indexing.adoc, P3) — it is a pure regex scan so the
  * vault stays fast. The READING view needs full AsciiDoc semantics, so it
  * loads the official browser build lazily on the first `.adoc` preview.
  *

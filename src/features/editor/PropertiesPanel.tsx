@@ -31,7 +31,7 @@ import type { JSX } from "react";
  * a note (live preview: portaled into the CM PropertiesHostWidget container;
  * reading view: rendered before .preview-content).
  *
- * Contract (docs/internal/ARCHITECTURE.md "Round 22 additions"):
+ * Contract (docs/internal/ARCHITECTURE.adoc "Round 22 additions"):
  * - renders parseProperties(getDoc()) in document order; opaque entries are
  *   read-only raw rows and are NEVER rewritten;
  * - focused row keeps a local draft, commits on blur/Enter, restores on

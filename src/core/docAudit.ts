@@ -5,7 +5,7 @@
  * is injected. That keeps the six checks unit-testable and lets T-047 reuse the
  * very same rule set as prompt context for AI proofreading.
  *
- * The six original checks (TASKS.md T-046):
+ * The six original checks (TASKS.adoc T-046):
  *   1. terminology        — inconsistent term variants (configurable glossary)
  *   2. broken-link        — wikilink / xref that resolves to no file
  *   3. heading-skip       — heading level jumps more than one level

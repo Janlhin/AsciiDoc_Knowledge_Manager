@@ -1,7 +1,7 @@
 /**
  * R274 — editor right-click file-actions: Open in new tab / Open to the right.
  * Run: node .calibration/r274-e2e.mjs   (dev server :1420 up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 274 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 274 additions".
  *
  * Obsidian reference/08 shows these two items in the editor context menu. Explorer
  * already had the vetted handlers; R274 promotes them to command-registry entries

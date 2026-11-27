@@ -1,7 +1,7 @@
 /**
  * R148 compat Keymap.isModifier E2E — browser mode :1420.
  * Run: node .calibration/r148-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 148 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 148 additions".
  *
  * Adds the confirmed-missing @public static Keymap.isModifier(evt, modifier) (obsidian.d.ts:4558
  * Modifier = Mod|Ctrl|Meta|Shift|Alt). "Mod" = Cmd on macOS, Ctrl elsewhere. Verified via the

@@ -1,7 +1,7 @@
 /**
  * R149 compat Keymap.isModEvent completion E2E — browser mode :1420.
  * Run: node .calibration/r149-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 149 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 149 additions".
  *
  * Completes Keymap.isModEvent (d.ts: 'tab' if Mod[Cmd/Ctrl] OR middle-click; 'split' if Mod+Alt;
  * 'window' if Mod+Alt+Shift). The Mod key is platform-aware (Cmd on macOS, Ctrl elsewhere), reusing

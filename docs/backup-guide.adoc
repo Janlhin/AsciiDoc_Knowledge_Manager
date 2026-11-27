@@ -101,4 +101,4 @@ npm run test:e2e                      # 第 14 条 offdisk-backup：真实写出
 * `src-tauri/src/main.rs`（`export_write_binary` / `export_list_backups` / `export_delete_backup`）
 * `src/app/App.tsx`（两条命令 + 通知）、`src/main.tsx`（E2E 探针 `__geodeBackup`）
 * `src/core/i18n/dict.app.ts`（8 键）、`tests/backup.test.ts`、`tests/e2e/run.mjs`
-* 决策：`DECISIONS.md` D-026（含对章程 `:958` 的局部修订）
+* 决策：`DECISIONS.adoc` D-026（含对章程 `:958` 的局部修订）

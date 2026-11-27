@@ -1,7 +1,7 @@
 /**
  * R235 Note composer "Ask to confirm before merging" toggle E2E — browser mode :1420.
  * Run: node .calibration/r235-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 235 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 235 additions".
  *
  * Obsidian's Note composer asks to confirm before merging (default ON). Geode gates the
  * QuickSwitcher merge path on the mergeConfirm Store: ON → a confirm dialog precedes the

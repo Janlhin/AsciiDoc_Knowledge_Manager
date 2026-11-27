@@ -7,7 +7,7 @@ src-tauri/gen/
 .playwright-mcp/
 bench-vault/
 # calibration harness — 测试脚本 + 基线数据入库（换机/CI 可复跑）；
-# 仅忽略安装依赖与每轮运行产物。详见 .calibration/README.md
+# 仅忽略安装依赖与每轮运行产物。详见 .calibration/README.adoc
 .calibration/node_modules/
 .calibration/**/*-results.md
 .calibration/__*/
@@ -18,7 +18,7 @@ bench-vault/
 .calibration/dataview/
 .calibration/tasks/
 .calibration/templater/
-# vendored Obsidian type defs / extracts — legal boundary: NEVER commit (OBSIDIAN-COMPAT.md §法律边界)
+# vendored Obsidian type defs / extracts — legal boundary: NEVER commit (OBSIDIAN-COMPAT.adoc §法律边界)
 .calibration/obsidian.d.ts
 .calibration/API-REFERENCE.md
 compat-vault/

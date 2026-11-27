@@ -1,7 +1,7 @@
 /**
  * R135 MarkdownPostProcessorContext addChild + getSectionInfo E2E — browser mode :1420.
  * Run: node .calibration/r135-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 135 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 135 additions".
  *
  *  A. live preview: a code-block handler's ctx.addChild(child) loads the child; entering the fence
  *     (widget destroyed) unloads it; leaving re-renders + loads a fresh child. ctx.getSectionInfo(el)

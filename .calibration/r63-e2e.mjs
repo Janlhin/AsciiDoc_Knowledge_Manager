@@ -1,7 +1,7 @@
 /**
  * R63 multiple cursors / selections E2E — browser mode against dev :1420.
  * Run: node .calibration/r63-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 63 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 63 additions".
  *
  * Covers ㉕ multi-cursor. The 2-line foundation (EditorState.allowMultipleSelections
  * + drawSelection) is the real gap — without it Geode could not render >1 cursor at

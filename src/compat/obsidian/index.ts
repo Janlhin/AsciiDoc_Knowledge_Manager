@@ -1,7 +1,7 @@
 /**
  * The `require("obsidian")` module surface — the loader hands this namespace
  * object to plugin bundles. Implemented strictly against
- * .calibration/API-REFERENCE.md (T0 + T1 + T1.5 per docs/internal/OBSIDIAN-COMPAT.md);
+ * .calibration/API-REFERENCE.md (T0 + T1 + T1.5 per docs/internal/OBSIDIAN-COMPAT.adoc);
  * out-of-tier APIs are warn-stubs recorded in the loader's gap report.
  */
 import "./compat.scss";

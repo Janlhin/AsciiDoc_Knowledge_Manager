@@ -5,7 +5,7 @@
  * React-effect bound (App-Nap §D) → browser E2E.
  *
  * Run: node .calibration/r50-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 50 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 50 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

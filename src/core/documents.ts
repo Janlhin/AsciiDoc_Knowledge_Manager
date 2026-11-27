@@ -16,7 +16,7 @@ import { Vault } from "./vault";
  * Shared document model (R4) — ONE DocumentHandle per open file, no matter how
  * many panes show it. The handle owns the canonical text, the single dirty
  * flag and the single debounced auto-save; attached CodeMirror views stay
- * byte-identical at all times. See ARCHITECTURE.md "Round 4 additions" for the
+ * byte-identical at all times. See ARCHITECTURE.adoc "Round 4 additions" for the
  * full behavior contract.
  *
  * Multi-view sync follows the official CodeMirror split-view example

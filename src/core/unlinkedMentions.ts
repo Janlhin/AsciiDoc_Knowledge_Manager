@@ -2,7 +2,7 @@
  * Unlinked-mentions engine (R24) — find plain-text occurrences of the active
  * note's name (basename + frontmatter aliases) in OTHER notes that are not yet
  * wrapped in a `[[..]]` wikilink, and rewrite them into links on demand. See
- * ARCHITECTURE.md "Round 24 additions" for the frozen contract.
+ * ARCHITECTURE.adoc "Round 24 additions" for the frozen contract.
  *
  * Two halves:
  *  - the matcher (`deriveMentionTerms` / `findUnlinkedMentions`) is pure,

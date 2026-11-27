@@ -1,7 +1,7 @@
 /**
  * R121 compat app.commands.removeCommand E2E — browser mode :1420.
  * Run: node .calibration/r121-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 121 additions" (compat 商业主轴, 收 R113/R118 余项).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 121 additions" (compat 商业主轴, 收 R113/R118 余项).
  *
  * Obsidian app.commands.removeCommand(id): void — removes the command from the registry. Backed
  * by new core CommandRegistry.removeById (delete + revision bump, mirrors the register() disposer).

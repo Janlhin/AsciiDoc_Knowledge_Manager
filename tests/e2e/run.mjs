@@ -286,7 +286,7 @@ async function prepareVault(dir) {
   cbz.file("readme.txt", "not an image");
   writeFileSync(path.join(dir, "sample.cbz"), await cbz.generateAsync({ type: "nodebuffer" }));
   // Q-005: invalid Kindle samples prove format routing + honest failure.
-  // No third-party ebook binary is bundled into the repo (see MANIFEST.md).
+  // No third-party ebook binary is bundled into the repo (see MANIFEST.adoc).
   writeFileSync(path.join(dir, "sample.mobi"), "not a real MOBI container");
   writeFileSync(path.join(dir, "sample.azw3"), "not a real KF8 container");
   // T-061: PDF startup gate. scan-small.pdf is a real (if tiny) PDF; scan-big.pdf is

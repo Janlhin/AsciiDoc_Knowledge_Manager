@@ -1,7 +1,7 @@
 /**
  * R79 appearance E2E — accent color + system theme tri-state — browser mode :1420.
  * Run: node .calibration/r79-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 79 additions" (㊺).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 79 additions" (㊺).
  *
  * Covers resolveTheme truth table + accent override/persist/reset (via
  * __geodeAppearance) AND the live behaviour: "system" theme follows

@@ -1,7 +1,7 @@
 /**
  * R241 file-explorer:copy-absolute-path E2E — browser mode :1420.
  * Run: node .calibration/r241-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 241 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 241 additions".
  *
  * Obsidian's "Copy file path" copies the file's absolute OS path. It's desktop-only (the Memory
  * adapter has no vault path) so the command is gated unavailable in the browser; the OS-aware

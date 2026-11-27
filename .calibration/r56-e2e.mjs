@@ -1,7 +1,7 @@
 /**
  * R56 live-preview mermaid E2E — browser vs :1420.
  * Run: node .calibration/r56-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 56 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 56 additions".
  *
  *  A. pure detection/placeholder (window.__geodeMermaid): mermaid fence ranges + render.
  *  B. live widget: a ```mermaid fence renders as a diagram (async SVG) when the cursor

@@ -1,7 +1,7 @@
 /**
  * R249 (G2-b) settings dropdown native-look fidelity E2E — browser mode :1420.
  * Run: node .calibration/r249-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 249 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 249 additions".
  *
  * Obsidian's dropdowns use a custom chevron, not the native OS arrow (reference 00 §四). R249 gives
  * `.settings-select` appearance:none + a themeable two-gradient `v` chevron. Asserts via computed

@@ -6,7 +6,7 @@
 == 这份文档管什么
 
 从「代码可构建」走到「可分发安装包」的前置清单、两条构建命令、产物校验与回滚方式。
-配套说明：`docs/DISTRIBUTION.md`（打包与签名链路）、`README.md`（开发构建）。
+配套说明：`docs/DISTRIBUTION.adoc`（打包与签名链路）、`README.adoc`（开发构建）。
 
 **本轮状态**：unsigned 链路已在本机跑通；正式签名与公开发布**仍 blocked**——minisign
 私钥在被 gitignore 的 `.tauri-keys/` 中、不进仓库，Authenticode 代码签名证书未购。
@@ -28,13 +28,13 @@ $env:PATH = "D:\Projects\_tools\node-v22.23.2;$env:PATH"
 | 全量门禁 | `npm run verify` | 退出码 0 |
 | Rust 侧（改了 `.rs` 才需要） | `cargo check`（`src-tauri/`） | 退出码 0 |
 
-前置人工项：CHANGELOG「未发布」一节已收口为目标版本；TASKS.md 无未完成的阻塞项；
+前置人工项：CHANGELOG「未发布」一节已收口为目标版本；TASKS.adoc 无未完成的阻塞项；
 README 仅在用户可见行为变化时更新：T-072 自身无可见行为变化；T-070 的「引用校验」面板
 与 T-071 的折叠 / 大纲属可见变化，已随合并更新 README 对应条目。
 
 == 版本号五处同步
 
-发版 bump 时，以下五处必须同一版本号（规则沿用 `docs/DISTRIBUTION.md`「发布一个新版本」
+发版 bump 时，以下五处必须同一版本号（规则沿用 `docs/DISTRIBUTION.adoc`「发布一个新版本」
 第 1 步，SemVer 2.0.0）：
 
 1. `package.json` 的 `version`；
@@ -69,7 +69,7 @@ Authenticode 代码签名，仅用于内部验证安装链路，不可对外分�
 
 ### C. signed 安装包（正式发布，当前 blocked）
 
-先设置签名环境变量（私钥内容 / 路径 + 口令，见 `docs/DISTRIBUTION.md`），再：
+先设置签名环境变量（私钥内容 / 路径 + 口令，见 `docs/DISTRIBUTION.adoc`），再：
 
 ```powershell
 $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content .tauri-keys/adkm.key -Raw)
@@ -78,7 +78,7 @@ npm run tauri build
 ```
 
 产出 `ADKM_<version>_x64-setup.exe` 与同名 `.sig`（minisign 更新签名）。Authenticode
-代码签名（防 SmartScreen 黄条）另需购买证书，配置位见 `docs/DISTRIBUTION.md` 末节。
+代码签名（防 SmartScreen 黄条）另需购买证书，配置位见 `docs/DISTRIBUTION.adoc` 末节。
 
 == 产物校验
 
@@ -107,8 +107,8 @@ npm run tauri build
 
 - `CHANGELOG.adoc`：发布时把「未发布（Unreleased）」节改为目标版本号 + 日期，按
   `=== 新增 / 变更 / 移除` 归类；条目必须写真实产物数字或实测结论，阻塞项如实写阻塞。
-- `TASKS.md`：发布前确认挂在该版本上的任务全部「完成」，遗留项要么并入本版要么顺延。
-- `DECISIONS.md`：发版相关取舍（版本号、签名策略、分发渠道）逐条留决策记录。
+- `TASKS.adoc`：发布前确认挂在该版本上的任务全部「完成」，遗留项要么并入本版要么顺延。
+- `DECISIONS.adoc`：发版相关取舍（版本号、签名策略、分发渠道）逐条留决策记录。
 
 == 回滚方式
 
@@ -178,4 +178,4 @@ npm run tauri build
 - unsigned 包未在干净 Windows 环境安装验证；WebView2 引导模式未显式配置（走 Tauri 默认）。
 - 跨机器可复现性（不同 cargo / rustc / Node 版本下的产物哈希）未比对。
 - 版本号仍为 `0.0.1`；1.0.0 的功能范围、版本号决策与公告文案另立任务。
-- `README.md` 的 exe 体积表述已按本轮实测更新（约 9.8 MiB）；正式发版 bump 版本号时复核一次。
+- `README.adoc` 的 exe 体积表述已按本轮实测更新（约 9.8 MiB）；正式发版 bump 版本号时复核一次。

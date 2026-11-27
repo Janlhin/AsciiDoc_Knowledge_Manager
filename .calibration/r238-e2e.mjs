@@ -1,7 +1,7 @@
 /**
  * R238 editor:focus command E2E — browser mode :1420.
  * Run: node .calibration/r238-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 238 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 238 additions".
  *
  * Obsidian's "Focus on the editor" (editor:focus) moves keyboard focus to the active editor.
  * Geode registers it next to the fold commands: getActiveView()?.view.focus(). No default key.

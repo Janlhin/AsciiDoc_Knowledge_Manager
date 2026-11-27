@@ -1,0 +1,63 @@
+= ADKM Web —— 归档原型
+
+[quote]
+____
+*状态：归档，非活跃开发。* 这是 ADKM 的*浏览器形态*原型（v0.1.0），与主仓库的桌面版（Tauri + React，位于 `src/`、`src-tauri/`）是两套独立实现。收录目的是*保全源码与提炼设计*，不是继续在此目录上开发。
+____
+
+== 来源
+
+* 原始目录：工作区 `adkm-web/`，*不是 git 仓库，无提交历史*，最后修改于 2026-11-12。
+* 收录日期：2026-11-15，按字节复制，*保持原样*，便于追溯。
+* 未收录：`node_modules/`（80 MB 依赖）、`web/dist/`（构建产物）——两者均可由 `npm install` / `npm run build:web` 再生。
+* 收录规模：22 个文件 / 157 KB。
+
+== 它是什么
+
+`package.json` 自述：*ADKM · 浏览器界面的本地优先知识库（AsciiDoc + Markdown，Git 版本）*。
+
+[options="header"]
+|===
+|层 |实现
+|服务端 |`server/index.ts` —— 零框架的 `node:http` 服务，端口 8787
+|解析 |`server/parsers/{asciidoc,markdown}.ts` —— 双格式解析，AsciiDoc 单独建模 xref / include
+|工作区 |`server/workspace.ts` —— vault 扫描与索引
+|版本控制 |`server/git.ts` —— *只读* Git 状态（`git status --porcelain` 解析 + ahead/behind）
+|共享契约 |`shared/types.ts` —— 前后端共用的数据模型
+|前端 |`web/` —— React + Vite，含 DocView / GraphView / Sidebar
+|===
+
+== 三项对主项目有复用价值的设计
+
+. *链接分类模型*（`shared/types.ts`）
+`LinkKind = wikilink | markdown-link | xref | xref-short | link-macro | include`，配合 `LinkStatus = resolved | broken | unresolved`。
+桌面版当前 `LinkRef` 只记录 `target / alias / from`，不区分链接种类。而"include 链断裂"与"正文交叉引用失效"是两类不同的问题——这是 *T-045（Docs-as-Code 工作流）与 T-046（文档规范体检）的地基*。
+. *只读 Git 感知*（`server/git.ts`，77 行）
+当前分支、ahead/behind、工作区脏文件清单。桌面版尚无任何 Git 感知能力，而对"文档工程"定位而言，Markdown/AsciiDoc + Git 是标准组合。
+. *AsciiDoc 引用单独建模*（`server/parsers/asciidoc.ts`，229 行）
+xref 短式、link-macro、include 分别处理，而非混同为「链接」。桌面版的统一引用模型可参考其分类边界。
+
+`web/components/GraphView.tsx`（423 行）在此仅作对照：桌面版图谱已有约 1,969 行实现，更成熟，不建议反向移植。
+
+== 已知不可移植点（归档时未修改）
+
+下列路径写死了本机环境，*直接 clone 后无法运行*：
+
+[options="header"]
+|===
+|文件 |问题
+|`server/index.ts:10` |默认 vault 为 `<vault>`
+|`server/parsers/asciidoc.ts:7` |Asciidoctor 以 `file:///<node 安装目录>/...` 引入
+|`server/render.ts:7` |同上
+|`start.ps1` |`-Vault` 默认值同为上述路径
+|===
+
+若要恢复运行，需要：① 把 vault 路径改为参数或环境变量；② 把 Asciidoctor 改为项目依赖（`@asciidoctor/core`）并动态导入；③ 补一份 README 级别的环境要求说明。
+
+== 与主项目的关系
+
+* 本目录*不参与* `npm run verify`、`npm test`、Tauri 构建；它不在根 `tsconfig.json` 的编译范围内。
+* 提炼结论走台账：T-045 / T-046（待命区），避免把归档目录当成活的依赖源。
+* 原型的 Web 形态本身是否继续，属产品决策，尚未排期。
+
+原归档目录文件保持字节原样，本说明已迁移为 AsciiDoc。

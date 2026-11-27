@@ -1,7 +1,7 @@
 /**
  * R104 attachment media preview (audio/video/pdf) E2E — browser mode :1420.
  * Run: node .calibration/r104-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 104 additions" (㊽ 续续续续续续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 104 additions" (㊽ 续续续续续续).
  *
  * Extends R102's read-only attachment viewer: audio→<audio>, video→<video>, pdf→<embed>
  * inline previews (was placeholder). Still read-only (no documents.acquire). mediaKind

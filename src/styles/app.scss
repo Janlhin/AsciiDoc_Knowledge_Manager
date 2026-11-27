@@ -8,7 +8,7 @@
 /* ADKM: native controls (scrollbars, selects, inputs) follow the resolved
    OS/app theme. This adds no palette literal, so the R20 sync obligation
    above is untouched — brand colors are deliberately NOT repointed to OS
-   accents (see docs/product-placeholders.md). */
+   accents (see docs/product-placeholders.adoc). */
 :root {
   color-scheme: light dark;
 }

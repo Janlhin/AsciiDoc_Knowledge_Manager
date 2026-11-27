@@ -1,7 +1,7 @@
 /**
  * R93 Explorer right-click context menu E2E — browser mode :1420.
  * Run: node .calibration/r93-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 93 additions" (㊽ 续续 right-click menu).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 93 additions" (㊽ 续续 right-click menu).
  *
  * The Explorer already had a row menu (New note here / New folder here / Rename /
  * Delete). R93 ADDS file items (Open in new tab / Open to the right / Make a copy)

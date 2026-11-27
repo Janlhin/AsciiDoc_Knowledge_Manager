@@ -1,7 +1,7 @@
 /**
  * R244 "Delete attachments when deleting a note" E2E — browser mode :1420.
  * Run: node .calibration/r244-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 244 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 244 additions".
  *
  * Obsidian Files&Links 「删除文件时删除附件」(default 每次都询问). Deleting a note can also trash the
  * attachments referenced ONLY by it (orphaned by the delete), per attachmentDeleteMode ask/delete/keep.

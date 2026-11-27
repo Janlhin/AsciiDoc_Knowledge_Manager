@@ -1,7 +1,7 @@
 /**
  * R100 Show tab title bar + Show status bar E2E — browser mode :1420.
  * Run: node .calibration/r100-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 100 additions" (㊺ 续续续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 100 additions" (㊺ 续续续).
  *
  * Two appearance toggles (default ON = Obsidian + zero regression), mirroring R94's
  * inline-title/ribbon: hide each pane's tab strip / the bottom status bar. Hiding the

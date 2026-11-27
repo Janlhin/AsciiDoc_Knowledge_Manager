@@ -1,7 +1,7 @@
 /**
  * R154 "Backlink in document" E2E — browser mode :1420.
  * Run: node .calibration/r154-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 154 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 154 additions".
  *
  * Obsidian's "Backlink in document" (default OFF) shows the note's linked mentions at the
  * bottom of the reading view. R154 renders a read-only section below .preview-content,

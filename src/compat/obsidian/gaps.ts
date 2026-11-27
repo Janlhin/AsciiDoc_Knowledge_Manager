@@ -1,7 +1,7 @@
 /**
  * Gap reporter — warn-stubbed compat APIs warn ONCE per (scope, api) and are
  * collected so the loader can print a consolidated status report. A gap never
- * crashes a plugin; it is recorded honestly instead (docs/internal/OBSIDIAN-COMPAT.md).
+ * crashes a plugin; it is recorded honestly instead (docs/internal/OBSIDIAN-COMPAT.adoc).
  */
 export interface GapEntry {
   /** plugin id or shim area, e.g. "Vault" / "geode-compat-fixture" */

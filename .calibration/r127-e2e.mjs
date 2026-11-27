@@ -1,7 +1,7 @@
 /**
  * R127 compat CachedMetadata.footnotes + footnoteRefs E2E — browser mode :1420.
  * Run: node .calibration/r127-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 127 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 127 additions" (compat 商业主轴).
  *
  * Obsidian getFileCache(file): footnotes: FootnoteCache[] = `[^id]: content` DEFINITIONS;
  * footnoteRefs: FootnoteRefCache[] = inline `[^id]` REFERENCES in the body. Both {id (no caret),

@@ -1,7 +1,7 @@
 /**
  * R222 Tags-pane ↔ Obsidian native "Tags view" parity E2E — browser mode :1420.
  * Run: node .calibration/r222-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 222 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 222 additions".
  *
  * The independent TagsPanel already existed (R41/R69/R150/R151). R222 closes the three
  * native-fidelity gaps vs Obsidian's Tags view: (1) nested tree↔flat-list display toggle

@@ -10,7 +10,7 @@
  * "myassets"), reload re-decode, and the empty-path collision held in local state (no mode jump).
  *
  * Run: node .calibration/r273-e2e.mjs   (dev server :1420 up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 273 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 273 additions".
  */
 import { chromium } from "playwright";
 

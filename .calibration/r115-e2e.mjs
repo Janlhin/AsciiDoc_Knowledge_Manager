@@ -1,7 +1,7 @@
 /**
  * R115 compat Plugin.registerEditorExtension E2E — browser mode :1420.
  * Run: node .calibration/r115-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 115 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 115 additions" (compat 商业主轴).
  *
  * A plugin-registered CM6 extension applies to EVERY markdown editor (Obsidian semantics).
  * Bridge: compat Plugin.registerEditorExtension → core editorExtensions registry → EditorPane

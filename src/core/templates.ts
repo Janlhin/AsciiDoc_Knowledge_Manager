@@ -1,7 +1,7 @@
 /**
  * Template engine (R23) — Templates core-plugin parity: settings stores
  * (folder / date format / time format), picker mode, template enumeration and
- * {{title}}/{{date}}/{{time}} variable expansion. See ARCHITECTURE.md
+ * {{title}}/{{date}}/{{time}} variable expansion. See ARCHITECTURE.adoc
  * "Round 23 additions" for the frozen contract.
  */
 // Same specifier as compat/obsidian/util.ts — Vite dedupes to a single moment

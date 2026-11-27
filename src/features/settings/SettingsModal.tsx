@@ -179,7 +179,7 @@ import {
 import "./settings.scss";
 
 /** Current app version — single source for the About card and the update row.
- *  ADKM: value comes from the product placeholder file; see docs/product-placeholders.md.
+ *  ADKM: value comes from the product placeholder file; see docs/product-placeholders.adoc.
  *  Exported (R217) so app:show-debug-info reuses the same constant. */
 export const APP_VERSION: string = PRODUCT.version;
 
@@ -2655,7 +2655,7 @@ function PluginsSection() {
         {t("settings.pluginPathHint2")}
         <code>&lt;vault&gt;/.geode/plugins/</code>
         {t("settings.pluginPathHint3")}
-        <code>docs/PLUGINS.md</code>
+        <code>docs/PLUGINS.adoc</code>
         {t("settings.pluginPathHint4")}
       </p>
       <PluginList entries={external} group="external" />

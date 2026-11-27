@@ -1,7 +1,7 @@
 /**
  * R226 editor "Right-to-left" (RTL) toggle E2E — browser mode :1420.
  * Run: node .calibration/r226-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 226 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 226 additions".
  *
  * Obsidian's "Right-to-left" (default OFF) sets the editor + reading-view default text direction
  * to RTL. Geode applies it as a pure DOM attr: the CM contentDOM `dir` (CM6 native bidi takes over)

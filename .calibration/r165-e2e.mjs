@@ -1,7 +1,7 @@
 /**
  * R165 — Tier 7 B3③: `global` shim for Node-targeting plugin bundles — browser :1420.
  * Run: node .calibration/r165-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 165 additions" (Tier 7 B3③, 商业主轴 compat).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 165 additions" (Tier 7 B3③, 商业主轴 compat).
  *
  * loader.ts runLoad() injects `globalThis.global ??= globalThis` before any plugin
  * main.js evaluates, so bundles that reference the Node global `global` as a free

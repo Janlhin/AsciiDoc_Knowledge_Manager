@@ -2,7 +2,7 @@
  * R210 — G3 §10 missing→done: editor:toggle-fold-properties (折叠/展开当前笔记属性).
  * Folds the properties panel; pure VIEW state (per-path), never mutates the doc.
  * Browser :1420.  Run: node .calibration/r210-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 210 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 210 additions".
  *
  * A = registration (no default hotkey).
  * B = command folds/unfolds (is-collapsed class + rows hidden) AND the doc text is

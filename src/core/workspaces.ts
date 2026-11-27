@@ -11,7 +11,7 @@
  * identity race guard around the vault switch, preserve unknown keys, and
  * abort on malformed JSON rather than overwrite Obsidian's data.
  *
- * Contract frozen in docs/internal/ARCHITECTURE.md "Round 45 additions".
+ * Contract frozen in docs/internal/ARCHITECTURE.adoc "Round 45 additions".
  */
 import { Store } from "./store";
 import type { Vault } from "./vault";

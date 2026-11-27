@@ -2,7 +2,7 @@
  * R189 — G3 partial→done: editor:insert-wikilink (Obsidian "Insert wikilink", `[[]]`,
  * distinct from the existing editor:insert-link Markdown link) — browser :1420.
  * Run: node .calibration/r189-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 189 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 189 additions".
  *
  * A = byte-level pure __geodeFormat.apply probe (exact FormatEdit) — content preserved,
  *     only the [from,to] range is wrapped in [[ ]]. B = command registration + hotkey

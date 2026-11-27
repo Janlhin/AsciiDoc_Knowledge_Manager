@@ -1,5 +1,5 @@
 // All Properties right-sidebar panel (R30).
-// Contract: docs/internal/ARCHITECTURE.md "Round 30 additions".
+// Contract: docs/internal/ARCHITECTURE.adoc "Round 30 additions".
 // Layering: features/ may import only @core/*, @app/AppContext, @app/icons.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";

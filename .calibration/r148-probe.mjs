@@ -5,7 +5,7 @@
  * browser run can't pin down — so this probe asserts the macOS-specific Mod branch on the binary.
  *
  * Run: node .calibration/r148-probe.mjs   (release binary must be built WITH R148)
- * Contract: docs/internal/ARCHITECTURE.md "Round 148 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 148 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

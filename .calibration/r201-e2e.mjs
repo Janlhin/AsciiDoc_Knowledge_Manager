@@ -2,7 +2,7 @@
  * R201 — G3 §4: editor:follow-link (⌥Enter) / editor:open-link-in-new-leaf (⌘Enter).
  * Navigate the link under the cursor (core/linkAtCursor + vetted openWikilink /
  * resolveMarkdownLink / window.open). Browser :1420.   Run: node .calibration/r201-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 201 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 201 additions".
  *
  * A = byte-level linkAtCursor via __geodeLinkAtCursor. B = registration + hotkeys.
  * C = live CM: follow (same tab) / new-leaf (new tab) / subpath / markdown / external / no-op.

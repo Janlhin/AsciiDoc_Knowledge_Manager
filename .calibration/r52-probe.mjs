@@ -6,7 +6,7 @@
  * paths are exercised by the browser E2E.
  *
  * Run: node .calibration/r52-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 52 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 52 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

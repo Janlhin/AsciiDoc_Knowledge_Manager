@@ -1,7 +1,7 @@
 /**
  * Attachment ingestion engine (R17) — resolve where pasted/dropped binaries
  * land (Obsidian attachmentFolderPath semantics) and import them into the
- * vault. See ARCHITECTURE.md "Round 17 additions" for the frozen contract.
+ * vault. See ARCHITECTURE.adoc "Round 17 additions" for the frozen contract.
  */
 import type { MetadataIndex } from "./metadata";
 import { Store } from "./store";

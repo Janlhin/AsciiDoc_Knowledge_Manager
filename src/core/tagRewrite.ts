@@ -1,7 +1,7 @@
 /**
  * Tag rewrite engine (R69, ㉝) — rename a tag across EVERY file in the vault:
  * inline `#old`→`#new` (incl. nested `#old/sub`→`#new/sub`) AND the frontmatter
- * `tags:` field. See ARCHITECTURE.md "Round 69 additions" for the frozen
+ * `tags:` field. See ARCHITECTURE.adoc "Round 69 additions" for the frozen
  * algorithm. This is a verified-rewrite, data-safety round mirroring the R30
  * propertyRewrite discipline (NOT R16's offset-based linkRewrite — TagRef has
  * only `from`, no `to`, and inline/frontmatter tags are indistinguishable in the

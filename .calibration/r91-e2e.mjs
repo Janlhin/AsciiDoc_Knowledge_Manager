@@ -1,7 +1,7 @@
 /**
  * R91 Explorer file-tree sort E2E — browser mode :1420.
  * Run: node .calibration/r91-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 91 additions" (㊽ sort).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 91 additions" (㊽ sort).
  *
  * Covers sortTreeNodes (folders-first + name asc/desc, numeric, via __geodeSortTree)
  * + the explorer toolbar sort toggle re-ordering the tree + persistence.

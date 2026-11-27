@@ -1,7 +1,7 @@
 /**
  * R240 graph:open-local command E2E — browser mode :1420.
  * Run: node .calibration/r240-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 240 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 240 additions".
  *
  * Obsidian's "Open local graph" opens the graph anchored to the active note. GraphView already
  * supports local mode (R103/R110, anchor = lastActiveFile); R240 adds the command via a one-shot

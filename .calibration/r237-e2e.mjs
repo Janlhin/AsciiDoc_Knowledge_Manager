@@ -1,7 +1,7 @@
 /**
  * R237 status-bar vault name → vault switcher entry E2E — browser mode :1420.
  * Run: node .calibration/r237-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 237 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 237 additions".
  *
  * Obsidian's vault name is a persistent click target that opens the vault switcher. Geode's
  * status-bar vault name was a static <span>; R237 makes it a <button> that executes the

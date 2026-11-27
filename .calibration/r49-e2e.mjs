@@ -1,7 +1,7 @@
 /**
  * R49 file recovery snapshots E2E — browser mode vs dev :1420.
  * Run: node .calibration/r49-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 49 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 49 additions".
  *
  *  A. core (window.__geodeSnapshots): record / list / restore (snapshots current first).
  *  B. save hook: a file:modified (save) auto-records a snapshot.

@@ -13,7 +13,7 @@
  *   - Kindle→ @lingo-reader/mobi-parser (MOBI/KF8 → safe text chapters)
  *
  * All formats added after 2026-11-15 are READ-ONLY by product decision: the
- * only editable format remains Excel (see DECISIONS.md D-013 / D-022). New
+ * only editable format remains Excel (see DECISIONS.adoc D-013 / D-022). New
  * preview components use `useFormatResource` so cancellation and disposal
  * follow the same contract PR #27 established for EPUB.
  *
