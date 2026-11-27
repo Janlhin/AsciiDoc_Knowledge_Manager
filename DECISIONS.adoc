@@ -32,7 +32,7 @@
 * *日期*：2026-11-12
 * *决策*：不再维持「只改 60 行」的最小增量策略，改为分层深度改造，并冻结上游。
 * *背景*：实际核查发现目标能力与 ADKM 现状的差距为六个新增层（AsciiDoc 解析与编辑、引用校验、双语对齐、Canvas、Git、信息架构），而非一个解析器。在如此差距下维持最小增量，会导致大量代码写进上游文件，rebase 全面冲突。
-* *被采纳方案*：七层结构 L1–L7，层内自洽、层间按序交付；禁止跨层并行；每层完成后 `npm run build` 必须通过且应用可启动。完整论证见 ADR-0004（当前存放于项目文档目录，待迁入本仓库 `docs/decisions/`，迁移为 TASKS.md 中的待办项）。
+* *被采纳方案*：七层结构 L1–L7，层内自洽、层间按序交付；禁止跨层并行；每层完成后 `npm run build` 必须通过且应用可启动。完整论证见 ADR-0004（当前存放于项目文档目录，待迁入本仓库 `docs/decisions/`，迁移为 TASKS.adoc 中的待办项）。
 * *被否决的替代方案*：
 ** _继续最小增量_：仅加 AsciiDoc 解析器，其余能力不做。否决理由：无法满足引用校验与双语对齐这两项已被证实的真实需求。
 ** _完全自建_：放弃 ADKM。否决理由：损失 52,000 行已验证的外壳，工期从周级升至月级。
@@ -91,7 +91,7 @@
 * *日期*：2026-11-13
 * *决策*：工程规范要求根目录仅允许六类条目。经核对，本项目根目录存在源码目录（`src/`、`src-tauri/`）与资源目录（`public/`、`scripts/`、`docs/`），严格按字面判定均属越界。
 * *被采纳方案*：按「文件从严、目录从宽」解释执行——
-** 散文类文件与二进制一律移出根目录（`PROVENANCE.adoc`、`CONTRIBUTING.md`、`SECURITY.md`、`mtx.config.md` 移入 `docs/`，`app-icon.png` 移入 `assets/`）。
+** 散文类文件与二进制一律移出根目录（`PROVENANCE.adoc`、`CONTRIBUTING.md`、`SECURITY.md`、`mtx.config.adoc` 移入 `docs/`，`app-icon.png` 移入 `assets/`）。
 ** 源码与资源目录保留，但在 `README.md` 的「目录结构」字段逐一声明职责。
 ** `CLAUDE.md` 降为单行引用 `AGENTS.md`，不再作为规则载体。
 * *被否决的替代方案*：
@@ -121,7 +121,7 @@
 
 * *日期*：2026-11-13
 * *决策*：以 `vite-plus@1.6.0` 取代裸 Vite，作为 dev / build / preview 的入口。
-* *背景*：项目需接入 lint、format、test 三通道（TASKS.md T-001 至 T-003）。vite-plus 将 Vite、Vitest、Oxlint、Oxfmt、Rolldown 打包为单一工具链，可一次到位；实测构建耗时由 7.29 秒降至 1.48–2.09 秒。
+* *背景*：项目需接入 lint、format、test 三通道（TASKS.adoc T-001 至 T-003）。vite-plus 将 Vite、Vitest、Oxlint、Oxfmt、Rolldown 打包为单一工具链，可一次到位；实测构建耗时由 7.29 秒降至 1.48–2.09 秒。
 * *被采纳方案*：`vp migrate --no-interactive --no-agent --no-editor --no-hooks` 完成迁移，产生三处改动：`scripts` 改为 `vp dev|build|preview`；`vite` 通过 `overrides` 别名为 `@voidzero-dev/vite-plus-core@1.6.0`；`vite.config.ts` 的 `defineConfig` 改为从 `vite-plus` 导入。
 * *被否决的替代方案*：
 ** _维持 Vite 6，仅单独引入 oxlint + oxfmt_（原建议）：否决理由由用户裁定——需要统一的单入口，避免多套工具并存导致的规则冲突。*本条记录保留意见：该方案风险最低，若下列风险触发，回退到此路径。*
@@ -152,10 +152,10 @@
 
 * *日期*：2026-11-13
 * *决策*：新建 `docs/plans/`，容纳 L2–L7 各层的实施计划。
-* *背景*：规范 §目录结构与文件放置 的第二条判据要求「无同类可循时，位置选择记入 `DECISIONS.md`，写明选这个目录的理由，以及它未来要容纳什么」。`docs/` 下已有规范原文与来源声明，但没有任何目录承载「实施计划」这一类内容，属无同类可循。
-* *被采纳方案*：`docs/plans/`，每层一份，命名 `L<n>-<主题>.md`。
+* *背景*：规范 §目录结构与文件放置 的第二条判据要求「无同类可循时，位置选择记入 `DECISIONS.adoc`，写明选这个目录的理由，以及它未来要容纳什么」。`docs/` 下已有规范原文与来源声明，但没有任何目录承载「实施计划」这一类内容，属无同类可循。
+* *被采纳方案*：`docs/plans/`，每层一份，命名 `L<n>-<主题>.adoc`。
 * *被否决的替代方案*：
-** _写进 `TASKS.md` 的任务正文_：否决理由——任务队列应保持一屏可扫，设计正文会把条目撑到数百行，且完成判据会被正文淹没。T-012 现只保留目标、计划链接、完成判据三行。
+** _写进 `TASKS.adoc` 的任务正文_：否决理由——任务队列应保持一屏可扫，设计正文会把条目撑到数百行，且完成判据会被正文淹没。T-012 现只保留目标、计划链接、完成判据三行。
 ** _写进 `docs/decisions/` 与 ADR 同目录_：否决理由——ADR 记录的是「已决定的取舍」，计划记录的是「打算怎么做」。前者不可变，后者随实施修正，混放会让 ADR 的稳定性失效。
 ** _沿用仓库外的桌面项目目录_：否决理由——违反规范的可达性要求，换机器即断链。
 * *格式选择*：Markdown 而非 AsciiDoc。理由：`.adoc` 在 GitHub 不渲染，锚点失效，而计划文档需要被反复跳转与在上下文内读取。ADR 保持 `.adoc`（数量固定、以标题而非锚点引用），两种格式并存不构成「同一文档双格式」。
@@ -235,7 +235,7 @@
 ** _继续只做开源模仿品核查_：否决理由——社区项目的实现水平参差（报告自身已做可信度分级），能借鉴的是产品形态而非工程实现深度；且社区项目天然只覆盖 Obsidian 的公开功能面，无法回答「它内部为何这样设计」。
 ** _直接读 Obsidian 官方文档与公开 API_：否决理由——公开面只给契约，不给实现策略（缓存失效时机、事件总线拓扑、状态真源位置），而 ADKM 缺的正是后者。
 ** _全量逆向并追求像素级复刻_：否决理由——与 ADKM「专业文档工程」定位冲突（像素级复刻是 D-002 已否定的路线）；且第三方许可代码不可搬运，只取思想不复制代码。
-* *影响范围*：新增 `docs/technical-decisions/ADR-0005-*.adoc`；geode 侧 `TASKS.md` 新增 T-025（拆解任务本身），落地实现待办为 T-026 及之后。本决策不改任何运行时代码。
+* *影响范围*：新增 `docs/technical-decisions/ADR-0005-*.adoc`；geode 侧 `TASKS.adoc` 新增 T-025（拆解任务本身），落地实现待办为 T-026 及之后。本决策不改任何运行时代码。
 * *复审条件*：
 ** 若 REA MCP 在重启后仍不加载工具，改用 REA 的 CLI 分析子命令兜底（该路径不需要 MCP 注册，且同样返回 Evidence 记录）。
 ** 若 Obsidian 升级导致主体代码包结构变化，重新确认分析对象后再下结论，避免结论套用到新版本。
@@ -376,17 +376,17 @@
 .. 新增格式一律*只读*：FictionBook 2（`.fb2` / `.fb2.zip` / `.fbz`）、漫画 ZIP（`.cbz`）；原有 EPUB / PDF / DOCX / PPTX 保持只读。
 .. *共享图片阅读器*：单张图片（png/jpg/jpeg/gif/webp/svg/bmp/ico/avif）与 CBZ 内页共用 `ImageReader`（翻页 + 缩放），替换原先的裸 `<img>`，但 blob URL 仍由 `AttachmentView` 的 effect 拥有与释放。
 .. *编辑能力冻结在 Excel*：保留 `XlsxPreview` 的显式「保存」写回，不再新增任何可编辑格式；*撤销 D-013 复审条件中的「DOCX 真编辑 phase-2」*，不再排期。
-.. *零新增运行期依赖*：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`。MOBI/AZW3/DJVU/CBR/HEIC 等候选已按「先搜寻，后自研」检索评估并记入 `MANIFEST.md`，本片*不引入*，需用户单独放行后独立成片。
+.. *零新增运行期依赖*：FB2 用平台 `DOMParser`，压缩包用既有 `jszip`。MOBI/AZW3/DJVU/CBR/HEIC 等候选已按「先搜寻，后自研」检索评估并记入 `MANIFEST.adoc`，本片*不引入*，需用户单独放行后独立成片。
 .. 所有新预览组件统一经 `useFormatResource`（可取消加载 + dispose），吸收 PR #27 为 EPUB 建立的生命周期契约；已合并 PR #27 的 `EpubPreview` 保持原实现，不重写已通过 11 项回归测试的组件。
 * *背景*：D-013 已否决 DOCX/PPTX/EPUB 的纯前端编辑；用户此次进一步明确放弃「修改」方向。而 `.fb2.zip` 这类复合后缀是 `fileExtension()` 看不到的，必须在 `formatPreviewer` 之前按完整路径判定；`.txt/.html/.xml` 又已被 `EDITABLE_TEXT_EXTS` 判为可编辑文本，不能当只读电子书加入注册表。
 * *被采纳方案*：纯解析/选择逻辑放 `src/core/ebookFormats.ts`（可单测）；组件只负责读字节与渲染；FB2 解析结果渲染为 React 文本节点而非 HTML，避免不可信书籍注入标记；CBZ 图片按数值排序并显式 `revokeObjectURL`。
 * *被否决的替代方案*：
 ** _把新格式塞进 Markdown 编辑器_：否决理由——二进制/未知扩展名进入 CodeMirror 自动保存链路会破坏数据（R105 边界）。
-** _整体换用 foliate-js / epubier_：否决理由——API 不稳定或需多个 peer 依赖与 worker，与已验证的组件化只读路径重复，详见 `MANIFEST.md` 评估表。
+** _整体换用 foliate-js / epubier_：否决理由——API 不稳定或需多个 peer 依赖与 worker，与已验证的组件化只读路径重复，详见 `MANIFEST.adoc` 评估表。
 ** _用 `innerHTML` 渲染 FB2_：否决理由——本地文件也可能来自外部，React 文本节点已足够且零风险。
 ** _把 SVG 改成内联 DOM_：否决理由——会打开脚本执行面，保持 `<img>` 上下文。
 ** _重写 `EpubPreview` 以共用 hook_：否决理由——PR #27 刚用 11 项组件回归固定了竞态与 `openFailed` 行为，重构收益低于回归风险；新组件复用同一契约即可。
-* *影响范围*：`src/core/ebookFormats.ts`（新）、`src/features/attachment/{useFormatResource,ImageReader,Fb2Preview,CbzPreview}.tsx`（新）、`formatPreview.ts` / `AttachmentView.tsx` / `src/core/i18n/dict.views.ts` / `src/styles/app.scss`、`scripts/verify-format-libs.ts`、`tests/ebook-formats.test.ts`、`tests/e2e/run.mjs`、`MANIFEST.md`、台账与基线文档。
+* *影响范围*：`src/core/ebookFormats.ts`（新）、`src/features/attachment/{useFormatResource,ImageReader,Fb2Preview,CbzPreview}.tsx`（新）、`formatPreview.ts` / `AttachmentView.tsx` / `src/core/i18n/dict.views.ts` / `src/styles/app.scss`、`scripts/verify-format-libs.ts`、`tests/ebook-formats.test.ts`、`tests/e2e/run.mjs`、`MANIFEST.adoc`、台账与基线文档。
 * *复审条件*：用户放行 B 档格式或新解码依赖时重开；CBZ 大体量（>100 MB）需改为流式/按需解压（当前 `readBinary` 全量入内存）；若将来要求统一只读（连 Excel 保存也移除），单独成片。
 
 '''
@@ -412,7 +412,7 @@
 == D-024 Q-005 结案＝只放行 Kindle 家族一个 MIT 依赖，其余 B 档仍不引入
 
 * *日期*：2026-11-15
-* *状态*：*已实施*（2026-11-15）。实现见 T-055；用户以「做 q005」放行新增运行期依赖后推进；依赖逐项登记见 `MANIFEST.md`。
+* *状态*：*已实施*（2026-11-15）。实现见 T-055；用户以「做 q005」放行新增运行期依赖后推进；依赖逐项登记见 `MANIFEST.adoc`。
 * *决策*：Q-005 两问分别结案。①*放行新增运行期依赖，但只引入 1 个*——`@lingo-reader/mobi-parser@0.4.6`（MIT），落地 `.mobi/.azw/.prc` 与 `.azw3/.kf8` 只读预览；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL/PSD/RAW *仍不引入*，需用户再次单独放行。②「连 Excel 保存也移除」的彻底只读*不做*，沿用 D-022 的编辑能力冻结（保留显式保存）。全部实现零写回：不调 `vault.modifyBinary`，不提供任何保存入口。
 * *背景*：Q-005 原记「候选库已检索评估、未引入」，卡在「是否允许新包」。D-022 定下的 A 档（FB2/CBZ/图片）已交付，Kindle 家族是用户实际藏书里占比最高的待支持格式；继续不做的边际成本高于引入一个 MIT 小包。
 * *被采纳方案*：
@@ -464,7 +464,7 @@
 ** _逐文件镜像到第二块盘_：否决理由——非原子（中途失败会留下半套备份）、无法按"份"保留、且需要遍历删除，风险面远大于收益。
 ** _后台静默写库外任意路径_：否决理由——与「库内写、路径受限」的既有安全边界冲突；本片只允许*用户显式选择的目录*，且只写本应用命名的压缩包。
 ** _把备份做成默认开启_：否决理由——写用户没指定过的位置属越权；且大库全量 ZIP 有可感知的 IO 成本。
-* *影响范围*：`src-tauri/src/main.rs`（3 个命令 + 注册）、`src/core/backup.ts`（设置、路径/命名规则、ZIP 组装、Tauri IO）、`src/app/App.tsx`（2 条命令 + 通知）、`src/main.tsx`（E2E 探针 `__geodeBackup`）、`src/core/i18n/dict.app.ts`（8 键）、`tests/backup.test.ts`（15 用例）、`tests/e2e/run.mjs`（第 14 条 `offdisk-backup`）、`docs/backup-guide.adoc`、`docs/project-charter-v2.adoc`（修订注）、`README.md`、`TASKS.md`、`CHANGELOG.adoc`。
+* *影响范围*：`src-tauri/src/main.rs`（3 个命令 + 注册）、`src/core/backup.ts`（设置、路径/命名规则、ZIP 组装、Tauri IO）、`src/app/App.tsx`（2 条命令 + 通知）、`src/main.tsx`（E2E 探针 `__geodeBackup`）、`src/core/i18n/dict.app.ts`（8 键）、`tests/backup.test.ts`（15 用例）、`tests/e2e/run.mjs`（第 14 条 `offdisk-backup`）、`docs/backup-guide.adoc`、`docs/project-charter-v2.adoc`（修订注）、`README.md`、`TASKS.adoc`、`CHANGELOG.adoc`。
 * *诚实缺口*：*没有定时*（需设置界面，属下一片；当前只有手动命令）；*没有增量*（每次全量 ZIP，大库耗 IO）；*没有加密*（目标若为共享网盘，请自行放到加密卷/容器）；*不解决多机并发*（两台机器写同一个库仍会互相覆盖，这是同步引擎的范畴，本片明确不做）；网盘「占位文件」场景未实测（若库本身在 OneDrive 目录且启用按需下载，读取可能触发下载或拿到占位内容）。*复审条件*：若用户要求定时/增量/加密，重开此条并按「设置界面 → 增量包 → 加密容器」顺序分片；若要求真正的多端同步，回到 T-048 重新论证商业模式，而不是在本条上叠加。
 
 == D-027 启动行为＝可选「恢复上次会话 / 全新窗口」，且 fresh 不覆盖快照
@@ -814,5 +814,34 @@
 ** _把仓库默认 `createUpdaterArtifacts` 改成 false 绕过报错_：会破坏正式发版链路，且让无签名包被误当可分发产物——否决；覆盖只走命令行。
 ** _在文档里把 unsigned 包写成「已可发版」_：无 minisign 签名不能走自动更新、无 Authenticode 签名会有 SmartScreen 警告——否决，如实标 blocked。
 ** _本轮购买 / 配置代码签名证书_：超出任务范围且需要账号与付款流程——否决，留 blocked。
-* *影响范围*：`docs/release-checklist.adoc`（新增）、`AGENTS.md` 文档表一行、`CHANGELOG.adoc` / `TASKS.md` 收口记录；不改打包默认配置、不碰 `.tauri-keys/`、`.github` 与 PR #5 路径。
+* *影响范围*：`docs/release-checklist.adoc`（新增）、`AGENTS.md` 文档表一行、`CHANGELOG.adoc` / `TASKS.adoc` 收口记录；不改打包默认配置、不碰 `.tauri-keys/`、`.github` 与 PR #5 路径。
 * *复审条件*：私钥与口令就位、证书采购完成后，按清单 C 节跑 signed 构建；发布渠道与 `latest.json` 策略确定后更新本决策。
+
+
+'''
+
+== D-048 T-065 全仓 Markdown 转 AsciiDoc：白名单保留 + 入口指针 + 自建校验
+
+* *日期*：2026-11-27
+* *决策*：受版本控制的 40 个 `.md` 中，21 个迁移为 `.adoc`（根台账 4 篇、`docs/` 顶层 9 篇、`docs/plans/` 2 篇、`docs/internal/` 5 篇、`archive/adkm-web/README`、`.calibration/README`），`README.md` 拆成「入口指针 + `README.adoc` 正文」；其余 18 个保持 `.md`。转换不引入任何仓库依赖：pandoc 只用来取 GFM AST，AsciiDoc 由一次性脚本渲染，脚本留在仓库外。
+* *背景*：依据：用户 2026-11-27 指示（T-065，仅限本仓库）。此前 `docs/` 已长期 adoc 化，但根台账与施工日志仍是 Markdown，两套语法并存导致 `\xref:` 与相对链接互相指向不存在文件。GitHub 不渲染 AsciiDoc，因此首页落地页若只剩 `.adoc`，访客看到的是生源码。
+* *白名单理由（逐条可查）*：
+** `AGENTS.md` / `CLAUDE.md`：智能体约定的固定文件名，改名即失效。
+** `.claude/agents/*`、`.claude/commands/*`、`.claude/skills/*/SKILL.md`：工具链按这些路径装配，扩展名不在我们手里。
+** `demo-vault/`（7 篇）、`compat-fixtures/README.md`：测试载荷，改名要同步改断言与夹具，且它们模拟的是用户库里的 Markdown 文档。
+** `docs/CONTRIBUTING.md`、`docs/SECURITY.md`：GitHub 社区文件约定（贡献指南与安全策略按 `.md` 识别）。
+** 根 `README.md`：只留「标题 + 一句正文见 `README.adoc` + 相对链接」的入口指针——GitHub 首页不渲染 AsciiDoc，正文直接放 `.md` 位置会显示成生源码；正文与文档表全部进 `README.adoc`。
+* *被采纳方案*：
+** 分批推进，每批一个原子提交（batch 1 顶层 docs 11 篇 → batch 2 `docs/internal` + archive + `.calibration` 7 篇 → batch 3 根台账 4 篇含 README 拆分 → batch 4 全仓引用收口与台账）。
+** 转换链路：`pandoc -f gfm -t json` 取 AST → 自写 `md2adoc.mjs` 渲染（标题、`[quote]`+`____`、`[options="header"]`+`|===`、`[source,lang]`+`----`、`xref:`/`link:`、`footnote:[]`、原始 HTML 用 `++++`/`+++` 透传）。
+** 弃用 pandoc 内置 `-t asciidoc` 写出器：实测整块丢原始 HTML（`<div>` 直接消失）、把有序列表内嵌的无序列表拍平，属有损转换。
+** 验收用自建 `validate.mjs` 做内容对等：md→html5 与 adoc→Asciidoctor（应用同款配置）两边提取文本分词比对 + 结构计数（标题/表/代码块/图片/脚注）+ 代码块逐行比对；散文 missing ≤ 0.2%，代码块行级必须 0/0。
+** 删除线弃用 `[.line-through]#…#`：该写在行首加方括号、紧贴中文字符时会吞段或漏出宏字面；改用 `pass:q[<del>…</del>]`（内层 `]` 转义），488 处真实样本全量验证无吞字、无泄漏。
+** 行内代码里的 `#` 走 `pass:[#]` 透传：Asciidoctor 的 `#…#` 会跨代码跨度配对成 `<mark>`，把两个 `#` 吞掉并把中间文字染色（ARCHITECTURE 单篇曾出现 74 对）。
+* *被否决的替代方案与理由*：
+** _pandoc `-t asciidoc` 一把梭_：有损，见上——否决。
+** _把转换脚本与校验脚本纳入仓库并加依赖_：与「零新增生产/开发依赖」约束冲突，且脚本只为一次性迁移存在——否决，脚本留在仓库外。
+** _把白名单文件也强制转 `.adoc`_：智能体约定、测试载荷与 GitHub 社区文件会失效——否决。
+** _README 只留 `.adoc`_：GitHub 首页显示生源码——否决，保留 `.md` 入口指针。
+* *影响范围*：22 个新 `.adoc`（含 `README.adoc`）、`README.md` 改写为指针、`AGENTS.md` 文档表、`CHANGELOG.adoc`、`TASKS.adoc`、`DECISIONS.adoc` 自身，以及全仓约 300 个文件里的旧 `.md` 路径引用（脚本注释、钩子、UI 文案、文档内链）。不碰 `src-tauri/`、`.tauri-keys/`、`.github/` 与 PR #5 的 `docs/README.md`。
+* *复审条件*：GitHub 开始原生渲染 AsciiDoc 时，可把 `README.md` 指针合并回 `README.adoc` 并删掉指针；新增文档一律写 `.adoc`，需要 GitHub 识别名的文件（AGENTS/CLAUDE/社区文件）例外。

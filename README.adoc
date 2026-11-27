@@ -149,11 +149,11 @@ assets/             图标等二进制素材
 [options="header"]
 |===
 |文件 |职责
-|xref:DECISIONS.adoc[`DECISIONS.md`] |追加式决策日志
-|xref:TASKS.adoc[`TASKS.md`] |任务队列与待裁决台账
-|xref:MANIFEST.adoc[`MANIFEST.md`] |第三方来源登记
+|xref:DECISIONS.adoc[`DECISIONS.adoc`] |追加式决策日志
+|xref:TASKS.adoc[`TASKS.adoc`] |任务队列与待裁决台账
+|xref:MANIFEST.adoc[`MANIFEST.adoc`] |第三方来源登记
 |xref:CHANGELOG.adoc[`CHANGELOG.adoc`] |版本变更记录
-|xref:docs/DEVELOPMENT.adoc[`docs/DEVELOPMENT.md`] |开发环境与命令细节
+|xref:docs/DEVELOPMENT.adoc[`docs/DEVELOPMENT.adoc`] |开发环境与命令细节
 |xref:docs/CONTRIBUTING.md[`docs/CONTRIBUTING.md`] |协作与提交约定
 |xref:docs/SECURITY.md[`docs/SECURITY.md`] |安全策略
 |xref:docs/PROVENANCE.adoc[`docs/PROVENANCE.adoc`] |上游来源、改动清单与许可义务
@@ -162,6 +162,8 @@ assets/             图标等二进制素材
 |link:docs/technical-decisions/[`docs/technical-decisions/`] |架构决策记录（ADR）
 |link:docs/internal/[`docs/internal/`] |构建期施工日志，供追溯历史决策，不属公开文档面
 |===
+
+根 `README.md` 只是 GitHub 首页的入口指针（GitHub 不渲染 AsciiDoc，正文若放在 `.md` 位置会显示成生源码），本页正文即 `xref:README.adoc[README.adoc]`。`AGENTS.md`、`CLAUDE.md`、`.claude/` 约定、`demo-vault/`、`compat-fixtures/` 测试载荷、`docs/CONTRIBUTING.md`、`docs/SECURITY.md` 同样保留 `.md`，逐项理由见 xref:DECISIONS.adoc[D-048]。
 
 == 参与贡献
 

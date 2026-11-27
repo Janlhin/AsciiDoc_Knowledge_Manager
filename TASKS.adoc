@@ -23,7 +23,7 @@
 .. `cargo check`（`src-tauri/`）退出码 0；`cargo test watcher_tests` 退出码 0；
 .. `npx tauri build --no-bundle` 退出码 0，产物 `src-tauri/target/release/adkm.exe`，记录字节数与 SHA256；
 .. unsigned 安装包命令退出码 0，产物 `src-tauri/target/release/bundle/nsis/ADKM_0.0.1_x64-setup.exe`，记录字节数与 SHA256；签名失败路径有原始报错留痕；
-.. `docs/release-checklist.adoc` 存在；`AGENTS.md` 文档表含该行；`DECISIONS.md` 含 D-046 / D-047；`CHANGELOG.adoc` 未发布节新增一条。
+.. `docs/release-checklist.adoc` 存在；`AGENTS.md` 文档表含该行；`DECISIONS.adoc` 含 D-046 / D-047；`CHANGELOG.adoc` 未发布节新增一条。
 * *解决*：*完成（2026-11-27）*。`npm run typecheck` 退出 0；`npm run typecheck:scripts` 退出 0；`npx vitest run tests/stability-92.test.ts` 退出 0（7 用例）；`npm test -- --run` 退出 0（25 文件通过 / 1 跳过，273 passed + 1 expected fail + 1 skipped，基线 266 passed，净增 7）；`npm run verify` 退出 0；`cargo check` 退出 0，`cargo test` 26 passed / 0 failed。构建：`npx tauri build --no-bundle` 退出 0，`adkm.exe` 10,285,056 字节（9.81 MiB），当次 SHA256 `557AF558886026D91A3920B003E2CB2A181D794C2F8A5124F51E2073E05183E7`（后被打包构建重编，现哈希 `E4A9E9E890B93172F4BE786CB053CC4C5A48AE5320B08AB69113C4A0D5A287E7`）；unsigned `npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'` 退出 0，`ADKM_0.0.1_x64-setup.exe` 6,391,233 字节（6.10 MiB），SHA256 `494720715B460A4147D33C4033790B3EB8A7ED23B8CCA8A09578227FEC9D633E`；裸 `npx tauri build` 退出 1，报缺 `TAURI_SIGNING_PRIVATE_KEY`（预期 blocked）。决策见 D-046 / D-047，清单见 `docs/release-checklist.adoc`。
 * *仍缺*：GUI 真机冒烟（`adkm.exe demo-vault`）、安装 / 卸载 / 升级链路、Authenticode 签名、公开发布与 `latest.json` 均 blocked；版本号仍 `0.0.1`，1.0.0 范围另立任务；README 旧体积表述留待发布前随版本号更新。
 
@@ -41,7 +41,7 @@
 .. `npm test -- --run` 退出码 0，通过数只增不减（基线 266 passed + 1 expected fail + 1 skipped）；
 .. `npm run verify` 退出码 0；
 .. `git diff 7507b58 -- package.json package-lock.json` 为空（零新生产 / 开发依赖）。
-* *解决*：*完成（2026-11-27）*。验证：`npm run typecheck` 0；`npx vitest run tests/adoc-fold-outline.test.ts` 0（21 用例）；`npm test -- --run` 287 passed + 1 expected fail + 1 skipped（基线 266，新增 21）；决策记录见 `DECISIONS.md` D-045。
+* *解决*：*完成（2026-11-27）*。验证：`npm run typecheck` 0；`npx vitest run tests/adoc-fold-outline.test.ts` 0（21 用例）；`npm test -- --run` 287 passed + 1 expected fail + 1 skipped（基线 266，新增 21）；决策记录见 `DECISIONS.adoc` D-045。
 * *仍缺*：下划线式标题（文本行 + `===`/`---` 下划线）未识别；示例块 `====`、侧栏 `****`、引用 `____`、开放块 `--` 内部的 `=` 仍按标题处理（batch-1 词法未屏蔽这四类非逐字块）；真机 WebView 折叠展开与大纲点击未目检（E2E 范畴）。
 
 === T-070 三态引用校验报告 + 图谱断链边（章程 §5.1 / §5.4，D-043 / D-044）
@@ -61,7 +61,7 @@
 .. `npm test -- --run` 退出码 0，通过数只增不减；
 .. `npm run verify` 退出码 0；
 .. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0，`audit-hot` p95 ≤5000ms。
-* *解决*：*完成（2026-11-27）*。三态模型、校验面板、图谱断链边与 18 个新单测落地；千篇基准 audit-hot median 347.92 ms / p95 359.4 ms（≤5000ms 目标内）。决策记录见 `DECISIONS.md` D-043 / D-044；边界与已知缺口见 `docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`。
+* *解决*：*完成（2026-11-27）*。三态模型、校验面板、图谱断链边与 18 个新单测落地；千篇基准 audit-hot median 347.92 ms / p95 359.4 ms（≤5000ms 目标内）。决策记录见 `DECISIONS.adoc` D-043 / D-044；边界与已知缺口见 `docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`。
 * *仍缺*：锚点级断链不判（文件存在即有效，锚点存在性留待复审）；txt 正文不扫引用；条件块外求值失败、Antora 多候选歧义的细分场景仅部分覆盖；不做 CSV / JSON / AsciiDoc 导出；未在真机 WebView 目检面板与图谱配色。
 
 === T-069 千篇 adoc 性能基准（章程 §9.1，D-042）
@@ -78,7 +78,7 @@
 .. `node scripts/adoc-1000-bench.ts --count=1000 --cold=5 --hot=7` 退出码 0；
 .. 报告文件 `docs/perf-1000-adoc.adoc` 存在且含机器规格、命令、数值与对照结论；
 .. `npm test -- --run` 退出码 0，通过数只增不减；`npm run verify` 退出码 0。
-* *解决*：*完成（2026-11-27）*。本机（9800X3D / 32GB / Win11 26320 / Node v22.23.2）实测：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，三项均达章程目标；引用类问题 0（`broken-xref` / `broken-include` / `broken-link`）。口径与局限见报告；决策记录见 `DECISIONS.md` D-042。
+* *解决*：*完成（2026-11-27）*。本机（9800X3D / 32GB / Win11 26320 / Node v22.23.2）实测：索引冷构建聚合中位 130.44 ms、引用校验 416.06 ms、结束时 heapUsed 78.03 MB / RSS 179.41 MB，三项均达章程目标；引用类问题 0（`broken-xref` / `broken-include` / `broken-link`）。口径与局限见报告；决策记录见 `DECISIONS.adoc` D-042。
 * *仍缺*：未测 Rust FTS5 持久化写入、Tauri/WebView 桌面路径；夹具为合成语料，真实长文档与深层 include 待复测；JIT 预热状态与桌面冷启动不同。
 
 === T-068 `.txt` 入索引（章程 §4.1，D-041）
@@ -96,7 +96,7 @@
 .. `npx vitest run tests/txt-index.test.ts` 退出码 0（12 用例）；
 .. `npm test -- --run` 退出码 0，通过数只增不减（基线 203 passed + 1 expected fail + 1 skipped）；
 .. `npm run verify` 退出码 0。
-* *解决*：*完成（2026-11-27）*。txt 进入元数据索引与检索索引载荷；`\xref:` / `\link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.md` D-041。
+* *解决*：*完成（2026-11-27）*。txt 进入元数据索引与检索索引载荷；`\xref:` / `\link:` 显式 `.txt` 目标按路径解析（不做锚点）；结构断言见 `tests/txt-index.test.ts`（标题 / 链接 / 标签 / 块 / 脚注均为空）。决策记录见 `DECISIONS.adoc` D-041。
 * *仍缺*：txt 正文内的双链 / 标签识别明确不做（无结构边界）；txt 内锚点引用不解析；未在真机 WebView 目检 txt 编辑 / 阅读视图。
 
 === T-067 章程 L3：AsciiDoc 编辑器源码模式语言模式 + 语法高亮 + xref 可点击（已完成 2026-11-27）
@@ -105,7 +105,7 @@
 * *背景*：按 D-17 结论先做 C 档（`\xref:` 可点击），A 档高亮以零新增依赖方式补做。此前编辑器对 `.adoc` 一律套用 Markdown 语言模式，源码模式下 `\xref:` / `\<<…>>` 不可点，标题/属性/注释等 token 也按 Markdown 规则着色。
 * *方法*：`src/features/editor/asciidocLanguage.ts` 提供纯函数行扫描（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`），经 `@codemirror/language` 已有的 `StreamLanguage` 自作词法；新增 language compartment 做文件类型路由——`.adoc` 挂 AsciiDoc 语言，`.md` 保持 `lang-markdown` 不变。`src/features/editor/adocXref.ts` 复用 `resolveMarkdownLink` / `resolveLink` 解析与 `openFile` / `requestReveal` 跳转；锚点回退纯文本正则定位；坏链弹可见提示 pill，不建笔记、不抛异常。高亮复用现有 `HighlightStyle` 调色板，不新增主题/CSS 变量、不新增依赖。
 * *完成判据*：① `npm run typecheck` 退出码 0；② `npx vitest run tests/asciidoc-language.test.ts` 退出码 0；③ `npm test -- --run` 无新失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例只增不减）；④ `npm run verify` 退出码 0；⑤ `git diff 7f3addb -- package.json package-lock.json` 为空（零新生产/开发依赖）。
-* *解决*：*完成（2026-11-27）*。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.md` D-040。
+* *解决*：*完成（2026-11-27）*。验证：`npm run typecheck` 0；`npx vitest run tests/asciidoc-language.test.ts` 0（27 用例）；`npm test -- --run` 230 passed + 1 expected fail + 1 skipped，无新失败；`npm run verify` 0；`git diff 7f3addb -- package.json package-lock.json` 为空。详见 `DECISIONS.adoc` D-040。
 * *仍缺*：折叠/大纲仍依赖 Markdown 树；锚点定位为正则行号级；L4（完整语法树、宏参数模型、章节折叠适配）未做。
 
 === T-066 多版本一致性校验：双语配对与对齐视图（已完成 2026-11-27，D-039）
@@ -114,19 +114,20 @@
 * *范围*：章程 §5.2「多版本一致性校验」。识别 `foo.adoc` ↔ `foo-en.adoc` 双语配对（文档头 `:lang:` / frontmatter `lang:` 仅作辅助判定）；对一对文档比较四类内容：① 版本号（AsciiDoc `:revnumber:`；Markdown frontmatter `revnumber` / `version`）；② 标题总数与各级层级分布；③ 章节结构（按层级序列保序对齐，标题文本相似度仅作辅助，不要求完全一致），定位缺失 / 多余章节；④ 总行数偏差。主区单例视图并列呈现两边章节，缺失章节高亮，点击节点跳到对应文件对应行；命令面板命令打开该视图。
 * *方法*：`src/core/bilingualAlign.ts` 纯函数引擎（无 DOM / IPC / 单例依赖）；`src/core/bilingualAlignRunner.ts` 负责唯一不纯的一步——读盘后交引擎计算，报告存 `workspace.bilingualAlignReport`；`src/features/bilingualalign/` 视图只消费报告，跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
 * *完成判据*：① `npx vitest run tests/bilingual-align.test.ts` 退出码 0；② `npm run typecheck` 退出码 0；③ `npm test -- --run` 无新增失败（基线 203 passed + 1 expected fail + 1 skipped，新增用例后只增不减）；④ `npm run verify` 退出码 0。
-* *解决*：*完成（2026-11-27）*。验证：`npx vitest run tests/bilingual-align.test.ts` 退出 0（24 用例）；`npm run verify` 退出 0；合并后全量 `npm test -- --run` 为 24 文件通过 / 1 跳过、266 passed + 1 expected fail + 1 skipped（基线 203，新增 63 条：24 双语 + 27 编辑器 + 12 txt）。详见 `DECISIONS.md` D-039。
+* *解决*：*完成（2026-11-27）*。验证：`npx vitest run tests/bilingual-align.test.ts` 退出 0（24 用例）；`npm run verify` 退出 0；合并后全量 `npm test -- --run` 为 24 文件通过 / 1 跳过、266 passed + 1 expected fail + 1 skipped（基线 203，新增 63 条：24 双语 + 27 编辑器 + 12 txt）。详见 `DECISIONS.adoc` D-039。
 * *仍缺*：跨目录配对、语言标记词表覆盖面、行数偏差阈值可配置、父子章节嵌套对齐、真机 E2E 点击断言（详见 D-039「诚实缺口」）。
 
-=== T-065 全仓 Markdown 转 AsciiDoc（待开工，仅限本项目）
+=== T-065 全仓 Markdown 转 AsciiDoc（已完成 2026-11-27，D-048，仅限本项目）
 
 * *提出*：2026-11-19
 * *范围*：*只做 ADKM 本仓库*，其他项目不适用。
-* *盘点*：受版本控制的 `.md` 共 *40* 个——根目录 6（`AGENTS.md`、`CLAUDE.md`、`DECISIONS.md`、`MANIFEST.md`、`README.md`、`TASKS.md`）、`docs/` 18、`demo-vault/` 7、`.claude/` 6、`.calibration/`、`archive/`、`compat-fixtures/` 各 1。
+* *盘点*：受版本控制的 `.md` 原为 *40* 个——根目录 6（`AGENTS.md`、`CLAUDE.md`、`DECISIONS.adoc`、`MANIFEST.adoc`、`README.md`、`TASKS.adoc`）、`docs/` 18、`demo-vault/` 7、`.claude/` 6、`.calibration/`、`archive/`、`compat-fixtures/` 各 1。
 * *目标*：白名单之外全部迁为 `.adoc`，正文、`\xref:`/相对链接与所有引用方同步更新，最终仓库文档只有一个源格式。
-* *白名单（先假定保留，动之前逐一确认工具是否认 `.adoc`）*：`AGENTS.md`、`CLAUDE.md`（智能体约定的固定文件名）；`.claude/`（命令定义）；`demo-vault/`、`compat-fixtures/`（测试载荷，改动需同步断言）；GitHub 社区文件（若有）。
-* *做法*：按批推进（`docs/` → 根目录 → 台账/决策），每批一个独立提交；每批先把「文件 → 引用方」列清，改完引用再进下一批。
-* *完成判据*：① `git ls-files '*.md'` 只剩白名单，且与白名单清单逐项一致；② 已迁移路径的旧 `.md` 引用在 `git grep` 中为 0（白名单除外）；③ `npm run verify` 退出码 0；④ 抽 3 篇转换后的 `.adoc` 在应用内渲染正常（人工目检一次）。
-* *当前状态*：*未开工*。下一步先出引用清单并确认白名单，再定批次与是否需要转换脚本。
+* *白名单（18 个，理由见 D-048）*：`AGENTS.md`、`CLAUDE.md`（智能体约定的固定文件名）；`.claude/` 6 个（工具链按路径装配）；`demo-vault/` 7 个与 `compat-fixtures/README.md`（测试载荷）；`docs/CONTRIBUTING.md`、`docs/SECURITY.md`（GitHub 社区文件）。根 `README.md` 例外：正文迁 `README.adoc`，`.md` 只留入口指针（GitHub 不渲染 AsciiDoc，否则首页显示生源码）。
+* *做法*：按批推进、每批一个原子提交——① `docs/` 顶层 11 篇；② `docs/internal/` 4 篇 + `docs/internal/README` + `archive/adkm-web/README` + `.calibration/README`；③ 根台账 4 篇（含 README 拆分）；④ 全仓引用收口与台账回写。转换链路与有损写手的弃用理由见 D-048。
+* *完成判据*：① `git ls-files '*.md'` 只剩白名单，且与白名单清单逐项一致（`README.md` 指针另计并写明理由）；② 已迁移路径的旧 `.md` 引用在 `git grep` 中为 0（白名单除外）；③ `npm run verify` 退出码 0，`npm test -- --run` 不低于基线（312 passed + 1 expected fail + 1 skipped）；④ 抽 3 篇（`README.adoc`、`docs/DEVELOPMENT.adoc`、`docs/internal/README.adoc`）用应用同款 Asciidoctor 渲染，断言标题 / 表格 / 代码块 / 链接节点存在；⑤ doc audit 或等价脚本确认无新增断链；⑥ PR body 写明「#5 合并后需同步 `docs/README.md` 链接」。
+* *解决*：*完成（2026-11-27）*。`git ls-files '*.md'` 由 40 降到 *19*，与白名单 18 项 + `README.md` 指针逐项一致；21 篇迁为 `.adoc`，`README.adoc` 承载正文，合计 22 个新 `.adoc`。内容对等校验逐篇通过（散文 missing ≤0.2%、代码块行级 0/0、结构计数相等）。`npm run verify` 退出 0；`npm test -- --run` 为 27 文件通过 / 1 跳过、*312 passed + 1 expected fail + 1 skipped*，与基线一致。三篇抽样渲染断言与断链检查见 PR #8 说明。决策与白名单理由见 `DECISIONS.adoc` D-048。
+* *仍缺*：① GitHub 至今不渲染 AsciiDoc，`README.md` 指针无法去除；② 3 处行内代码跨度里的孤立 `#` 仍会被 Asciidoctor 配对成 `<mark>`（已从 121 对降到 3 对，剩余为散文边界噪声）；③ 未做真机 WebView 目检——渲染断言走的是 `@asciidoctor/core` 同款配置，不是 Tauri 窗口实测。
 
 === T-063 大规模图谱 GPU 视图（待开工，生产 GraphView 未替换）
 
@@ -165,7 +166,7 @@
 * *问题*：用户反馈「EPUB 预览也有问题（目录/进度不对）」。实读代码发现组件只有 83 行、只调 `rendition.display()`：*无目录、无 relocated 监听、无位置读写*，永远从第一页打开。根因是 *EPUB 在 E2E 中零覆盖*（ebook 用例只测 FB2/CBZ/图片）。
 * *方法*：`core/epubNav.ts` 提供纯逻辑（拍平 TOC、忽略锚点的文档比较、位置存取、spine 百分比）；`EpubPreview` 重写为工具栏 + 侧栏目录 + 翻页 + 去抖保存，恢复失败回退第一页。百分比用 spine 索引（O(1)），*不用* `locations.generate()`（50MB 书要数秒主线程）。
 * *完成判据*：① `npx vitest run tests/epubNav.test.ts` 退出码 0（9 用例）；② 全量 `npm test` 通过（193 passed）；③ `npm run verify` 0；④ 真机 E2E *20/20*（第 17 条 `epub-toc-progress`：目录 3 行 → 跳末章 100% → 重载后回到同一位置；第 18 条 `pdf-restore-no-stall`：启动阻塞 0 ms；第 19/20 条覆盖翻页与无目录的书），`--self-check` 通过；⑤ D-030 / CHANGELOG 同步。
-* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.md` D-030。
+* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.adoc` D-030。
 * *仍缺*：位置不跨设备；换文件后只能回第一页；目录不折叠；无字号/主题偏好；无全书搜索（需 Rust 解压或索引，见 D-029 方向）。
 
 === T-060 启动路径上的 PDF：延后读取 + 大文件点击加载（D-029）
@@ -175,7 +176,7 @@
 * *取证*：rAF 帧间隔探针（WebView2 的 longtask API 不触发，已用 220ms 对照验证探针有效）。恢复 3 个 EPUB（含 6MB）→ 无卡顿；8 个笔记标签 + 800 条笔记 → 无卡顿；*1 个 60MB PDF → 首绘后 72ms + 151ms 两次阻塞*。
 * *方法*：`AttachmentView` 的 PDF 分支双闸门——所有 PDF 延后两帧（跨过启动首绘）才 `readBinary`；>32MB 不自动读，显示「加载 PDF」按钮。体积取自文件树 `size`（Rust `vault_list` 用 FS metadata 填充），拿不到时只延后不拦截。
 * *完成判据*：① `npm run typecheck` 0；② `npm run verify` 0；③ 真机 `npm run test:e2e` *16/16*（新增 `pdf-startup-gate`：小 PDF 延后仍能自动挂载；40MB PDF 显示按钮且*不产生 `<embed>`*，点击后才挂载），`--self-check` 通过；④ *复测同一会话（4.4MB + 60MB PDF）：启动窗口内零帧间隔卡顿*（此前 72+151ms）；⑤ D-029 / CHANGELOG 同步。
-* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.md` D-029。
+* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.adoc` D-029。
 * *仍缺*：32MB 是经验阈值；超大图片/视频未加同类闸门；点击加载后仍有与体积成正比的卡顿（需 pdf.js 分页渲染才能进一步改善）。
 
 === T-059 首帧主题引导：消除启动时的颜色闪变（D-028）
@@ -185,7 +186,7 @@
 * *取证（先量后改）*：CDP 装 `PerformanceObserver`，重载 800 条笔记的库——`first-contentful-paint` *176 ms*、`domContentLoaded` 71 ms、*无 >50 ms 长任务*、`metadataIndexMs` 0.9 ms；13 条笔记的库 FCP 120 ms。结论：不是 JS 计算量。根因是*颜色闪变*：`:root` 默认深色，`data-theme` 要等 bundle 才写，浅色用户每次启动先看到一帧 `#1e1e1e`。
 * *方法*：`index.html` 内联脚本在 bundle 前读 `localStorage["adkm.theme"]`（工作区快照的镜像键，`setTheme` / `applyDocumentEffects` 写入），缺失时按 `prefers-color-scheme` 解析；两行关键 CSS 给 `html` 上底色。全部 try/catch，存储被禁则退化为旧行为。
 * *完成判据*：① `npm run typecheck` 0；② `npm run verify` 0；③ 真机 `npm run test:e2e` *15/15*，`startup-mode` 新增断言：`__themeBootstrapAt ≤ __appScriptAt`、`data-theme` 已解析、计算背景色与主题一致；`--self-check` 通过；④ D-028 / CHANGELOG 同步。
-* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.md` D-028。
+* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.adoc` D-028。
 * *仍缺*：WebView2 初始化与窗口创建段未优化（页面内无法测量）；`--editor-font-size` 仍由 JS 应用（一次重排，无颜色闪变）；「窗口就绪后再 show」作为后续可选优化保留。
 
 === T-058 启动行为设置：恢复上次会话 / 全新窗口（D-027）
@@ -193,8 +194,8 @@
 * *提出*：2026-11-16
 * *问题*：`Workspace` 一直无条件重放上次的面板树与标签，用户无法选择「每次全新打开」；浏览器对同一问题都给的是显式设置。
 * *方法*：新增设置分区「启动」，两态单选，默认 `restore`（既有行为）。语义非对称——`fresh` 既不重放*也不覆盖*快照，切回 `restore` 仍能拿回上次会话；三处闸门集中在 `core/startup.ts`，`Workspace` 的 `restore` / `persist` / `adoptVaultStorage` 各问一次。切换即时生效、下次启动起作用。
-* *完成判据*：① `npx vitest run tests/startup.test.ts` 退出码 0（4 用例：容错解析、默认值、持久化、两道闸门）；② `npm run typecheck` 0；③ `npm run verify` 0；④ 真机 `npm run test:e2e` *15/15*（新增 `startup-mode`：改设置 → `Page.reload` → 0 标签；切回 restore → 重载后标签回来），`--self-check` 通过；⑤ `DECISIONS.md` D-027 / CHANGELOG 同步。
-* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.md` D-027。
+* *完成判据*：① `npx vitest run tests/startup.test.ts` 退出码 0（4 用例：容错解析、默认值、持久化、两道闸门）；② `npm run typecheck` 0；③ `npm run verify` 0；④ 真机 `npm run test:e2e` *15/15*（新增 `startup-mode`：改设置 → `Page.reload` → 0 标签；切回 restore → 重载后标签回来），`--self-check` 通过；⑤ `DECISIONS.adoc` D-027 / CHANGELOG 同步。
+* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.adoc` D-027。
 * *仍缺*：「打开指定工作区 / 固定标签组」选项；「最近关闭的标签」跨启动保留；fresh 模式下不记忆标签（有意）。
 
 === T-057 可选分盘/异地备份（D-026，Q-006 结案）
@@ -203,7 +204,7 @@
 * *问题*：用户决定「云端服务，用不用是用户的事情」「学 Obsidian，但可选分盘备份」。此前应用内只有同盘撤销级恢复，跨盘冗余被判为「交给系统」（Q-006）。
 * *方法*：不写同步引擎，只做*一个动作*——把库打成带时间戳的 ZIP，写到*用户亲手选的目录*（另一块盘 / 网络盘 / 网盘同步目录）；用网盘同步目录即等于「上云」。新增 3 个窄 Rust 命令（`export_write_binary` / `export_list_backups` / `export_delete_backup`），*删除只允许 `adkm-backup-*.zip`，Rust 二次校验*；目标不得在库内（否则自我递归）；保留默认 10 份（上限 100），`.trash` 与点目录排除，`.obsidian` 精确采集。
 * *完成判据*：① `npx vitest run tests/backup.test.ts` 退出码 0（15 用例：路径安全、命名契约、条目筛选、保留策略、ZIP 内容、拒绝库内目标）；② `npm run typecheck` 0；③ `npm run verify` 0；④ 真机 `npm run test:e2e` *14/14*（新增 `offdisk-backup`：真实写出 ZIP、断言含原稿与 `.obsidian/`、拒绝库内目标、`keep=1` 只剩一份），`--self-check` 通过；⑤ 章程修订注、D-026、`docs/backup-guide.adoc`、README、CHANGELOG 同步。
-* *解决*：*首片完成（2026-11-16）*。详见 `DECISIONS.md` D-026 与 `docs/backup-guide.adoc`。
+* *解决*：*首片完成（2026-11-16）*。详见 `DECISIONS.adoc` D-026 与 `docs/backup-guide.adoc`。
 * *仍缺（下一片）*：设置界面里没有「备份」分区（当前只能靠命令面板两条命令）；无定时、无增量、无加密；不解决多机并发覆盖。
 * *回归修复（2026-11-17，D-035）*：440MB 库曾静默产出 0 字节归档；改为 begin/append/finish 分块写入，实测 461,536,071 字节且可读。
 
@@ -212,26 +213,26 @@
 * *提出*：2026-11-16
 * *问题*：`isSnapshotable()` 只认 `.md`，AsciiDoc 这个「双一等公民」反而*没有任何编辑历史*；用户要求把 `.adoc`、`.txt` 等文本也纳入草稿抽屉，并追问本地多盘冗余是否存在。
 * *方法*：覆盖判定下沉为 `isEditableTextPath()`（与附件路由同一真源，`isAttachmentPath` 改为其否定式），二进制/未知扩展名永不快照；自动捕获加 *512 KB 上限*（超限按路径记忆 + 告警一次），*强制捕获（还原前备份）不受限*以免「没备份就覆盖」；库切换清空节流表与超限表。冗余边界写死为「应用内只做撤销级，跨盘交给系统」，落地路线记入 Q-006。
-* *完成判据*：① `npx vitest run tests/snapshots.test.ts` 退出码 0（16 用例：覆盖规则、去重、节流、25 份裁剪、超限、malformed 拒绝覆盖、还原前备份）；② `npm run typecheck` 0 错误；③ `npm run verify` 退出码 0；④ 真机 `npm run test:e2e` *13/13*（新增 `snapshot-text-formats`：真实保存 `.adoc` 后快照数增加，`sample.png` 始终为 0），`--self-check` 退出码 0；⑤ `DECISIONS.md` D-025 / `README.md` 边界行 / `CHANGELOG.adoc` 同步。
-* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.md` D-025。
+* *完成判据*：① `npx vitest run tests/snapshots.test.ts` 退出码 0（16 用例：覆盖规则、去重、节流、25 份裁剪、超限、malformed 拒绝覆盖、还原前备份）；② `npm run typecheck` 0 错误；③ `npm run verify` 退出码 0；④ 真机 `npm run test:e2e` *13/13*（新增 `snapshot-text-formats`：真实保存 `.adoc` 后快照数增加，`sample.png` 始终为 0），`--self-check` 退出码 0；⑤ `DECISIONS.adoc` D-025 / `README.md` 边界行 / `CHANGELOG.adoc` 同步。
+* *解决*：*完成（2026-11-16）*。详见 `DECISIONS.adoc` D-025。
 * *仍缺*：跨盘冗余（Q-006）；单文件 >512 KB 无自动历史；`.trash` 与快照仍在库内同一磁盘（不防介质故障）；快照份数与节流不可按格式配置。
 
 === T-055 Q-005 结案：Kindle 只读预览（D-024）
 
 * *提出*：2026-11-15
 * *问题*：Q-005 两问——B 档格式是否放行新增运行期依赖；是否要求「连 Excel 保存也移除」的彻底只读。
-* *方法*：按「先搜寻，后自研」评估后*只放行 1 个 MIT 依赖* `@lingo-reader/mobi-parser@0.4.6`（逐项登记见 `MANIFEST.md`），实现 `.mobi/.azw/.prc/.azw3/.kf8` 只读预览：章节按需加载、不可信章节 HTML 降为 React 文本块、`destroy()` 释放解析器 blob URL。第二问沿用 D-022 已达成的*编辑能力冻结*：保留 Excel 显式保存，不做破坏性删除。
+* *方法*：按「先搜寻，后自研」评估后*只放行 1 个 MIT 依赖* `@lingo-reader/mobi-parser@0.4.6`（逐项登记见 `MANIFEST.adoc`），实现 `.mobi/.azw/.prc/.azw3/.kf8` 只读预览：章节按需加载、不可信章节 HTML 降为 React 文本块、`destroy()` 释放解析器 blob URL。第二问沿用 D-022 已达成的*编辑能力冻结*：保留 Excel 显式保存，不做破坏性删除。
 * *完成判据*：① `npx vitest run tests/mobi.test.ts tests/mobi-preview.test.tsx` 退出码 0（6 + 5 用例）；② `node scripts/verify-format-libs.ts` 退出码 0 且含 mobi-parser 导出 2 项；③ 负向自检 2 处（去掉 script 子树剥离 / 破坏 KF8 扩展名路由）对应用例转红；④ `npm run verify` 退出码 0；⑤ 真机 `npm run test:e2e` 12/12（新增 `kindle-formats`），`--self-check` 退出码 0。
-* *解决*：*完成（2026-11-15）*。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.md` D-024。
+* *解决*：*完成（2026-11-15）*。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.adoc` D-024。
 * *仍缺*：CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL/PSD/RAW 仍未引入；真实 MOBI/AZW3 书籍样本的真机解析未覆盖（仓库不打包第三方电子书二进制，E2E 用合成无效文件验证路由与错误反馈）。
 
 === T-054 只读电子书格式扩展 + 共享图片阅读器（D-022）
 
 * *提出*：2026-11-15
 * *问题*：用户要求「更多支持电子书格式并不再追求修改」「图片也预览」；原注册表只有 EPUB，单张图片是裸 `<img>`，无翻页/缩放。
-* *方法*：零新增运行期依赖——`DOMParser` 解 FB2 XML、`jszip` 解 `.fb2.zip`/`.fbz`/`.cbz`；复合后缀由完整路径判定；新增 `useFormatResource` 统一可取消加载与资源释放；`ImageReader` 同时服务单图与漫画页；FB2 渲染为 React 文本节点。编辑能力冻结在 Excel，撤销 D-013 的 DOCX 真编辑 phase-2。B 档候选格式按「先搜寻后自研」检索评估后记入 `MANIFEST.md`，本片不引入。
+* *方法*：零新增运行期依赖——`DOMParser` 解 FB2 XML、`jszip` 解 `.fb2.zip`/`.fbz`/`.cbz`；复合后缀由完整路径判定；新增 `useFormatResource` 统一可取消加载与资源释放；`ImageReader` 同时服务单图与漫画页；FB2 渲染为 React 文本节点。编辑能力冻结在 Excel，撤销 D-013 的 DOCX 真编辑 phase-2。B 档候选格式按「先搜寻后自研」检索评估后记入 `MANIFEST.adoc`，本片不引入。
 * *完成判据*：① `npx vitest run tests/ebook-formats.test.ts` 退出码 0；② `node scripts/verify-format-libs.ts` 退出码 0 且含 CBZ/FBZ 四项；③ 负向自检（破坏 FB2 作者拼接或数值排序）对应用例转红；④ `npm run verify` 退出码 0；⑤ 真机 `npm run test:e2e` 全绿，新增 `ebook-formats` 用例断言 FB2 / FB2.ZIP / CBZ 3 页数值排序 / 单图解码与缩放，`--self-check` 仍通过。
-* *解决*：*完成（2026-11-15）*。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.md` D-022。
+* *解决*：*完成（2026-11-15）*。详见 `docs/format-preview-baseline.adoc` 与 `DECISIONS.adoc` D-022。
 * *仍缺*：B 档中 Kindle 家族已由 T-055（Q-005 放行）落地；CBR/CB7、HEIC/HEIF、DJVU/TIFF/JXL 与「按格式配置阅读偏好」仍未做，见待裁决 Q-005（已决，其余格式需再次放行）。
 
 === T-053 Portable command-path regression fixture
@@ -336,10 +337,10 @@
 === T-009 ADR 迁入 `docs/decisions/`
 
 * *提出*：2026-11-13
-* *问题*：ADR-0001 至 ADR-0004 及立项书存放在仓库外（桌面项目目录），不随仓库分发，`DECISIONS.md` 中的引用无法解析。
-* *方法*：复制到 `docs/decisions/`，在 `README.md` 目录结构与文档表登记。
+* *问题*：ADR-0001 至 ADR-0004 及立项书存放在仓库外（桌面项目目录），不随仓库分发，`DECISIONS.adoc` 中的引用无法解析。
+* *方法*：复制到 `docs/decisions/`，在 `README.adoc` 目录结构与文档表登记。
 * *解决*：—
-* *完成判据*：`ls docs/decisions/*.adoc` 至少 4 个文件；`README.md` 中存在指向该目录的链接。
+* *完成判据*：`ls docs/decisions/*.adoc` 至少 4 个文件；`README.adoc` 中存在指向该目录的链接。
 
 === T-010 清除根目录 `nul`
 
@@ -353,9 +354,9 @@
 
 * *提出*：2026-11-13
 * *问题*：规范要求运行时版本写入版本文件，CI 与本地同源。当前 Node 版本仅存在于开发者机器。
-* *方法*：新建 `.nvmrc`，写入 `26.13.0`，并在 `README.md` 技术栈表中引用。
+* *方法*：新建 `.nvmrc`，写入 `26.13.0`，并在 `README.adoc` 技术栈表中引用。
 * *解决*：—
-* *完成判据*：`.nvmrc` 存在且内容为有效版本号；`README.md` 中出现该文件名。
+* *完成判据*：`.nvmrc` 存在且内容为有效版本号；`README.adoc` 中出现该文件名。
 
 === T-025 用 REA 拆解 Obsidian，仅学习优先软件逻辑与代码逻辑以完善 ADKM
 
@@ -645,7 +646,7 @@ ____
 [options="header"]
 |===
 |编号 |完成时间 |结果
-|T-000 |2026-11-13 |五个必备文档建立：README.md、AGENTS.md、DECISIONS.md、TASKS.md、MANIFEST.md
+|T-000 |2026-11-13 |五个必备文档建立：README.adoc、AGENTS.md、DECISIONS.adoc、TASKS.adoc、MANIFEST.adoc
 |T-013 |2026-11-13 |规范正文曾 vendor 至仓库，已按私人文档移除
 |T-014 |2026-11-13 |根目录散文文件迁移；`CLAUDE.md` 降为单行引用
 |T-015 |2026-11-13 |vite-plus 引入后的视觉核对：主界面与改造前无可辨差异（仅主界面，其余页面未逐一核对）
@@ -673,7 +674,7 @@ ____
 |T-038 |2026-11-15 |*代码层面已满足*（复核结论，无需再实施）：台账原写「重渲染器静态引入」，实测四个均已 `await import(...)` — `core/asciidoctorPreview.ts:23`、`features/attachment/{EpubPreview.tsx:28,XlsxPreview.tsx:99/164,DocxPreview.tsx:28}`；`core/math.ts`、`core/mermaid.ts` 同样懒加载。`npm run build` 产物中 `xlsx` 413 KB、`cytoscape` 424 KB 等均为独立 chunk，主包不背重渲染器。*未做的验证*：真机确认「打开 md 不触发重渲染器 chunk」，属 E2E 范畴，见 T-004
 |T-039 |2026-11-15 |持久化检索索引全部判据达成：Rust FTS5 + 规则版本失效 + 整份 `NoteMetadata` 落库 + 启动期预热水合。修复 `vault.load()` 早于 React 挂载导致 hydrator 永远未安装的时序缺陷后，暖启动 `metadataIndexMs` *1859.7 → 6.8 ms*（404/408 行走水合），冷启动 2346.5 ms；全文模式「规范」59 条 / 87 ms
 |T-042 |2026-11-15 |命令补齐复核：*原判断不成立并已纠正*。实测 ADKM 175 条（非 101，旧正则漏了批量注册）、Obsidian 制品静态可提取 169 条（热键页 280 含动态/插件命令）、ID 字面差集 114 条（非 179）——其中约 70 条是*命名不同但功能已有*、约 40 条是*能力缺失*（Canvas/Bases/同步/发布/多窗口，由 T-043/T-044/T-048 覆盖或排除）。本轮落地：`docs/command-gap-matrix.adoc`（可复现取证 + 功能域矩阵）、补 4 条真命令（`app:set-reading-view/set-live-preview/set-source-mode/toggle-default-new-pane-mode`，均有 `available` + 真实 callback + en/zh 文案）、`scripts/verify-command-registry.ts` 并入 `npm run verify`（查重复 ID / i18n 缺失 / 无 callback，防审计 §11 的「假完成」）。*未凑数注册空命令，未改已有 ID 以免破坏用户热键绑定*
-|Q-005 |2026-11-15 |*已决（D-024）*：① 放行新增运行期依赖，但按「先搜寻，后自研」评估后只引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 Kindle 家族只读预览（T-055）；CBR/HEIC/DJVU/TIFF 等仍不引入，需再次单独放行。② 维持 D-022 的*编辑能力冻结*：保留 Excel 显式保存，不执行「连保存也移除」的彻底只读。决策依据与依赖登记见 `DECISIONS.md` D-024、`MANIFEST.md`
+|Q-005 |2026-11-15 |*已决（D-024）*：① 放行新增运行期依赖，但按「先搜寻，后自研」评估后只引入 `@lingo-reader/mobi-parser@0.4.6`（MIT、196 KB、浏览器独立入口），落地 Kindle 家族只读预览（T-055）；CBR/HEIC/DJVU/TIFF 等仍不引入，需再次单独放行。② 维持 D-022 的*编辑能力冻结*：保留 Excel 显式保存，不执行「连保存也移除」的彻底只读。决策依据与依赖登记见 `DECISIONS.adoc` D-024、`MANIFEST.adoc`
 |===
 
 == PR #2 backup-session follow-up (2026-11-17, local)
