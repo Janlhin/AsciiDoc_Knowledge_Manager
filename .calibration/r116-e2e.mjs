@@ -1,7 +1,7 @@
 /**
  * R116 compat MarkdownView.getMode / getViewData E2E — browser mode :1420.
  * Run: node .calibration/r116-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 116 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 116 additions" (compat 商业主轴).
  *
  * Obsidian MarkdownView.getMode(): "source" (editor — live OR source) | "preview" (reading);
  * getViewData(): the editor's raw markdown source. A Geode compat MarkdownView is built only over

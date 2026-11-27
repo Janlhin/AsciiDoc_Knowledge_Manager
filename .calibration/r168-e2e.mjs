@@ -1,7 +1,7 @@
 /**
  * R168 — Tier 8 D-series obsidian util exports — browser :1420.
  * Run: node .calibration/r168-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 168 additions" (Tier 8, D-series utils).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 168 additions" (Tier 8, D-series utils).
  *
  * The fixture plugin (?obsfixture=1) runs a one-shot async IIFE in onload that
  * exercises the four D-series surfaces and JSON-stringifies every result into a

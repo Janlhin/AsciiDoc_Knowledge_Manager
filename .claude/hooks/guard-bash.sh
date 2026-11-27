@@ -53,7 +53,7 @@ ${TAIL}"
     fi
   else
     # node/npm 不在非交互 PATH（如 nvm 未 source）：警告但放行，避免完全无法提交。
-    # 见 .calibration/README.md「让质量闸在你的 shell 里生效」。
+    # 见 .calibration/README.adoc「让质量闸在你的 shell 里生效」。
     printf 'guard-bash: ⚠ 找不到 npm，已跳过 typecheck 质量闸（非交互 shell PATH 缺 node?）。\n' >&2
   fi
 fi

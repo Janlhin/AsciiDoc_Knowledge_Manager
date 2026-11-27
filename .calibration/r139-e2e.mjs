@@ -1,7 +1,7 @@
 /**
  * R139 compat workspace.on('files-menu') (multi-file right-click menu) E2E — browser mode :1420.
  * Run: node .calibration/r139-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 139 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 139 additions".
  *
  * Obsidian fires 'files-menu' with a TAbstractFile[] when you right-click a multi-selection in the
  * file explorer; plugins add bulk items. Mirrors R130's file-menu: a compat provider builds a

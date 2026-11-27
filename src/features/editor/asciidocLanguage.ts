@@ -13,7 +13,7 @@
  * comments, `xref:` / `link:` / `include::` macros, `<<…>>` short refs, list
  * markers, block attribute lines and verbatim fences. This is deliberately
  * NOT a full AsciiDoc grammar: no inline bold/italic model, no macro argument
- * parsing, no fold/outline tree — see DECISIONS.md D-040 for the L4 boundary.
+ * parsing, no fold/outline tree — see DECISIONS.adoc D-040 for the L4 boundary.
  */
 import { LanguageSupport, StreamLanguage } from "@codemirror/language";
 import { tags as t, type Tag } from "@lezer/highlight";

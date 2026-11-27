@@ -1,7 +1,7 @@
 /**
  * R192 — G3 missing→done: editor:clear-formatting (Obsidian "Clear formatting") —
  * browser :1420. Run: node .calibration/r192-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 192 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 192 additions".
  *
  * Byte-critical: syntax-tree based, removes ONLY real mark tokens of emphasis/code nodes
  * FULLY inside the selection. Drives the live CM view and asserts exact doc bytes. The

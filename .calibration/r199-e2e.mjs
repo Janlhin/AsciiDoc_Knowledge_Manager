@@ -3,7 +3,7 @@
  * (ref `[^N]` at caret + def `[^N]: ` on the last line) + auto-numbering +
  * bidirectional def→ref jump. Pure logic = core/format.ts insertFootnote.
  * Browser :1420.   Run: node .calibration/r199-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 199 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 199 additions".
  *
  * A  = Mode A insert byte-level via __geodeFootnote (exact FootnoteAction).
  * B  = Mode B jump (def line → body ref) incl. the `[^1]`⊄`[^10]` guard.

@@ -1,7 +1,7 @@
 /**
  * R118 compat app.commands remaining members E2E — browser mode :1420.
  * Run: node .calibration/r118-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 118 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 118 additions" (compat 商业主轴).
  *
  * Extends R113 (executeCommandById/listCommands/commands) with findCommand(id) / executeCommand(cmd)
  * / editorCommands, over the core CommandRegistry. executeCommand respects `available` (same as

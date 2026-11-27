@@ -11,7 +11,7 @@
  * editor reconfigure rebuild + tab close). foldEffect/unfoldEffect transactions
  * carry no docChanged, so this never triggers autosave / marks the doc dirty.
  *
- * See ARCHITECTURE.md "Round 29 additions" (frozen contract).
+ * See ARCHITECTURE.adoc "Round 29 additions" (frozen contract).
  */
 import { foldEffect, unfoldEffect } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";

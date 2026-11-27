@@ -1,7 +1,7 @@
 /**
  * R39 pinned tabs E2E — browser mode (Memory vault) vs dev :1420.
  * Run: node .calibration/r39-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 39 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 39 additions".
  *
  * A pinned tab is never replaced by openFile — links/navigation open a NEW tab.
  * Pure store op, fully drivable. Covers:

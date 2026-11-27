@@ -1,7 +1,7 @@
 /**
  * R229 editor "Show view mode toggle" setting E2E — browser mode :1420.
  * Run: node .calibration/r229-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 229 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 229 additions".
  *
  * Obsidian's "Show view mode toggle" (Editor, default ON) shows the per-tab edit/read toggle button.
  * Geode gates the .editor-mode-group render on a persisted Store (mirrors showRibbon/showTabTitleBar).

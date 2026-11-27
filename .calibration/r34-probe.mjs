@@ -15,7 +15,7 @@
  * a real focused CM view.
  *
  * Run: node .calibration/r34-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 34 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 34 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

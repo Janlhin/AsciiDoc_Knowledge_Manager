@@ -1,7 +1,7 @@
 /**
  * R47 note MERGE E2E — browser mode vs dev :1420.
  * Run: node .calibration/r47-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 47 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 47 additions".
  *
  *  A. core (window.__geodeMerge.merge): append into target, rewrite [[source]]→[[target]],
  *     trash source; self-merge / missing = no-op.

@@ -1,6 +1,6 @@
 /**
  * R252 (A2) editor right-click file-action items E2E — browser mode :1420.
- * Run: node .calibration/r252-e2e.mjs   Contract: docs/internal/ARCHITECTURE.md "Round 252 additions".
+ * Run: node .calibration/r252-e2e.mjs   Contract: docs/internal/ARCHITECTURE.adoc "Round 252 additions".
  *
  * The editor context menu (compat/obsidian/editorMenu.ts) now adds reference-08 file-action items
  * after the native Cut/Copy/Paste — all pure wiring to EXISTING vetted commands. Asserts the items

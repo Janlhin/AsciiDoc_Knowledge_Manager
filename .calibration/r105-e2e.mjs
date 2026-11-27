@@ -1,7 +1,7 @@
 /**
  * R105 Unsupported-file denylist flip E2E — browser mode :1420.
  * Run: node .calibration/r105-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 105 additions" (㊽ 续续续续续续续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 105 additions" (㊽ 续续续续续续续).
  *
  * isAttachmentPath flipped allowlist→DENYLIST: only markdown + known text/code + extensionless
  * files open in the editor; EVERYTHING else (binaries, media, AND unknown extensions) opens

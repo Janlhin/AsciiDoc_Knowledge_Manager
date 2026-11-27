@@ -6,7 +6,7 @@
  * file is MOVED there (recoverable) and never permanently lost.
  *
  * Run: node .calibration/r42-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 42 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 42 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

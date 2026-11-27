@@ -1,6 +1,6 @@
 /**
  * Heading/list folding (R17): codeFolding + foldGutter + a custom foldService
- * implementing the frozen semantics from ARCHITECTURE.md "Round 17 additions",
+ * implementing the frozen semantics from ARCHITECTURE.adoc "Round 17 additions",
  * plus the standard fold keymap. Fold state lives in the EditorState, so a
  * live<->source compartment reconfigure keeps it; a view rebuild drops it
  * (explicit non-persistence, recorded in the contract).

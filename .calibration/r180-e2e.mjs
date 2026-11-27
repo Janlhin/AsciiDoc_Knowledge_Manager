@@ -1,7 +1,7 @@
 /**
  * R180 — G4-b: "Reveal active file in navigation" command — browser :1420.
  * Run: node .calibration/r180-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 180 additions" (G4-b).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 180 additions" (G4-b).
  *
  * Obsidian "Reveal active file in navigation": when the active file lives in a
  * collapsed folder (opened via quick switcher / a link), this command expands

@@ -1,5 +1,5 @@
 /**
- * Obsidian Editor — T1.5 suite-driven subset (ARCHITECTURE.md Round 4) over a
+ * Obsidian Editor — T1.5 suite-driven subset (ARCHITECTURE.adoc Round 4) over a
  * host CodeMirror 6 EditorView (the shared document model's active view).
  * EditorPosition {line, ch} is 0-based on both axes.
  */

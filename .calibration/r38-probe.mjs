@@ -12,7 +12,7 @@
  * correct on the real metadata, and openFile + requestReveal navigation is sound.
  *
  * Run: node .calibration/r38-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 38 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 38 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

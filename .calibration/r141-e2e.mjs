@@ -1,7 +1,7 @@
 /**
  * R141 command palette "recently used commands at top" E2E — browser mode :1420.
  * Run: node .calibration/r141-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 141 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 141 additions".
  *
  * Obsidian 1.8.3+ shows recently-used commands at the top of the palette (empty query). R141: running
  * a command from the palette records it in a per-vault localStorage MRU; the empty-query branch lists

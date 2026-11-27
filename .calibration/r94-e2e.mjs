@@ -1,7 +1,7 @@
 /**
  * R94 Show inline title + Show ribbon E2E — browser mode :1420.
  * Run: node .calibration/r94-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 94 additions" (㊺ 续续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 94 additions" (㊺ 续续).
  *
  * Inline title = the note filename as an H1 atop the editor + reading view (default
  * ON = Obsidian). Display-only (no edit→rename in v1). Ribbon toggle hides the left

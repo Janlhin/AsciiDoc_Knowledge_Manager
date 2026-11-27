@@ -3,7 +3,7 @@
 # 触发：Claude 结束响应（停下等用户）时。decision=block 会让 Claude 继续干完收尾再停。
 # 拦截当：
 #   A. src/ 或 docs/ 有未提交改动（活没收尾）；或
-#   B. 自上次更新 docs/internal/HANDOFF.md 后又提交过 src/（代码变了文档没跟 → 下次续接读到过时状态）。
+#   B. 自上次更新 docs/internal/HANDOFF.adoc 后又提交过 src/（代码变了文档没跟 → 下次续接读到过时状态）。
 # gate 在可清除的真实条件上：提交代码 + 更新 HANDOFF 并提交后放行，不会死循环。
 set -uo pipefail
 INPUT="$(cat)"
@@ -21,16 +21,16 @@ block() {
 # A. src/ docs/ 有未提交改动（tracked 改动 + 未忽略的 untracked）
 DIRTY="$(git status --porcelain -- src docs 2>/dev/null)"
 if [ -n "$DIRTY" ]; then
-  block "🔁 本轮未收尾：src/ 或 docs/ 有未提交改动。按 /continue Step 6 收尾——刷新 docs/internal/HANDOFF.md 顶部 START HERE 状态、写 ROADMAP / ARCHITECTURE As-built，feat/docs(rXX): 提交并 git push 后再结束。未提交：
+  block "🔁 本轮未收尾：src/ 或 docs/ 有未提交改动。按 /continue Step 6 收尾——刷新 docs/internal/HANDOFF.adoc 顶部 START HERE 状态、写 ROADMAP / ARCHITECTURE As-built，feat/docs(rXX): 提交并 git push 后再结束。未提交：
 ${DIRTY}"
 fi
 
 # B. 自上次写 HANDOFF 后又提交过 src/ → 文档落后于代码
-LAST_HANDOFF="$(git log -1 --format=%H -- docs/internal/HANDOFF.md 2>/dev/null)"
+LAST_HANDOFF="$(git log -1 --format=%H -- docs/internal/HANDOFF.adoc 2>/dev/null)"
 if [ -n "$LAST_HANDOFF" ]; then
   SRC_SINCE="$(git log --oneline "${LAST_HANDOFF}..HEAD" -- src 2>/dev/null | head -3)"
   if [ -n "$SRC_SINCE" ]; then
-    block "🔁 代码已变但 HANDOFF 未更新：自上次写 docs/internal/HANDOFF.md 后又提交了 src/。先刷新 HANDOFF 顶部 START HERE 状态区 + 追加本轮根因教训并提交，再结束（下次「阅读 handoff，继续开发」才能续上）。相关提交：
+    block "🔁 代码已变但 HANDOFF 未更新：自上次写 docs/internal/HANDOFF.adoc 后又提交了 src/。先刷新 HANDOFF 顶部 START HERE 状态区 + 追加本轮根因教训并提交，再结束（下次「阅读 handoff，继续开发」才能续上）。相关提交：
 ${SRC_SINCE}"
   fi
 fi

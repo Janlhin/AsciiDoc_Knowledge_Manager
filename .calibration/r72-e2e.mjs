@@ -1,7 +1,7 @@
 /**
  * R72 new-link format E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r72-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 72 additions" (㉞-c).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 72 additions" (㉞-c).
  *
  * Drives formatLink via the always-on window.__geodeFormatLink probe (sets the
  * link-format settings then builds the link), covering wikilink/markdown ×

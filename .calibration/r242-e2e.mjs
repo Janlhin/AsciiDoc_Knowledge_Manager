@@ -1,7 +1,7 @@
 /**
  * R242 "Confirm file deletion" toggle E2E — browser mode :1420.
  * Run: node .calibration/r242-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 242 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 242 additions".
  *
  * Obsidian's Files&Links "Confirm file deletion". Geode gates the delete confirmation dialog on
  * the deleteConfirm Store (default ON = always confirm, a safety deviation from Obsidian's OFF;

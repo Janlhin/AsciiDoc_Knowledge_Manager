@@ -1,7 +1,7 @@
 /**
  * R34 in-editor find/replace (Cmd-F) E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r34-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 34 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 34 additions".
  *
  * Covers:
  *  A. probe (window.__geodeSearch): open()/isOpen()/replaceAll()/close() against

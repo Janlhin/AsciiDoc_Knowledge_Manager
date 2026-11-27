@@ -1,7 +1,7 @@
 /**
  * Obsidian theme/snippet CSS compatibility layer (R20).
  *
- * Three pieces (see ARCHITECTURE.md Round 20):
+ * Three pieces (see ARCHITECTURE.adoc Round 20):
  *  1. variable bridge  — injected stylesheet mapping Obsidian CSS variables
  *     onto Geode's palette (identity by default: zero visual change with no
  *     theme installed),

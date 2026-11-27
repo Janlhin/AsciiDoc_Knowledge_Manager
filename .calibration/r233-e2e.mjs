@@ -1,7 +1,7 @@
 /**
  * R233 editor "Always focus new tabs" toggle E2E — browser mode :1420.
  * Run: node .calibration/r233-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 233 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 233 additions".
  *
  * Obsidian's "Always focus new tabs" (始终聚焦新标签页, default ON): opening a file in a NEW tab
  * switches focus to it. OFF → the new tab opens in the background (focus stays on the current tab).

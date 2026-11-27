@@ -6,7 +6,7 @@
  * path is a view behavior exercised by the browser E2E.
  *
  * Run: node .calibration/r57-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 57 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 57 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

@@ -1,7 +1,7 @@
 /**
  * R111 compat binary IO E2E — browser mode :1420.
  * Run: node .calibration/r111-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 111 additions" (㊵ 续 → compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 111 additions" (㊵ 续 → compat 商业主轴).
  *
  * The Obsidian compat shim (`window.app`, set by the plugin loader) now bridges binary IO to
  * Geode's native binary read/create — Vault.readBinary/createBinary + DataAdapter.readBinary/

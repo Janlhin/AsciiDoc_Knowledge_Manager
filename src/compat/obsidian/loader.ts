@@ -3,7 +3,7 @@
  * `<vault>/.obsidian/plugins/`. Idempotent like PluginManager.loadExternal:
  * previously loaded obsidian records are unloaded first.
  *
- * Pipeline (ARCHITECTURE.md "Round 4 additions" + API-REFERENCE area 6):
+ * Pipeline (ARCHITECTURE.adoc "Round 4 additions" + API-REFERENCE area 6):
  *   discover -> validate manifest -> evaluate main.js as CommonJS with the
  *   host require map -> resolve ctor (exports.default ?? module.exports) ->
  *   wrap as a GeodePlugin record -> register(wrapper, "obsidian", { enabled,

@@ -1,7 +1,7 @@
 /**
  * R228 "Rebuild vault cache" (Obsidian Files & Links → Advanced) E2E — browser :1420.
  * Run: node .calibration/r228-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 228 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 228 additions".
  *
  * Surfaces the existing (vault-load-tested) metadata.rebuildAll() via a command (app:rebuild-cache)
  * + a Files&Links settings button. Read-only re-index: bumps metadata.revision, re-derives the cache

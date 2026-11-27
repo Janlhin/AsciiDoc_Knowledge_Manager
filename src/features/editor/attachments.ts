@@ -4,7 +4,7 @@
  * (core/attachments importAttachment) and an `![[linktext]]` embed is inserted
  * at the paste selection / drop point. Non-image payloads are never consumed,
  * so plain-text paste and CM's default text drag-and-drop stay untouched.
- * See ARCHITECTURE.md "Round 17 additions" for the frozen contract.
+ * See ARCHITECTURE.adoc "Round 17 additions" for the frozen contract.
  */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";

@@ -12,7 +12,7 @@ tools: Read, Grep, Glob, Bash, Edit
 
 **SIMPLIFY-YES（grep/tsc 可判才动）**：① 死代码（本轮新增、全仓零引用 / `return`/`throw` 后不可达）；② 残留脚手架（`console.log` / 注释码 / `TODO(temp)` / 无断言引用的 debug `data-testid` / 一次性 probe stub）；③ 未用 param/export/import；④ 本轮内两处 token 级相同、≥~8 行复制，且收敛**不需发明新公共类型**；⑤ 多余间接（纯转发包装 / 即取即返局部 / 单分支 `if` / Promise 套 Promise）；⑥ 冗余或失效注释；⑦ **类型可证**的不可能态防御（非凭「我觉得不会发生」）。
 
-**SIMPLIFY-NO / STOP（任一命中即不动）**：① 不新增 `<2` 真实调用点的抽象；② 不新增无调用方传入的 option/param/config/泛型；③ 不改任何公共契约/测试可观测行为（导出签名 · `ARCHITECTURE.md` 冻结接口 · 命令/插件 `name` · 产出 Markdown 字节 · DOM `data-testid` · store 形状——套件或 `r18-diff` 字节快照会变即 STOP）；④ **无实测数字（profiler / `?bench=N`）不做任何性能改动**；⑤ 不为炫技重写（diff 须既更小又不更难读）；⑥ 不碰本轮 diff 之外的代码。
+**SIMPLIFY-NO / STOP（任一命中即不动）**：① 不新增 `<2` 真实调用点的抽象；② 不新增无调用方传入的 option/param/config/泛型；③ 不改任何公共契约/测试可观测行为（导出签名 · `ARCHITECTURE.adoc` 冻结接口 · 命令/插件 `name` · 产出 Markdown 字节 · DOM `data-testid` · store 形状——套件或 `r18-diff` 字节快照会变即 STOP）；④ **无实测数字（profiler / `?bench=N`）不做任何性能改动**；⑤ 不为炫技重写（diff 须既更小又不更难读）；⑥ 不碰本轮 diff 之外的代码。
 
 **跳过条件（满足任一即声明 clean、不写一行码）**：本轮 diff `<~50` 改动行或仅碰 `≤2` 文件 / 新代码是单薄包装或单调用点 / 本轮内无 `≥~8` 行 token 级重复。
 

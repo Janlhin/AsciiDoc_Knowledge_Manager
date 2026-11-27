@@ -2,7 +2,7 @@
  * R169 — Tier 8 D7: global sleep/nextFrame + Document.on/off delegated listeners
  * — browser :1420.
  * Run: node .calibration/r169-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 169 additions" (Tier 8, D7).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 169 additions" (Tier 8, D7).
  *
  * The fixture plugin (?obsfixture=1) runs a one-shot async IIFE in onload that:
  *   1. sleep(25) — resolves after ~ms; we assert the elapsed time crossed a

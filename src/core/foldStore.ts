@@ -3,7 +3,7 @@
  *
  * Pure-TS state module mirroring Obsidian's per-file fold shape but stored in
  * localStorage (NOT in the vault `.md` / `.obsidian` — zero new vault write
- * path, data-safety class B fully exempt). See ARCHITECTURE.md "Round 29
+ * path, data-safety class B fully exempt). See ARCHITECTURE.adoc "Round 29
  * additions" (frozen contract).
  *
  * `FoldInfo` mirrors Obsidian's `{ folds, lines }` (0-based line ranges, no

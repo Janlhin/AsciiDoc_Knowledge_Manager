@@ -5,7 +5,7 @@
  * block widget + cursor-reveal path is a view behavior exercised by the browser E2E.
  *
  * Run: node .calibration/r55-probe.mjs   (release binary must be built)
- * Contract: docs/internal/ARCHITECTURE.md "Round 55 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 55 additions".
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";

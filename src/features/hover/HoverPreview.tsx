@@ -1,5 +1,5 @@
 /**
- * HoverPreview.tsx — the page-preview card (R25 悬停预览). See ARCHITECTURE.md
+ * HoverPreview.tsx — the page-preview card (R25 悬停预览). See ARCHITECTURE.adoc
  * "Round 25 additions — 悬停预览" (frozen contract). Mounted once in App.tsx.
  *
  * Subscribes the shared `hoverStore`; when a target appears it renders the

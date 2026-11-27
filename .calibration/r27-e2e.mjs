@@ -1,7 +1,7 @@
 /**
  * R27 bookmarks E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r27-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 27 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 27 additions".
  *
  * Covers: panel mount + empty state; bookmark-file command toggle (label flips,
  * isFileBookmarked, panel row appears/disappears); heading-under-cursor command

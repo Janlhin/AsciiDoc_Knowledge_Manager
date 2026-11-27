@@ -3,7 +3,7 @@
  * Picks a file via <input type=file>, imports it into the vault attachment folder
  * (R17 importAttachment/ingestFiles, reused), inserts `![[linktext]]` at the cursor.
  * Browser :1420.  Run: node .calibration/r209-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 209 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 209 additions".
  *
  * Drives the REAL command end-to-end via Playwright's filechooser (intercepts the
  * <input> picker). A = registration; C = full flow (pick → import → embed + vault

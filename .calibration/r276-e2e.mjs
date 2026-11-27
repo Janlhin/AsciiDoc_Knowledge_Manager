@@ -1,6 +1,6 @@
 /**
  * R276 — Graph Obsidian-style circular force-directed layout E2E.
- * Reference: docs/internal/ARCHITECTURE.md "Round 276 additions".
+ * Reference: docs/internal/ARCHITECTURE.adoc "Round 276 additions".
  *
  * Locks:
  *   - parseGraphPrefs backward-compat adds forces.circle = 0.06 and clamps it

@@ -1,7 +1,7 @@
 /**
  * R177 — G1: Settings three-section IA refactor — browser :1420.
  * Run: node .calibration/r177-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 177 additions" (G1).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 177 additions" (G1).
  *
  * SettingsModal split from 5 flat sections into Obsidian's grouped IA:
  *  - 选项 (Options): about / editor / files-and-links / appearance / hotkeys / keychain / plugins

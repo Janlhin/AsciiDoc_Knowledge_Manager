@@ -1,7 +1,7 @@
 /**
  * R65 Footnotes pane E2E — browser mode against dev :1420.
  * Run: node .calibration/r65-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 65 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 65 additions".
  *
  * Covers ㉘ Footnotes view (Obsidian 1.9 core plugin): dedicated right-sidebar
  * tab listing the active note's [^id]: definitions (id + content) from the

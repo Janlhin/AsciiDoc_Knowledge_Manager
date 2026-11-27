@@ -3,7 +3,7 @@
  * (installed at runtime by src/compat/obsidian/dom.ts).
  *
  * Shapes match .calibration/API-REFERENCE.md area 5 verbatim. The types are
- * necessarily global, but per ARCHITECTURE.md only compat code (and loaded
+ * necessarily global, but per ARCHITECTURE.adoc only compat code (and loaded
  * Obsidian plugins) may USE these helpers.
  */
 

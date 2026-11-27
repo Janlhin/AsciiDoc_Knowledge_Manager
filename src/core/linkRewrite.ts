@@ -1,6 +1,6 @@
 /**
  * Link rewrite engine (R16) — rename a file/folder AND update every wikilink /
- * embed across the vault that pointed at it. See ARCHITECTURE.md "Round 16
+ * embed across the vault that pointed at it. See ARCHITECTURE.adoc "Round 16
  * additions" for the frozen algorithm (capture → rename → ensureFresh →
  * verified rewrite → report). Data-safety round: NEVER blind-write — any
  * verification mismatch skips the file and reports it.

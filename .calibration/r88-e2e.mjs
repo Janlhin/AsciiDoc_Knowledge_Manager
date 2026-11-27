@@ -1,7 +1,7 @@
 /**
  * R88 line-number gutter + default new-tab mode E2E — browser mode :1420.
  * Run: node .calibration/r88-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 88 additions" (㊶ 续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 88 additions" (㊶ 续).
  *
  * Covers the showLineNumbers CM compartment reactively toggling the gutter +
  * persistence, and defaultNewTabMode driving the mode a new tab opens in.

@@ -1,7 +1,7 @@
 /**
  * R74 Slides presentation E2E — browser mode (Memory vault) against dev :1420.
  * Run: node .calibration/r74-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 74 additions" (㊱).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 74 additions" (㊱).
  *
  * Covers: splitSlides (via __geodeSplitSlides) — frontmatter stripped, code
  * fences respected, no-separator = single slide — AND the full-screen overlay:

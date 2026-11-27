@@ -1,7 +1,7 @@
 /**
  * R22 — Properties (frontmatter) typed model + byte-preserving edit builders.
  *
- * Contract: docs/internal/ARCHITECTURE.md "Round 22 additions". Key invariants:
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 22 additions". Key invariants:
  * - parseProperties block boundaries are FROZEN identical to
  *   metadata.parseFrontmatter (first line exactly "---", close at line-start
  *   "---"); only the first 20_000 chars are parsed (livePreview口径) — a block

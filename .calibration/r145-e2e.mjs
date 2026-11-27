@@ -1,7 +1,7 @@
 /**
  * R145 hotkeys "show assigned only" filter toggle E2E — browser mode :1420.
  * Run: node .calibration/r145-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 145 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 145 additions".
  *
  * Obsidian (verified): "To show only commands that have assigned hotkeys, select the filter icon in
  * Settings → Hotkeys." R145 adds that funnel toggle to HotkeysSection: ON → only commands whose

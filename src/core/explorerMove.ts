@@ -3,7 +3,7 @@
  * no DOM. Lives in core so BOTH the Explorer drop handler and the
  * `__geodeExplorerMove` E2E probe (main.tsx) share a single source of truth for
  * the guards, without the bootstrap reaching into a feature.
- * Contract: ARCHITECTURE.md "Round 28 additions".
+ * Contract: ARCHITECTURE.adoc "Round 28 additions".
  */
 import type { FolderNode } from "./types";
 import { basename, parentPath } from "./vault";

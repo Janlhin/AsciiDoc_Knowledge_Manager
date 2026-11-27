@@ -1,7 +1,7 @@
 /**
  * Hover preview core state (R25 — 悬停预览 / Page Preview).
  *
- * Pure-TS state module for the hover preview feature. See ARCHITECTURE.md
+ * Pure-TS state module for the hover preview feature. See ARCHITECTURE.adoc
  * "Round 25 additions — 悬停预览" (frozen contract). PURE READ-ONLY: this
  * module only holds settings Stores + the shared hover target Store. The
  * controller (features/hover) writes `hoverStore`; the preview card subscribes.

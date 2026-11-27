@@ -1,7 +1,7 @@
 /**
  * R78 graph settings E2E — browser mode against dev :1420.
  * Run: node .calibration/r78-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 78 additions" (㊵).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 78 additions" (㊵).
  *
  * Covers parseGraphPrefs (via __geodeGraphPrefs) — clamp / backward-compat /
  * corrupt — AND the settings panel: gear toggles it, force/display sliders +

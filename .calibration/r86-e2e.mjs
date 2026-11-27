@@ -1,7 +1,7 @@
 /**
  * R86 File properties pane + delete-property E2E — browser mode :1420.
  * Run: node .calibration/r86-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 86 additions" (㊼).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 86 additions" (㊼).
  *
  * Covers ㊼ fileproperties right-sidebar tab + reusing PropertiesPanel as a SECOND
  * writer of the active doc (acquire handle + applyExternalEdits, coexisting with a

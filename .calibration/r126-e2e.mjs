@@ -1,7 +1,7 @@
 /**
  * R126 compat CachedMetadata.frontmatterLinks E2E — browser mode :1420.
  * Run: node .calibration/r126-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 126 additions" (compat 商业主轴).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 126 additions" (compat 商业主轴).
  *
  * Obsidian getFileCache(file).frontmatterLinks: FrontmatterLinkCache[] = every `[[wikilink]]` inside
  * a frontmatter property value ({key, link, original, displayText?}). key = field name, or `field.N`

@@ -2,7 +2,7 @@
  * R190 — G3 ui-only→done: app:close-others / app:close-tab-group commands
  * (Obsidian workspace:close-others / workspace:close-tab-group) — browser :1420.
  * Run: node .calibration/r190-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 190 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 190 additions".
  *
  * Reuses the vetted closeOtherTabs/closeAllTabs (tab context menu handlers) via the
  * active tab — close-others keeps the active tab + pinned tabs; close-tab-group empties

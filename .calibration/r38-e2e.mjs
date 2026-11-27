@@ -1,7 +1,7 @@
 /**
  * R38 Quick Switcher sub-modes E2E — browser mode (Memory vault) vs dev :1420.
  * Run: node .calibration/r38-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 38 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 38 additions".
  *
  * `#query` = vault-wide heading search, `^query` = vault-wide block search.
  * Match logic is a pure core fn (core/switcherSearch) shared by the modal, the

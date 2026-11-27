@@ -1,7 +1,7 @@
 /**
  * R40 toggle checkbox status (Cmd/Ctrl-L) E2E — browser mode (Memory vault) vs dev :1420.
  * Run: node .calibration/r40-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 40 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 40 additions".
  *
  * Reuses the R33 format infrastructure: a new pure op `toggle-task` in
  * core/format.ts, exposed through the existing window.__geodeFormat.apply probe,

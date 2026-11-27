@@ -1,7 +1,7 @@
 /**
  * R224 — Editor setting "Hide reference marks" (Obsidian native, Display group, default ON).
  * Browser :1420. Run: node .calibration/r224-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 224 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 224 additions".
  *
  * ON (default): Live Preview hides Markdown syntax delimiters except at the cursor.
  * OFF: all delimiters stay visible, BUT widgets (hr) + styles still render — NOT source mode.

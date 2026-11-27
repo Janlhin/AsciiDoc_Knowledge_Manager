@@ -6,7 +6,7 @@
  * Layering: the R6 EditorSuggest pipeline lives in compat/ (features must never
  * import compat), so this mirrors the NATIVE CM6 `@codemirror/autocomplete`
  * path that powers `[[` wikilink completion (cmExtensions.ts) — a completion
- * source appended to the autocompletion `override` array. See ARCHITECTURE.md
+ * source appended to the autocompletion `override` array. See ARCHITECTURE.adoc
  * "Round 31 additions".
  */
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";

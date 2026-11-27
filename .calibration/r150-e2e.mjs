@@ -1,7 +1,7 @@
 /**
  * R150 tags-pane nested hierarchy tree + collapse E2E — browser mode :1420.
  * Run: node .calibration/r150-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 150 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 150 additions".
  *
  * Obsidian's tag pane shows nested tags (#a/b) as a collapsible tree (leaf segment shown, chevron to
  * fold). R150 builds that tree from getTagMap. Counts: real tags = exact note count; phantom parents

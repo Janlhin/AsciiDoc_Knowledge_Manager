@@ -1,7 +1,7 @@
 /**
  * R197 — G3 missing→done: editor:delete-paragraph (Obsidian "Delete paragraph") —
  * browser :1420. Run: node .calibration/r197-e2e.mjs   (dev server up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 197 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 197 additions".
  *
  * Deletes the top-level block at the cursor via the syntax tree (a whole block, never a
  * line-based slice). Byte-critical cases: a fenced code block with a blank line is removed

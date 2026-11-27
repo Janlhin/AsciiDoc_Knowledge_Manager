@@ -1,7 +1,7 @@
 /**
  * R136 reading-view getSectionInfo (opt-in sourcePos → block data-line) E2E — browser mode :1420.
  * Run: node .calibration/r136-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 136 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 136 additions".
  *
  * The reading view renders with sourcePos:true → top-level blocks carry data-line / data-line-end;
  * a post-processor's ctx.getSectionInfo(el) walks el.closest("[data-line]") → {text,lineStart,lineEnd}.

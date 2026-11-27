@@ -430,7 +430,7 @@ export class PluginManager {
           },
         };
         const moduleObj: { exports: unknown } = { exports: {} };
-        // Plugins are local user-owned code (see docs/PLUGINS.md) — evaluated
+        // Plugins are local user-owned code (see docs/PLUGINS.adoc) — evaluated
         // unsandboxed, like Obsidian does.
         const run = new Function("geode", "module", "exports", file.content);
         run(geode, moduleObj, moduleObj.exports);

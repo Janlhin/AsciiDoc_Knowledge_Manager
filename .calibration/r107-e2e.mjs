@@ -1,7 +1,7 @@
 /**
  * R107 wikilink [[note# heading completion E2E — browser mode :1420.
  * Run: node .calibration/r107-e2e.mjs   (dev server must be up)
- * Contract: docs/internal/ARCHITECTURE.md "Round 107 additions" (㊹ 续).
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 107 additions" (㊹ 续).
  *
  * `[[<note>#<query>` completes the resolved note's headings (insert `[[note#Heading]]`);
  * `[[#…` targets the current file (self-link). Headings whose text would break `[[…#…]]`

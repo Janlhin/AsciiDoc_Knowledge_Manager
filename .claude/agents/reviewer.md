@@ -8,7 +8,7 @@ tools: Read, Grep, Glob, Bash
 
 评审维度（逐维过，数据安全永远第一）：
 1. **数据安全**：对照 data-safety skill 的竞态清单 A + 历轮根因 checklist B——本轮是否复发任一根因？写 .md 路径是否字节安全？
-2. **契约一致**：实现是否符合 `ARCHITECTURE.md`「Round XX additions」冻结的签名/语义？有无私改契约。
+2. **契约一致**：实现是否符合 `ARCHITECTURE.adoc`「Round XX additions」冻结的签名/语义？有无私改契约。
 3. **分层合规**：features 是否误 import 别的 feature 或 compat？core 是否混入 React 组件？颜色/字符串是否硬编码？
 4. **对抗性输入**：用户可输入处试 元字符 / 空 / 超长 / CJK / 换行。
 5. **双端差异**：浏览器（Memory adapter）与桌面（真实 fs / WKWebView 无 CDP）行为是否一致；probe 是否守 App Nap 时序纪律。

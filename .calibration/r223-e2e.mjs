@@ -1,7 +1,7 @@
 /**
  * R223 — Footnotes pane inline editing (Obsidian 1.9 native "Footnotes view":
  * "Click a footnote to edit its text"). Browser :1420. Run: node .calibration/r223-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 223 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 223 additions".
  *
  * The crux is data-safety (底线①): editing a footnote's text writes ONLY that definition
  * line via the shared DocumentHandle (second writer), byte-preserving everything else;

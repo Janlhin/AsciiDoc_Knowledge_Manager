@@ -4,7 +4,7 @@
  * core/tableEditor.ts (applyTableOp) — parse a GFM pipe table, apply a structural
  * op, re-serialize. Cell split mirrors markdown-it escapedSplit (reading-view
  * aligned). Browser :1420.  Run: node .calibration/r206-e2e.mjs
- * Contract: docs/internal/ARCHITECTURE.md "Round 206 additions".
+ * Contract: docs/internal/ARCHITECTURE.adoc "Round 206 additions".
  *
  * A  = byte-level __geodeTableEdit(op, tableText, offset) → {text, cursorOffsetInTable}.
  * A2 = escape round-trip (a cell with a literal pipe `a\|b` must re-escape, not corrupt).

@@ -2,7 +2,7 @@
 /**
  * ADKM: 索引报告 —— 对一个目录跑真实索引，输出可核对的数字。
  *
- * 存在的理由：`docs/plans/L2-asciidoc-indexing.md` 的验收判据必须是「命令 + 退出码」，
+ * 存在的理由：`docs/plans/L2-asciidoc-indexing.adoc` 的验收判据必须是「命令 + 退出码」，
  * 而应用内的索引跑在 Tauri 窗口里，无法在 CI 或终端复跑。这个脚本用同一套
  * `MetadataIndex`（不是另写一份解析），所以它给出的数字与应用内一致。
  *
