@@ -31,9 +31,6 @@ const KNOWN_REGION_VARIANTS = new Set([
   "es-mx", "fr-fr", "fr-ca", "de-de", "it-it", "nl-nl", "sv-se", "ru-ru",
 ]);
 
-/** Filename suffix shape: `foo-en` / `foo-en-us`. Case-insensitive. */
-const SUFFIX_RE = /^(.*)-([a-z]{2,3}(?:-[a-z0-9]{2,8})?)$/;
-
 /** AsciiDoc preamble attribute line `:revnumber: 1.2.3`. */
 const ADOC_ATTR_RE = /^:([A-Za-z0-9_-]+):\s*(.*)$/;
 /** AsciiDoc section heading `====== Title`. */
@@ -146,9 +143,11 @@ function basename(path: string): string {
 
 function splitName(path: string): { dir: string; stem: string; ext: string } {
   const base = basename(path);
+  const rawDir = path.slice(0, path.length - base.length);
+  const dir = rawDir.replace(/[\\/]+$/, "");
   const dot = base.lastIndexOf(".");
-  if (dot <= 0) return { dir: "", stem: base, ext: "" };
-  return { dir: "", stem: base.slice(0, dot), ext: base.slice(dot + 1).toLowerCase() };
+  if (dot <= 0) return { dir, stem: base, ext: "" };
+  return { dir, stem: base.slice(0, dot), ext: base.slice(dot + 1).toLowerCase() };
 }
 
 /** Is `tag` an accepted language suffix (`en`, `zh-cn`, …)? */
@@ -167,11 +166,15 @@ function isKnownLangTag(tag: string): boolean {
  */
 export function suffixLanguage(stem: string): { baseStem: string; langTag: string } | null {
   const normalized = stem.normalize("NFKC");
-  const m = SUFFIX_RE.exec(normalized);
-  if (!m) return null;
-  const langTag = m[2].toLowerCase();
-  if (!isKnownLangTag(langTag)) return null;
-  return { baseStem: m[1], langTag };
+  // Scan hyphen splits left-to-right so the *longest* known tag wins:
+  // `guide-zh-cn` → `zh-cn` (not `cn`); `foo-bar-en` → `en`.
+  for (let i = normalized.indexOf("-"); i !== -1; i = normalized.indexOf("-", i + 1)) {
+    const baseStem = normalized.slice(0, i);
+    const langTag = normalized.slice(i + 1).toLowerCase();
+    if (baseStem === "" || !isKnownLangTag(langTag)) continue;
+    return { baseStem, langTag };
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -493,12 +496,15 @@ export function buildBilingualReport(docs: readonly DocInput[]): BilingualReport
   const used = new Set<string>();
   const pairs: PairReport[] = [];
 
-  // Index stem -> digest list (suffix pairing looks up the unsuffixed base).
-  const byStem = new Map<string, DocDigest[]>();
+  // Index folder + stem -> digest list: both pairing rules (suffix and the
+  // explicit-lang auxiliary rule) stay inside the same folder.
+  const byFolderStem = new Map<string, DocDigest[]>();
   for (const d of digests) {
-    const list = byStem.get(d.stem);
-    if (list) list.push(d);
-    else byStem.set(d.stem, [d]);
+    const { dir } = splitName(d.path);
+    const key = `${dir}\u0000${d.stem}`;
+    const folderList = byFolderStem.get(key);
+    if (folderList) folderList.push(d);
+    else byFolderStem.set(key, [d]);
   }
 
   // 1. suffix pairing
@@ -506,7 +512,8 @@ export function buildBilingualReport(docs: readonly DocInput[]): BilingualReport
     if (used.has(d.path)) continue;
     const suffix = suffixLanguage(d.stem);
     if (!suffix) continue;
-    const candidates = (byStem.get(suffix.baseStem) ?? []).filter(
+    const { dir } = splitName(d.path);
+    const candidates = (byFolderStem.get(`${dir}\u0000${suffix.baseStem}`) ?? []).filter(
       (c) => !used.has(c.path) && c.path !== d.path,
     );
     // prefer same extension, then lexicographically first deterministic pick
@@ -522,7 +529,8 @@ export function buildBilingualReport(docs: readonly DocInput[]): BilingualReport
   for (const d of digests) {
     if (used.has(d.path)) continue;
     if (d.lang === null) continue;
-    const siblings = (byStem.get(d.stem) ?? []).filter(
+    const { dir } = splitName(d.path);
+    const siblings = (byFolderStem.get(`${dir}\u0000${d.stem}`) ?? []).filter(
       (c) => !used.has(c.path) && c.path !== d.path && c.lang !== null && c.lang !== d.lang,
     );
     if (siblings.length === 0) continue;

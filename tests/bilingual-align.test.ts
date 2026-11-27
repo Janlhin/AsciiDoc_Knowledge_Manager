@@ -90,6 +90,38 @@ describe("T-066 pairing", () => {
     expect(report.pairs[0].translation.path).toBe("foo－en.adoc");
   });
 
+  it("does not pair the same stem across different folders", () => {
+    const report = buildBilingualReport([
+      doc("alpha/guide.adoc", ZH_ADOC),
+      doc("beta/guide-en.adoc", EN_ADOC),
+    ]);
+    expect(report.pairs).toHaveLength(0);
+  });
+
+  it("pairs suffix files inside the same folder when paths carry directories", () => {
+    const report = buildBilingualReport([
+      doc("alpha/guide.adoc", ZH_ADOC),
+      doc("alpha/guide-en.adoc", EN_ADOC),
+    ]);
+    expect(report.pairs).toHaveLength(1);
+    expect(report.pairs[0].base.path).toBe("alpha/guide.adoc");
+    expect(report.pairs[0].translation.path).toBe("alpha/guide-en.adoc");
+  });
+
+  it("recognizes a full regional suffix instead of splitting at the first hyphen", () => {
+    expect(suffixLanguage("guide-zh-cn")).toEqual({ baseStem: "guide", langTag: "zh-cn" });
+    expect(suffixLanguage("foo-bar-en")).toEqual({ baseStem: "foo-bar", langTag: "en" });
+  });
+
+  it("pairs guide.adoc with guide-zh-cn.adoc", () => {
+    const report = buildBilingualReport([
+      doc("guide.adoc", ZH_ADOC),
+      doc("guide-zh-cn.adoc", ZH_ADOC),
+    ]);
+    expect(report.pairs).toHaveLength(1);
+    expect(report.pairs[0].translation.path).toBe("guide-zh-cn.adoc");
+  });
+
   it("pairs same-stem different-format files via explicit differing lang markers (auxiliary)", () => {
     const report = buildBilingualReport([
       doc("note.adoc", ":lang: zh-CN\n\n= 笔记\n"),
