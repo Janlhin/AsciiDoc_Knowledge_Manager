@@ -51,6 +51,7 @@
 | [`docs/PROVENANCE.adoc`](docs/PROVENANCE.adoc) | 上游来源、改动清单、许可义务 |
 | [`docs/plans/`](docs/plans/) | 各层实施计划（L2 起） |
 | [`docs/product-placeholders.adoc`](docs/product-placeholders.adoc) | 产品身份占位符待填清单、系统默认值、未来 I18N 改造 |
+| [`docs/README.md`](docs/README.md) | docs/ 目录文档索引：仓内文档与子目录入口 |
 
 ## 禁止事项
 
