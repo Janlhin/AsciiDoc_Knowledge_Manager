@@ -136,8 +136,8 @@ export const MIN_PANE_FRACTION = 0.12;
  * R211 root cause was missing the re-derivation), the duplicate guard, and split.
  * Adding a new such view = add it here (+ openX / render / title / icon / command).
  */
-export function isFilelessSingletonView(vt: unknown): vt is "graph" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign" | "refcheck" {
-  return vt === "graph" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline" || vt === "docaudit" || vt === "bilingualalign" || vt === "refcheck";
+export function isFilelessSingletonView(vt: unknown): vt is "graph" | "graphgpu" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign" | "refcheck" {
+  return vt === "graph" || vt === "graphgpu" || vt === "backlinks" || vt === "outgoinglinks" || vt === "outline" || vt === "docaudit" || vt === "bilingualalign" || vt === "refcheck";
 }
 
 export function makeLeaf(tabs: TabState[] = [], activeTabId: string | null = null): PaneLeaf {
@@ -585,6 +585,10 @@ export class Workspace {
 
   openGraph() {
     this.openSingletonView("graph", "Graph view");
+  }
+  /** T-063: standalone GPU-accelerated graph view as a main-area singleton tab. */
+  openGpuGraph() {
+    this.openSingletonView("graphgpu", "GPU graph");
   }
   /** R211: backlinks panel as a main-area tab (Obsidian "Open backlinks for the current file"). */
   openBacklinks() {

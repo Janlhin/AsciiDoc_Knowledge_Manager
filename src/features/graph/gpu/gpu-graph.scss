@@ -1,0 +1,155 @@
+/* T-063 GPU graph view — colours come from the app's CSS custom properties. */
+
+.gpu-graph-view {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.gpu-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.gpu-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.gpu-label-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- toolbar ---- */
+
+.gpu-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  user-select: none;
+}
+
+.gpu-mode-toggle {
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.gpu-mode-toggle button {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.gpu-mode-toggle button:hover {
+  background: var(--bg-hover);
+  color: var(--text-normal);
+}
+
+.gpu-mode-toggle button.is-active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.gpu-search {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  padding: 3px 8px;
+  font-size: 11.5px;
+  min-width: 120px;
+}
+
+.gpu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.gpu-fit-btn {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.gpu-fit-btn:hover {
+  background: var(--bg-hover);
+}
+
+.gpu-hud {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---- degradation banner ---- */
+
+.gpu-fallback-banner {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--text-normal);
+  font-size: 12px;
+}
+
+.gpu-fallback-title {
+  font-weight: 600;
+}
+
+.gpu-fallback-reason {
+  flex: 1;
+  color: var(--text-muted);
+}
+
+.gpu-fallback-banner button {
+  padding: 3px 10px;
+  font-size: 11.5px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
