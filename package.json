@@ -81,7 +81,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.4",
+    "@tauri-apps/cli": "^2.12.6",
     "@types/d3-force": "^3.0.10",
     "@types/katex": "^0.16.8",
     "@types/markdown-it": "^14.1.2",
