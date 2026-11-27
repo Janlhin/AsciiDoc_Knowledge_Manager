@@ -176,7 +176,7 @@ export interface TabState {
    *  "attachment" shows a non-md file READ-ONLY (image/binary, never autosaved);
    *  R211/R212 "backlinks"/"outgoinglinks"/"outline" show that panel in the main
    *  area (fileless singletons, like graph — see workspace.isFilelessSingletonView). */
-  viewType: "markdown" | "graph" | "attachment" | "backlinks" | "outgoinglinks" | "outline" | "docaudit";
+  viewType: "markdown" | "graph" | "attachment" | "backlinks" | "outgoinglinks" | "outline" | "docaudit" | "bilingualalign";
   filePath: string | null;
   mode: ViewMode;
   title: string;

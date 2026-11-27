@@ -18,6 +18,7 @@ import { EventBus } from "./events";
 import { Store } from "./store";
 import { RESOLVE_EXTENSIONS, extensionOf, isIndexable, stripDocExtension } from "./parsers/indexable";
 import { isAsciiDoc, parseAsciiDoc } from "./parsers/asciidoc";
+import { parsePlainText } from "./parsers/plaintext";
 
 const WIKILINK_RE = /\[\[([^\[\]\|#]+)(?:#[^\[\]\|]*)?(?:\|([^\[\]]*))?\]\]/g;
 /** Standard markdown inline link/image `[text](href)` / `![alt](href "title")`
@@ -228,7 +229,11 @@ export function parseFootnoteDefinitions(content: string): FootnoteRef[] {
  * format-blind — only this dispatch and the resolvers know about extensions.
  */
 export function parseDocument(path: string, content: string): NoteMetadata {
-  return isAsciiDoc(path) ? parseAsciiDoc(path, content) : parseNote(path, content);
+  if (isAsciiDoc(path)) return parseAsciiDoc(path, content);
+  // `.txt` 是无结构纯文本：不跑 Markdown 扫描（否则首行 `#`、`[[…]]`、`#tag`
+  // 都会被误判成标题/链接/标签），只留正文长度供索引与搜索使用（T-068）。
+  if (extensionOf(path) === "txt") return parsePlainText(path, content);
+  return parseNote(path, content);
 }
 
 /** Parse one markdown document into metadata. Exported for tests/reuse. */

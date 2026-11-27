@@ -391,6 +391,8 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
   const foldServiceCompartmentRef = useRef<Compartment | null>(null);
   /** R115: compartment for plugin-contributed CM6 extensions (registerEditorExtension) */
   const compatExtensionCompartmentRef = useRef<Compartment | null>(null);
+  /** T-067: compartment for the base language support (Markdown / AsciiDoc) */
+  const languageCompartmentRef = useRef<Compartment | null>(null);
   /** the editor mode the current view's compartment is configured with */
   const appliedModeRef = useRef<"live" | "source">("live");
   /** render-time mirror of tab.mode — the CM effect reads it without depending
@@ -548,6 +550,8 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
     foldServiceCompartmentRef.current = foldServiceCompartment;
     const compatExtensionCompartment = new Compartment();
     compatExtensionCompartmentRef.current = compatExtensionCompartment;
+    const languageCompartment = new Compartment();
+    languageCompartmentRef.current = languageCompartment;
     appliedModeRef.current = mode;
     const view = new EditorView({
       // per-view state seeded with the shared doc + the handle's sync glue;
@@ -567,6 +571,8 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
           vimCompartment,
           foldServiceCompartment,
           compatExtensionCompartment,
+          languageCompartment,
+          isAdoc: isAsciiDocPath(handle.path),
           // R22: portal target for the live-mode PropertiesPanel
           propertiesHost: propertiesHostRef.current ?? undefined,
         }),
@@ -646,6 +652,7 @@ export function EditorPane({ tab, autoFocus = true }: { tab: TabState; autoFocus
       vimCompartmentRef.current = null;
       foldServiceCompartmentRef.current = null;
       compatExtensionCompartmentRef.current = null;
+      languageCompartmentRef.current = null;
       view.destroy();
       // no flush here: pending saves belong to the handle, which outlives the
       // view (other panes / the manager's deferred-drop flush / flushAll)

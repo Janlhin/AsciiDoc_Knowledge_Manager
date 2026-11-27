@@ -649,3 +649,77 @@
 - The renderer rejects overlapping backup requests and releases the guard on all completion paths; successful same-second runs have random suffixes. Existing archive naming/pruning compatibility is retained. Relative retention order within one second and cross-process retention transactions are not promised.
 - Pruning is after successful publication only. Crash/renderer termination can leave an unpublished temporary file; no automatic deletion of unknown leftovers. This change does not make vault snapshots point-in-time consistent or guarantee power-loss recovery.
 - Verification recorded in TASKS and the external review receipt; not published or merged.
+
+---
+
+## D-039 双语对齐：层级序列保序贪心对齐，文本相似度仅作辅助
+
+- **日期**：2026-11-27
+- **状态**：**已实施**（T-066）。
+- **决策**：配对以文件名 `-<lang>` 后缀为主规则（同目录、同扩展名优先）；`:lang:` / frontmatter `lang:` 仅作辅助——同词根、跨格式且两侧显式语言标记不同时，才按语言标记配成一对。章节对齐按标题层级序列做保序贪心双指针：当前两侧层级相同即配对，否则先消费层级较浅的一侧（另一侧记缺失 / 多余）；标题文本相似度（归一化后 Levenshtein 比率）只挂在配对行上作辅助展示，不要求译文标题与原文一致。
+- **背景**：章程 §5.2 要求逐对比较版本号、标题总数与层级分布、章节结构、行数偏差。译文标题本就与原文不同语言，不能拿文本相等当配对判据；而纯 LCS 在重复同级标题（多篇 H2）上回溯 tie-break 会把靠前章节错配到靠后章节。
+- **被采纳方案**：`core/bilingualAlign.ts` 纯函数——`digestDocument` 抽取版本 / 语言 / 标题 / 行数，`alignStructure` 保序贪心对齐，`buildBilingualReport` 发现配对并汇总四类检查；runner 只读盘，视图只消费报告。跳转复用既有 `openFile` + `revealTarget` 一次性请求机制，不另造导航路径。
+- **被否决的替代方案**：
+  - *标题文本相似度参与配对判据*：否决理由——中英标题天然不同语言，相似度阈值会误杀正常译文；相似度降级为配对行上的辅助展示值。
+  - *LCS 最长公共子序列对齐*：否决理由——重复同级标题下回溯 tie-break 会把靠前章节错配到靠后章节；保序贪心双指针在文档顺序上更直观、可测。
+  - *按目录树父子关系对齐*：否决理由——现有元数据只拍平标题列表，父子层级需另建树；本轮范围只做层级序列对齐，树状语义留待后续。
+- **影响范围**：`src/core/bilingualAlign.ts`（新增）、`src/core/bilingualAlignRunner.ts`（新增）、`src/features/bilingualalign/`（新增视图 + scss）、`src/core/workspace.ts`（报告 Store + 单例视图方法）、`src/core/types.ts`（viewType 联合）、`src/core/i18n/dict.app.ts`（en/zh 文案）、`src/app/App.tsx`（命令 + 视图分发 + 标签标题）、`tests/bilingual-align.test.ts`（新增 24 用例）。
+- **验证**：`npx vitest run tests/bilingual-align.test.ts` 退出码 0（24 用例）；`npm run typecheck` 退出码 0；`npm test -- --run` 227 passed + 1 expected fail + 1 skipped；`npm run verify` 退出码 0。
+- **诚实缺口**：跨目录配对不支持；语言标签只认内置小词表；行数偏差阈值固定 25%，未暴露设置；结构对齐不解析父子章节嵌套；未做 E2E 真机跳转断言。
+- **复审条件**：真实语料出现跨目录同词根配对需求，或重复同级标题下贪心对齐错配被实测报告时，再评估目录参与与树状对齐。
+
+---
+
+## D-040 AsciiDoc 编辑器源码模式：StreamLanguage 自作词法，零新增依赖（T-067）
+
+- **日期**：2026-11-27
+- **状态**：**已实施**（T-067）。
+- **背景**：D-17 定调先做 C 档（`xref:` 可点击），A 档（彩色高亮）后补；本任务把 A 档以零新增依赖方式一并落地。此前编辑器对 `.adoc` 一律套用 `@codemirror/lang-markdown`，源码模式下 `xref:` / `<<…>>` 不可点，标题、属性、注释等 token 也按 Markdown 规则着色。
+- **被采纳方案**：
+  - 词法：复用 `@codemirror/language` 已带的 `StreamLanguage` + 手写行扫描纯函数（`scanAsciiDocLine` / `findXrefAt` / `findAnchorOffset`）。token 类别覆盖标题（`=` 至 `======`）、属性行与 `{attr}` 引用、行注释 `//` 与块注释 `////`、`xref:` 宏、`<<…>>` 简写、`link:` 宏、`include::`、列表项、代码块（`----` / `[source,…]`）边界与源码内部。
+  - 路由：新增 language compartment，`.adoc` 挂 AsciiDoc 语言，`.md` 原样保留 `markdownSansHeaderFold()`；live preview 链路语义一字未改。
+  - 跳转：复用既有 `metadata.resolveMarkdownLink` / `resolveLink` 解析与 `workspace.openFile` / `requestReveal`；锚点回退为纯文本正则定位（不假装有语法树）；坏链弹可见提示 pill，不自动建笔记、不抛异常。
+  - 高亮样式复用现有 `HighlightStyle` 调色板（heading / comment / link / monospace / prop 等既有 class），只补三条既有 class 映射，不引入新主题或 CSS 变量。
+- **被否决的替代方案**：
+  - *引入 `codemirror-asciidoc` 之类现成包*：否决理由——硬约束零新增生产/开发依赖；该类包的维护活跃度与许可未核实，且其语法树能力超出 L3 所需，会把折叠/大纲一并绑死在第三方解析上。
+  - *直接上完整 Lezer grammar（L4）*：否决理由——章程分级 L3 只要求源码编辑 + 高亮；Lezer grammar 投入大，且与现有 Markdown 折叠/大纲树并存会引入双树一致性问题，留待 L4 单独立项。
+- **影响范围**：`src/features/editor/asciidocLanguage.ts`（新增）、`src/features/editor/adocXref.ts`（新增）、`src/features/editor/cmExtensions.ts`（language compartment + adoc 插件接线）、`src/features/editor/EditorPane.tsx`（compartment 装配 + 文件类型路由）、`src/core/i18n/dict.views.ts`（`editor.xrefUnresolved` 文案）、`tests/asciidoc-language.test.ts`（新增）。Canvas、三态校验、图谱边类型、发版签名、`.tauri-keys`、PR #5 相关文件均未触碰；Markdown 路径零回归。
+- **诚实缺口**：折叠与结构化导航仍依赖 Markdown 语法树，AsciiDoc 章节折叠未适配；锚点定位是正则行号级，不识别 Asciidoctor 生成的内部 id；行内粗体/斜体与宏参数模型未解析；`link:` 宏高亮但不作为本次点击目标；重命名改扩展名（md ↔ adoc）时语言模式不在原地重路由。
+- **复审条件**：若 L4 立项（完整语法树、大纲/折叠适配、宏参数模型），或现成 AsciiDoc CM 包的许可与维护状态核实可接受，再重新评估是否替换自写词法；三态校验落地时，需把 adoc 坏链展示与本任务的 unresolved pill 口径对齐。
+
+---
+
+## D-041 `.txt` 与 md/adoc 同索引，但按无结构纯文本处理
+
+- **日期**：2026-11-27
+- **决策**：`.txt` 文件进入可索引集合，参与全文搜索、可走既有文本编辑 / 阅读视图、可被 `xref:` / `link:` 按路径引用解析；但解析层对 txt 产出**空结构**——不提取标题、章节、链接、标签、块标记与脚注，显示标题取 basename，不猜首行、不伪造层级。
+- **背景**：章程 §4.1 要求 txt 与 md / adoc 同索引。现状可索引集合仅 `md` / `adoc`，txt 既不进元数据索引也不进检索索引载荷，指向 txt 的引用无法解析。
+- **被采纳方案**：
+  - `parsers/indexable.ts` 的可索引扩展名集合加入 `txt`；`RESOLVE_EXTENSIONS` 与 `docsAsCode.APPENDABLE` 末尾追加 `.txt`，md / adoc 的既有优先顺序不变。
+  - 新增 `parsers/plaintext.ts` 的 `parsePlainText(path, content)`：返回空 `links` / `tags` / `headings` / `blocks` / `footnotes` / `footnoteRefs` / `aliases`，仅记录 `contentLength`；`parseDocument` 分派在 adoc 之后、Markdown 之前拦截 txt。
+  - `indexer.ts` 的文件过滤复用共享 `isIndexable()`，删除本地扩展名集合，避免两处真源漂移。
+  - 预览 / 编辑路由不改：txt 本就在 `isEditableTextPath()` 白名单，继续走既有文本视图；附件只读边界（二进制 / 未知扩展名）不变。
+- **被否决的替代方案与理由**：
+  - *复用 `parseNote` 扫描 txt*：会把 `#` 开头的行误判为标题、`[[…]]` 误判为双链、`#tag` 误判为标签，等于在纯文本上伪造 Markdown 结构——否决。
+  - *取首行作为标题*：大纲与图谱会出现作者没有写过的层级，违反「无结构」边界——否决。
+  - *把 txt 归入只读附件*：违背既有「可编辑文本」分类，且无法进入搜索与引用解析——否决。
+- **影响范围**：索引集合、元数据分派、链接解析、docsAsCode 路径解析；不涉及 Canvas、三态校验报告模型、图谱边类型、发版签名与 `.tauri-keys`。
+- **复审条件**：若后续产品需要识别 txt 正文内的双链 / 标签，再单独立项评估；当前明确不做。txt 内锚点引用同样不解析。
+
+---
+
+## D-042 千篇基准只测可注入依赖的 TS 计算路径，拒绝用估算代替实测
+
+- **日期**：2026-11-27
+- **决策**：T-069 基准脚本经 Vite SSR 加载应用真实 `Vault` / `MetadataIndex` / `auditVault`，测量 TS 侧解析、元数据重建与引用校验路径；内存口径为 Node 进程 `process.memoryUsage()`（`heapUsed` / `rss`）。报告中每一项数字都必须来自脚本真实运行，禁止估算、插值或按小样本外推冒充实测。
+- **背景**：章程 §9.1 要求给出 1000 篇规模下的索引 / 校验 / 内存数值与对照结论。索引在桌面路径上走 Tauri 命令进 Rust FTS5，纯 Node 进程跑不到那条链路；若不先划清口径，数字很容易被读成「端到端达标」。
+- **被采纳方案**：
+  - 夹具确定性生成（LCG 种子 42），同 count 逐字节一致；冷 / 热分轮，输出中位数、p95 与逐轮样本；脚本不写持久临时文件，退出即回收。
+  - 报告显式声明未测的层：Rust FTS5 持久化写入、Asciidoctor.js 渲染、WebView2 / Tauri 占用、磁盘 IO；结论只对已测路径负责。
+  - 引用校验在真实解析产物上跑，目标尽量可解析；告警项（夹具无 frontmatter）单独归类，不计入失效引用。
+- **被否决的替代方案与理由**：
+  - *用单库画像或 50 篇小样本的耗时按比例放大到 1000 篇*：非线性部分（名称映射、环检测、缓存命中）无法靠比例推得，属于估算冒充实测——否决。
+  - *在脚本里复刻一份简化解析 / 校验逻辑以求跑得快*：与应用内真实代码漂移后，基准数字不再代表产品行为——否决；必须 SSR 加载真实模块。
+  - *把 Rust 索引写入、WebView 占用一并写进同一达标结论*：本进程测不到这些层，混写会夸大达标余量——否决，留待真机复测。
+- **影响范围**：仅新增基准脚本 `scripts/adoc-1000-bench.ts` 与报告 `docs/perf-1000-adoc.adoc`；不改生产索引、校验、图谱或模型代码；零新增依赖。
+- **复审条件**：桌面端 Rust 索引 / WebView 路径具备可测条件后，另立任务补端到端基准，并与本报告的 TS 侧数字分开陈述。

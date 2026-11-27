@@ -28,7 +28,7 @@ import { resolveAntoraResource, type AntoraIndex } from "./antora";
 import type { LinkRef } from "./types";
 
 /** Extensions a path-like target may omit before we try appending one. */
-const APPENDABLE = [".adoc", ".md"] as const;
+const APPENDABLE = [".adoc", ".md", ".txt"] as const;
 const ANTORA_FAMILY = /^(partial|example|image|attachment)\$(.+)$/i;
 
 export interface DocIndex {
