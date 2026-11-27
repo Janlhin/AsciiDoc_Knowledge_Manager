@@ -15,9 +15,9 @@ const WebSocket = require("ws");
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function getJson(port, pathname) {
+function tryHost(host, port, pathname) {
   return new Promise((resolve, reject) => {
-    const req = http.get({ host: "::1", port, path: pathname }, (res) => {
+    const req = http.get({ host, port, path: pathname }, (res) => {
       let buf = "";
       res.on("data", (c) => (buf += c));
       res.on("end", () => {
@@ -31,6 +31,19 @@ function getJson(port, pathname) {
     req.on("error", reject);
     req.setTimeout(2500, () => req.destroy(new Error("CDP timeout")));
   });
+}
+
+/** Probe ::1 first, then IPv4 loopback: WebView2 may bind either stack. */
+async function getJson(port, pathname) {
+  let last;
+  for (const host of ["::1", "127.0.0.1"]) {
+    try {
+      return await tryHost(host, port, pathname);
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last;
 }
 
 /** Poll /json/version until the webview is up. */
