@@ -116,25 +116,35 @@ export interface NodePack {
   brokenEdges: Uint32Array;
 }
 
+/** Packing options: an optional original→packed permutation remaps edge ends. */
+export interface PackOptions {
+  perm?: Int32Array;
+}
+
 /**
  * Build the static instance / index arrays for a graph. Edges referencing an
- * out-of-range node index are dropped rather than uploading garbage.
+ * out-of-range node index are dropped rather than uploading garbage. When a
+ * {@link PackOptions.perm} block permutation is supplied, edge ends are mapped
+ * into packed order so edges follow the culling block layout.
  */
-export function packNodeInstances(graph: GpuGraph): NodePack {
+export function packNodeInstances(graph: GpuGraph, opts?: PackOptions): NodePack {
   const nodeCount = graph.nodes.length;
   const positions = new Float32Array(nodeCount * POS_STRIDE);
   const meta = new Float32Array(nodeCount * META_STRIDE);
 
+  const perm = opts?.perm;
+  const remap = (index: number): number => {
+    if (index < 0 || index >= nodeCount) return -1;
+    return perm ? perm[index] : index;
+  };
+
   const normal: number[] = [];
   const broken: number[] = [];
   const pushEdge = (edge: GpuEdge, bucket: number[]) => {
-    if (
-      edge.source < 0 || edge.source >= nodeCount ||
-      edge.target < 0 || edge.target >= nodeCount
-    ) {
-      return;
-    }
-    bucket.push(edge.source, edge.target);
+    const s = remap(edge.source);
+    const t = remap(edge.target);
+    if (s < 0 || t < 0) return;
+    bucket.push(s, t);
   };
 
   for (const edge of graph.edges) {

@@ -7,9 +7,17 @@
  * WebGL renderer come from the frozen modules in this directory; this file never
  * reimplements them.
  *
- * Layout runs through `createAsyncLayout`: the handle ticks (worker when possible,
- * main thread otherwise) and pushes positions to `handle.layout`; the render loop
- * only renders, it never steps the simulation on the main thread.
+ * Motion layer (#19): layout ticks and render frames are decoupled. The
+ * {@link MotionController} owns the interpolation clock; per frame the view
+ * hands the renderer one scalar (`u_t`) and the GPU mixes `from` → `to`. CPU
+ * work per frame is O(1) plus a coarse block-grid visibility walk — no per-node
+ * JS interpolation, no springs. Picking and labels read display positions, so
+ * "where you see it is where you can click it".
+ *
+ * Layout runs through `createAsyncLayout`: the handle ticks (worker when
+ * possible, main thread otherwise) and pushes positions to `handle.targets`;
+ * the render loop only renders, it never steps the simulation on the main
+ * thread. Layout tick time is excluded from frame-time stats.
  *
  * Degradation contract: if the renderer cannot be created, reports a non-empty
  * `capability.reason`, or loses its context, a visible banner explains why and
@@ -18,7 +26,9 @@
  *
  * Dev/E2E only: when `location.search` carries `gpu-bench=1`, a `window.__adkmGpuBench`
  * hook is attached for synthetic-graph frame timing. It is not attached in the
- * ordinary production path.
+ * ordinary production path. Bench overrides (`benchWorkerCount`, `benchTier`,
+ * `benchSab=off`) are parsed into `LayoutClientOptions` and passed to the layout
+ * client; production without those params is unchanged.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";
@@ -29,8 +39,12 @@ import { loadPrefs, savePrefs, type GraphPrefs } from "../graphPrefs";
 import { GraphView } from "../GraphView";
 import { buildGpuGraph, countsOf, isNoteNodeId } from "./model";
 import { createAsyncLayout, type AsyncLayoutHandle } from "./layout-client";
-import type { LayoutMode } from "./layout-api";
-import { createPickIndex } from "./picking";
+import type {
+  LayoutClientOptions,
+  LayoutMode,
+  LayoutStats,
+} from "./layout-api";
+import { createPickIndex, type PositionSource } from "./picking";
 import {
   fitBounds,
   panBy,
@@ -40,6 +54,15 @@ import {
 } from "./camera";
 import { selectLabels } from "./lod";
 import { GpuGraphRenderer } from "./renderer";
+import { MotionController, prefersReducedMotion } from "./motion";
+import {
+  buildBlockLayout,
+  maxNodeRadius,
+  visibleBlocks,
+  visibleNodeCount,
+  type BlockLayout,
+} from "./culling";
+import { summarizeFrames } from "./frameStats";
 import type {
   CameraState,
   GpuCapability,
@@ -64,6 +87,10 @@ const PICK_REBUILD_EVERY = 30;
 const PICK_SAMPLE = 12;
 /** a sampled node moving more than this many world units triggers an index rebuild. */
 const PICK_MOVE_PX = 1.5;
+/** rolling frame-time window for the HUD (frames). */
+const FRAME_WINDOW = 120;
+/** HUD refresh cadence (ms); frame samples keep accumulating between refreshes. */
+const HUD_REFRESH_MS = 500;
 
 const FALLBACK_PALETTE: GraphPalette = {
   bg: "#262626",
@@ -115,6 +142,8 @@ export interface BenchResult {
   samples: number[];
   medianMs: number;
   p95Ms: number;
+  p99Ms: number;
+  onePercentLowMs: number;
   fps: number;
   gpu: string;
   dpr: number;
@@ -151,18 +180,82 @@ function benchRng(seed: number): () => number {
   };
 }
 
-function quantile(sorted: number[], q: number): number {
-  if (sorted.length === 0) return 0;
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * q)));
-  return sorted[idx];
+/**
+ * Parse bench-only layout overrides from the URL. Returns `undefined` unless
+ * `gpu-bench=1` is set, so the production path passes no client options at all.
+ */
+function readBenchOptions(): LayoutClientOptions | undefined {
+  if (typeof window === "undefined") return undefined;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("gpu-bench") !== "1") return undefined;
+  const opts: LayoutClientOptions = {};
+  const workers = Number(params.get("benchWorkerCount"));
+  if (Number.isFinite(workers) && workers > 0) {
+    opts.forceWorkers = Math.min(8, Math.max(1, Math.round(workers)));
+  }
+  const tier = params.get("benchTier");
+  if (tier === "S" || tier === "A" || tier === "B" || tier === "C") {
+    opts.forceTier = tier;
+  }
+  if (params.get("benchSab") === "off") opts.sab = false;
+  return opts;
 }
+
+/** HUD snapshot refreshed on the HUD cadence, not per frame. */
+interface HudInfo {
+  workers: number;
+  cores: number;
+  sab: boolean;
+  wasm: boolean;
+  tier: string;
+  tierReason: string;
+  frozen: boolean;
+  medianMs: number;
+  p95Ms: number;
+  p99Ms: number;
+  onePercentLowMs: number;
+  visible: number;
+  total: number;
+}
+
+const EMPTY_HUD: HudInfo = {
+  workers: 0,
+  cores: 0,
+  sab: false,
+  wasm: false,
+  tier: "C",
+  tierReason: "",
+  frozen: false,
+  medianMs: 0,
+  p95Ms: 0,
+  p99Ms: 0,
+  onePercentLowMs: 0,
+  visible: 0,
+  total: 0,
+};
 
 type Status = "checking" | "ready" | "fallback";
 
 type DragState =
-  | { kind: "node"; index: number; moved: boolean; startSX: number; startSY: number }
+  | { kind: "node"; index: number; moved: boolean; woke: boolean; startSX: number; startSY: number }
   | { kind: "pan"; moved: boolean; startSX: number; startSY: number; origin: CameraState }
   | { kind: "box"; startSX: number; startSY: number };
+
+/** Read the platform reduced-motion preference (stubbable via `window.matchMedia`). */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState<boolean>(() =>
+    prefersReducedMotion(typeof window !== "undefined" ? window.matchMedia : undefined),
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
 
 export function GpuGraphView() {
   const app = useApp();
@@ -171,12 +264,15 @@ export function GpuGraphView() {
   const lastActiveFile = useStore(app.workspace.lastActiveFile);
   useStore(excludedRaw);
 
+  const reducedMotion = usePrefersReducedMotion();
+
   const [prefs, setPrefs] = useState<GraphPrefs>(loadPrefs);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("checking");
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [boxed, setBoxed] = useState<number[]>([]);
   const [hudFps, setHudFps] = useState(0);
+  const [hud, setHud] = useState<HudInfo>(EMPTY_HUD);
   const [retryTick, setRetryTick] = useState(0);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -186,6 +282,8 @@ export function GpuGraphView() {
   const rendererRef = useRef<GpuGraphRenderer | null>(null);
   const handleRef = useRef<AsyncLayoutHandle | null>(null);
   const pickRef = useRef<PickIndex | null>(null);
+  const motionRef = useRef<MotionController | null>(null);
+  const blockLayoutRef = useRef<BlockLayout | null>(null);
   const cameraRef = useRef<CameraState>({ x: 0, y: 0, k: 1 });
   const sizeRef = useRef({ width: 1, height: 1, dpr: 1 });
   const selectionRef = useRef<RenderSelection>({
@@ -205,10 +303,38 @@ export function GpuGraphView() {
 
   const pickTickRef = useRef(0);
   const pickSnapRef = useRef<{ x: Float32Array; y: Float32Array } | null>(null);
+  /** rewind scratch arrays (original order), reused per tick to avoid allocation. */
+  const rewindRef = useRef<{
+    fromX: Float32Array;
+    fromY: Float32Array;
+    toX: Float32Array;
+    toY: Float32Array;
+  } | null>(null);
+  const frameTimesRef = useRef<number[]>([]);
+  const hudClockRef = useRef(0);
+  const benchOptsRef = useRef<LayoutClientOptions | undefined>(readBenchOptions());
   const benchRef = useRef<{ graph: GpuGraph | null; handle: AsyncLayoutHandle | null }>({
     graph: null,
     handle: null,
   });
+  /** detach handle subscription installed by the bench hook. */
+  const benchOffTickRef = useRef<(() => void) | null>(null);
+  /**
+   * Bench-owned motion / culling / rewind state, kept apart from the shared
+   * refs so the production layout effect's cleanup (which nulls the shared
+   * refs when the real graph rebuilds) cannot wipe a running bench session.
+   */
+  const benchMotionRef = useRef<MotionController | null>(null);
+  const benchBlockLayoutRef = useRef<BlockLayout | null>(null);
+  const benchRewindRef = useRef<{
+    fromX: Float32Array;
+    fromY: Float32Array;
+    toX: Float32Array;
+    toY: Float32Array;
+  } | null>(null);
+  /** mirror of the reduced-motion flag for the mount-once bench effect. */
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
 
   const [graph, setGraph] = useState<GpuGraph>({ nodes: [], edges: [] });
   const displayGraphRef = useRef<GpuGraph>({ nodes: [], edges: [] });
@@ -252,42 +378,84 @@ export function GpuGraphView() {
   }, [graph, query]);
   displayGraphRef.current = displayGraph;
 
-  /* ---------- picking index helpers ---------- */
+  /* ---------- picking index helpers (built from display positions) ---------- */
 
   const rebuildPick = useCallback((handle: AsyncLayoutHandle, graphData: GpuGraph) => {
-    pickRef.current = createPickIndex(handle.layout, graphData);
-    pickSnapRef.current = {
-      x: handle.layout.x.slice(),
-      y: handle.layout.y.slice(),
-    };
+    const count = graphData.nodes.length;
+    const snapX = new Float32Array(count);
+    const snapY = new Float32Array(count);
+    const motion = motionRef.current;
+    const now = performance.now();
+    if (motion && motion.count === count) {
+      motion.snapshotDisplay(now, snapX, snapY);
+    } else if (handle.targets.count === count) {
+      snapX.set(handle.targets.x);
+      snapY.set(handle.targets.y);
+    }
+    const source: PositionSource = { count, x: snapX, y: snapY };
+    pickRef.current = createPickIndex(source, graphData, prefsRef.current.display.nodeSize);
+    pickSnapRef.current = { x: snapX, y: snapY };
   }, []);
 
   /* ---------- async layout + pick index follow the displayed graph ---------- */
 
   useEffect(() => {
-    const handle = createAsyncLayout(displayGraph);
+    const handle = createAsyncLayout(displayGraph, undefined, benchOptsRef.current);
     handleRef.current = handle;
     pickTickRef.current = 0;
-    rebuildPick(handle, displayGraph);
     settledRef.current = false;
+
+    const count = displayGraph.nodes.length;
+    const targets = handle.targets ?? {
+      count,
+      x: new Float32Array(count),
+      y: new Float32Array(count),
+      version: 0,
+    };
+    const motion = new MotionController(
+      count,
+      targets,
+      performance.now(),
+      { reducedMotion },
+    );
+    motionRef.current = motion;
+
+    blockLayoutRef.current = buildBlockLayout(
+      targets.x,
+      targets.y,
+      displayGraph,
+      prefsRef.current.display.nodeSize,
+    );
+
+    rewindRef.current = {
+      fromX: new Float32Array(count),
+      fromY: new Float32Array(count),
+      toX: new Float32Array(count),
+      toY: new Float32Array(count),
+    };
+    rebuildPick(handle, displayGraph);
 
     const offTick = handle.onTick(() => {
       pickTickRef.current += 1;
-      rendererRef.current?.syncPositions();
+      const now = performance.now();
+      const rewind = rewindRef.current;
+      if (rewind) {
+        motion.syncTargets(targets, now);
+        motion.fillRewind(rewind.fromX, rewind.fromY, rewind.toX, rewind.toY);
+        rendererRef.current?.rewind?.(rewind.fromX, rewind.fromY, rewind.toX, rewind.toY);
+      }
       if (pickTickRef.current % PICK_REBUILD_EVERY === 0) {
         rebuildPick(handle, displayGraphRef.current);
         return;
       }
       const snap = pickSnapRef.current;
-      const layout = handle.layout;
-      if (snap && layout.count > 0) {
-        const stride = Math.max(1, Math.floor(layout.count / PICK_SAMPLE));
+      if (snap && count > 0) {
+        const stride = Math.max(1, Math.floor(count / PICK_SAMPLE));
         let drifted = false;
-        for (let i = 0; i < layout.count; i += stride) {
-          if (
-            Math.abs(layout.x[i] - snap.x[i]) > PICK_MOVE_PX ||
-            Math.abs(layout.y[i] - snap.y[i]) > PICK_MOVE_PX
-          ) {
+        for (let i = 0; i < count; i += stride) {
+          const dx = motion.displayX(i, now) - snap.x[i];
+          const dy = motion.displayY(i, now) - snap.y[i];
+          if (Math.abs(dx) > PICK_MOVE_PX || Math.abs(dy) > PICK_MOVE_PX) {
             drifted = true;
             break;
           }
@@ -301,6 +469,7 @@ export function GpuGraphView() {
       .map((n, i) => [i, n.degree] as const)
       .sort((a, b) => b[1] - a[1] || a[0] - b[0])
       .map(([i]) => i);
+    rendererRef.current?.setBlockLayout?.(blockLayoutRef.current);
     rendererRef.current?.setGraph(displayGraph);
     rendererRef.current?.setLayout(handle.layout);
     if (firstBuildRef.current) {
@@ -314,8 +483,17 @@ export function GpuGraphView() {
       handleRef.current = null;
       pickRef.current = null;
       pickSnapRef.current = null;
+      motionRef.current = null;
+      blockLayoutRef.current = null;
+      rewindRef.current = null;
     };
-  }, [displayGraph, rebuildPick]);
+  }, [displayGraph, rebuildPick, reducedMotion]);
+
+  /* ---------- reduced-motion live switch ---------- */
+
+  useEffect(() => {
+    motionRef.current?.setReducedMotion(reducedMotion, performance.now());
+  }, [reducedMotion]);
 
   /* ---------- fallback bookkeeping ---------- */
 
@@ -354,6 +532,7 @@ export function GpuGraphView() {
     rendererRef.current = renderer;
     paletteRef.current = readPalette(containerRef.current ?? canvas);
     renderer.setPalette(paletteRef.current);
+    renderer.setBlockLayout?.(blockLayoutRef.current);
     renderer.setGraph(displayGraphRef.current);
     if (handleRef.current) renderer.setLayout(handleRef.current.layout);
     renderer.setCamera(cameraRef.current);
@@ -416,7 +595,7 @@ export function GpuGraphView() {
       }
       const hit = pickAt(sx, sy);
       if (hit >= 0) {
-        dragRef.current = { kind: "node", index: hit, moved: false, startSX: sx, startSY: sy };
+        dragRef.current = { kind: "node", index: hit, moved: false, woke: false, startSX: sx, startSY: sy };
         selectionRef.current.selected = hit;
       } else {
         dragRef.current = {
@@ -437,9 +616,15 @@ export function GpuGraphView() {
         const dy = sy - d.startSY;
         if (d.kind === "node") {
           if (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP) d.moved = true;
+          // request a 1–2 hop neighbourhood relayout once per drag (#20 pool).
+          if (d.moved && !d.woke) {
+            d.woke = true;
+            handleRef.current?.wake([d.index]);
+          }
           const world = screenToWorld(cameraRef.current, sizeRef.current, sx, sy);
           handleRef.current?.pin(d.index, world.x, world.y);
-          rendererRef.current?.syncPositions();
+          motionRef.current?.pinDisplay(d.index, world.x, world.y);
+          rendererRef.current?.pinDisplay?.(d.index, world.x, world.y);
         } else if (d.kind === "pan") {
           if (Math.abs(dx) > CLICK_SLOP || Math.abs(dy) > CLICK_SLOP) d.moved = true;
           cameraRef.current = panBy(d.origin, dx, dy);
@@ -571,15 +756,17 @@ export function GpuGraphView() {
     return off;
   }, [app]);
 
-  /* ---------- label overlay ---------- */
+  /* ---------- label overlay (display positions, not targets) ---------- */
 
   const drawLabels = () => {
     const labelCanvas = labelRef.current;
-    const layout = handleRef.current?.layout ?? null;
-    if (!labelCanvas || !layout) return;
+    const handle = handleRef.current;
+    if (!labelCanvas || !handle) return;
     const ctx = labelCanvas.getContext("2d");
     if (!ctx) return;
     const { width, height, dpr } = sizeRef.current;
+    const now = performance.now();
+    const motion = motionRef.current;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
     const lodInput: LodInput = {
@@ -592,13 +779,15 @@ export function GpuGraphView() {
       maxLabels: MAX_LABELS,
       threshold: prefsRef.current.display.labelThreshold,
     };
-    const ids = selectLabels(lodInput, layout, displayGraphRef.current);
+    const ids = selectLabels(lodInput, handle.layout, displayGraphRef.current);
     ctx.font = "11px system-ui, sans-serif";
     ctx.fillStyle = paletteRef.current.label;
     for (const i of ids) {
       const node = displayGraphRef.current.nodes[i];
       if (!node) continue;
-      const pt = worldToScreen(cameraRef.current, sizeRef.current, layout.x[i], layout.y[i]);
+      const dx = motion ? motion.displayX(i, now) : handle.layout.x[i];
+      const dy = motion ? motion.displayY(i, now) : handle.layout.y[i];
+      const pt = worldToScreen(cameraRef.current, sizeRef.current, dx, dy);
       ctx.fillText(node.label, pt.x + 6, pt.y + 4);
     }
   };
@@ -607,22 +796,86 @@ export function GpuGraphView() {
 
   useEffect(() => {
     let cancelled = false;
+    let prev = performance.now();
+
     const loop = () => {
       if (cancelled) return;
       const renderer = rendererRef.current;
-      const handle = handleRef.current;
+      const bench = benchRef.current;
+      const handle = bench.handle ?? handleRef.current;
+      const now = performance.now();
+
       if (renderer && handle) {
         if (!settledRef.current && handle.settled()) {
           settledRef.current = true;
           handle.stop();
         }
-        renderer.setLayout(handle.layout);
+
+        const motion = benchMotionRef.current ?? motionRef.current;
+        const t = motion ? motion.t(now) : 1;
+        const intro = motion ? motion.introAlpha(now) : 1;
+        renderer.setMotion?.(t, intro);
+
+        // coarse block-grid cull: O(blocks) per frame, never O(n).
+        const blockLayout = benchBlockLayoutRef.current ?? blockLayoutRef.current;
+        const graphData = bench.graph ?? displayGraphRef.current;
+        const pad = maxNodeRadius(graphData, prefsRef.current.display.nodeSize);
+        const visible = blockLayout
+          ? visibleBlocks(blockLayout, cameraRef.current, sizeRef.current, pad)
+          : null;
+        renderer.setVisibleBlocks?.(visible);
         renderer.setCamera(cameraRef.current);
         renderer.setSelection(selectionRef.current);
         renderer.render();
+
+        // HUD: rolling frame-time window + engine stats, refreshed on a cadence.
+        const dt = now - prev;
+        if (dt > 0 && dt < 1000) {
+          frameTimesRef.current.push(dt);
+          if (frameTimesRef.current.length > FRAME_WINDOW) {
+            frameTimesRef.current.shift();
+          }
+        }
+        hudClockRef.current += dt;
+        if (hudClockRef.current >= HUD_REFRESH_MS) {
+          hudClockRef.current = 0;
+          const summary = summarizeFrames(frameTimesRef.current);
+          const rawStats = typeof handle.stats === "function" ? handle.stats() : null;
+          const stats: LayoutStats = rawStats ?? {
+            workers: 0,
+            cores: 0,
+            sab: false,
+            wasm: false,
+            tier: "C",
+            tierReason: "",
+            frozen: false,
+            tickMedianMs: 0,
+            tickP95Ms: 0,
+            tickCount: 0,
+            queueDepth: 0,
+            droppedTicks: 0,
+          };
+          const visibleCount = visible ? visibleNodeCount(visible) : graphData.nodes.length;
+          setHud({
+            workers: stats.workers,
+            cores: stats.cores,
+            sab: stats.sab,
+            wasm: stats.wasm,
+            tier: stats.tier,
+            tierReason: stats.tierReason,
+            frozen: stats.frozen,
+            medianMs: summary.medianMs,
+            p95Ms: summary.p95Ms,
+            p99Ms: summary.p99Ms,
+            onePercentLowMs: summary.onePercentLowMs,
+            visible: visibleCount,
+            total: graphData.nodes.length,
+          });
+        }
       }
+      prev = now;
+
       drawLabels();
-      const now = performance.now();
       const fps = fpsRef.current;
       fps.frames += 1;
       if (fps.windowStart === 0) fps.windowStart = now;
@@ -639,6 +892,7 @@ export function GpuGraphView() {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---------- dev/E2E benchmark hook (gated behind `gpu-bench=1`) ---------- */
@@ -678,9 +932,75 @@ export function GpuGraphView() {
       const benchGraph: GpuGraph = { nodes, edges };
 
       benchRef.current.handle?.destroy();
-      const benchHandle = createAsyncLayout(benchGraph);
+      const benchHandle = createAsyncLayout(benchGraph, undefined, benchOptsRef.current);
       benchRef.current = { graph: benchGraph, handle: benchHandle };
       benchHandle.start();
+      wireBench(benchGraph, benchHandle);
+    };
+
+    /**
+     * Wire the synthetic bench graph through the same motion / culling / pick
+     * path the production layout uses, so HUD visible/total and the block-grid
+     * cull ratio are measured on the rendered graph rather than an empty one.
+     */
+    const wireBench = (benchGraph: GpuGraph, benchHandle: AsyncLayoutHandle): void => {
+      const count = benchGraph.nodes.length;
+      const targets = benchHandle.targets ?? {
+        count,
+        x: new Float32Array(count),
+        y: new Float32Array(count),
+        version: 0,
+      };
+      const motion = new MotionController(
+        count,
+        targets,
+        performance.now(),
+        { reducedMotion: reducedMotionRef.current },
+      );
+      motionRef.current = motion;
+      benchMotionRef.current = motion;
+      const blockLayout = buildBlockLayout(
+        targets.x,
+        targets.y,
+        benchGraph,
+        prefsRef.current.display.nodeSize,
+      );
+      blockLayoutRef.current = blockLayout;
+      benchBlockLayoutRef.current = blockLayout;
+      const rewind = {
+        fromX: new Float32Array(count),
+        fromY: new Float32Array(count),
+        toX: new Float32Array(count),
+        toY: new Float32Array(count),
+      };
+      rewindRef.current = rewind;
+      benchRewindRef.current = rewind;
+      handleRef.current = benchHandle;
+      displayGraphRef.current = benchGraph;
+      rebuildPick(benchHandle, benchGraph);
+      rankedRef.current = benchGraph.nodes
+        .map((n, i) => [i, n.degree] as const)
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .map(([i]) => i);
+
+      if (benchOffTickRef.current) {
+        benchOffTickRef.current();
+        benchOffTickRef.current = null;
+      }
+      const offTick = benchHandle.onTick(() => {
+        const now = performance.now();
+        const rewind = benchRewindRef.current;
+        if (rewind) {
+          motion.syncTargets(targets, now);
+          motion.fillRewind(rewind.fromX, rewind.fromY, rewind.toX, rewind.toY);
+          rendererRef.current?.rewind?.(rewind.fromX, rewind.fromY, rewind.toX, rewind.toY);
+        }
+        // Bench does not hover/pick: skip the per-tick CPU index rebuild that
+        // the production path throttles to every PICK_REBUILD_EVERY ticks.
+      });
+      benchOffTickRef.current = offTick;
+
+      rendererRef.current?.setBlockLayout?.(blockLayout);
       rendererRef.current?.setGraph(benchGraph);
       rendererRef.current?.setLayout(benchHandle.layout);
     };
@@ -701,9 +1021,7 @@ export function GpuGraphView() {
         samples.push(now - prev);
         prev = now;
       }
-      const sorted = [...samples].sort((a, b) => a - b);
-      const medianMs = quantile(sorted, 0.5);
-      const p95Ms = quantile(sorted, 0.95);
+      const summary = summarizeFrames(samples);
       const gpu = renderer?.capability.renderer ?? "unknown";
       const { width, height, dpr } = sizeRef.current;
       return {
@@ -711,9 +1029,11 @@ export function GpuGraphView() {
         edges: benchGraph.edges.length,
         frames: samples.length,
         samples,
-        medianMs,
-        p95Ms,
-        fps: medianMs > 0 ? Math.round(1000 / medianMs) : 0,
+        medianMs: summary.medianMs,
+        p95Ms: summary.p95Ms,
+        p99Ms: summary.p99Ms,
+        onePercentLowMs: summary.onePercentLowMs,
+        fps: summary.medianMs > 0 ? Math.round(1000 / summary.medianMs) : 0,
         gpu,
         dpr,
         width,
@@ -731,10 +1051,17 @@ export function GpuGraphView() {
 
     return () => {
       delete window.__adkmGpuBench;
+      if (benchOffTickRef.current) {
+        benchOffTickRef.current();
+        benchOffTickRef.current = null;
+      }
       benchRef.current.handle?.destroy();
       benchRef.current = { graph: null, handle: null };
+      benchMotionRef.current = null;
+      benchBlockLayoutRef.current = null;
+      benchRewindRef.current = null;
     };
-  }, []);
+  }, [rebuildPick]);
 
   /* ---------- render ---------- */
 
@@ -748,6 +1075,9 @@ export function GpuGraphView() {
     setStatus("checking");
     setRetryTick((n) => n + 1);
   };
+
+  const sabText = hud.sab ? "on" : "off";
+  const wasmText = hud.wasm ? "on" : "off";
 
   return (
     <div
@@ -830,6 +1160,16 @@ export function GpuGraphView() {
               </span>
               <span>
                 {t("app.gpuFps")}: {hudFps}
+              </span>
+              <span data-testid="gpu-hud-layout">
+                workers {hud.workers} · 核 {hud.cores} · SAB {sabText} · WASM {wasmText} ·{" "}
+                {hud.tier}
+                {hud.tierReason ? ` (${hud.tierReason})` : ""}
+              </span>
+              <span data-testid="gpu-hud-frametime">
+                med {hud.medianMs.toFixed(1)} / p95 {hud.p95Ms.toFixed(1)} / p99{" "}
+                {hud.p99Ms.toFixed(1)} / 1% {hud.onePercentLowMs.toFixed(1)} ms · visible{" "}
+                {hud.visible}/{hud.total}
               </span>
               {boxed.length > 0 && (
                 <span>{t("app.gpuBoxCount", { n: String(boxed.length) })}</span>

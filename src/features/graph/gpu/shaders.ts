@@ -4,36 +4,44 @@
  *
  * Layout on the node VAO (locations pinned in the vertex shader):
  *   0  a_corner   vec2    per-vertex quad corner (-1..1), shared by instances
- *   1  a_worldPos vec2    instance: world position (refreshed every tick)
+ *   1  a_from     vec2    instance: interpolation start position (display at rewind)
  *   2  a_radius   float   instance: world-space radius
  *   3  a_color    vec4    instance: RGBA in 0..1
  *   4  a_pickId   float   instance: 1-based node index for the colour-ID pass
+ *   6  a_to       vec2    instance: interpolation target position (latest tick)
  *
- * The edge VAO binds only location 1's buffer under attribute location 0.
+ * The vertex shader mixes `a_from` → `a_to` with the `u_t` uniform; the per-frame
+ * CPU cost is one scalar upload, never a per-node JS interpolation.
+ *
+ * The edge VAO binds location 0 = `a_from`, location 1 = `a_to`.
  */
 
-/** Node vertex shader: instanced quads, world → clip projection. */
+/** Node vertex shader: instanced quads, world → clip projection, GPU mix. */
 export const NODE_VERTEX_SRC = `#version 300 es
 layout(location = 0) in vec2 a_corner;
-layout(location = 1) in vec2 a_worldPos;
+layout(location = 1) in vec2 a_from;
 layout(location = 2) in float a_radius;
 layout(location = 3) in vec4 a_color;
 layout(location = 4) in float a_pickId;
+layout(location = 6) in vec2 a_to;
 
 uniform vec3 uCamera;   // x, y (world point at viewport centre), k (px per unit)
 uniform vec2 uViewport;  // CSS px, width then height
+uniform float u_t;       // interpolation factor 0..1
+uniform float uIntro;    // first-open fade alpha 0..1
 
 out vec2 v_local;
 out vec4 v_color;
 out float v_pickId;
 
 void main() {
-  vec2 screen = (a_worldPos - uCamera.xy) * uCamera.z + uViewport * 0.5;
+  vec2 worldPos = mix(a_from, a_to, u_t);
+  vec2 screen = (worldPos - uCamera.xy) * uCamera.z + uViewport * 0.5;
   vec2 offset = a_corner * a_radius;
   vec2 clip = ((screen + offset) / uViewport * 2.0 - 1.0) * vec2(1.0, -1.0);
   gl_Position = vec4(clip, 0.0, 1.0);
   v_local = a_corner;
-  v_color = a_color;
+  v_color = vec4(a_color.rgb, a_color.a * uIntro);
   v_pickId = a_pickId;
 }
 `;
@@ -55,15 +63,18 @@ void main() {
 }
 `;
 
-/** Edge vertex shader: plain node-position attribute, same world → clip path. */
+/** Edge vertex shader: from/to mix, same world → clip path as nodes. */
 export const EDGE_VERTEX_SRC = `#version 300 es
-layout(location = 0) in vec2 a_worldPos;
+layout(location = 0) in vec2 a_from;
+layout(location = 1) in vec2 a_to;
 
 uniform vec3 uCamera;
 uniform vec2 uViewport;
+uniform float u_t;
 
 void main() {
-  vec2 screen = (a_worldPos - uCamera.xy) * uCamera.z + uViewport * 0.5;
+  vec2 worldPos = mix(a_from, a_to, u_t);
+  vec2 screen = (worldPos - uCamera.xy) * uCamera.z + uViewport * 0.5;
   vec2 clip = screen / uViewport * 2.0 - 1.0;
   gl_Position = vec4(clip, 0.0, 1.0);
 }
@@ -106,7 +117,8 @@ void main() {
 /** Attribute names, kept in one place so VAO setup and shaders never drift. */
 export const ATTR = {
   corner: "a_corner",
-  position: "a_worldPos",
+  from: "a_from",
+  to: "a_to",
   radius: "a_radius",
   color: "a_color",
   pickId: "a_pickId",
@@ -117,4 +129,6 @@ export const UNIFORM = {
   camera: "uCamera",
   viewport: "uViewport",
   tint: "uColor",
+  t: "u_t",
+  intro: "uIntro",
 } as const;

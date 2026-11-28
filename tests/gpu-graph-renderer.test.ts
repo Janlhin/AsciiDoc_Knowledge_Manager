@@ -392,11 +392,28 @@ class FakeGL {
     void b;
     void a;
   }
+  uniform1f(location: Record<string, string> | null, x: number): void {
+    void location;
+    void x;
+  }
   drawElementsInstanced(mode: number, count: number, type: number, offset: number, instances: number): void {
     void count;
     void type;
     void offset;
     this.drawCalls.push(`instanced:${mode}:${instances}`);
+  }
+  drawElementsInstancedBaseInstance(
+    mode: number,
+    count: number,
+    type: number,
+    offset: number,
+    instances: number,
+    baseInstance: number,
+  ): void {
+    void count;
+    void type;
+    void offset;
+    this.drawCalls.push(`instanced-base:${mode}:${instances}:${baseInstance}`);
   }
   drawElements(mode: number, count: number, type: number, offset: number): void {
     void count;
@@ -478,6 +495,25 @@ describe("GpuGraphRenderer (fake WebGL2)", () => {
     renderer.destroy();
   });
 
+  it("submits one base-instance draw per visible culling block", () => {
+    const fake = new FakeGL();
+    const renderer = new GpuGraphRenderer(makeCanvasWith(fake));
+    renderer.setGraph(fixtureGraph);
+    renderer.setLayout(makeLayout(3));
+    renderer.resize(300, 200, 1);
+    renderer.setVisibleBlocks([
+      { base: 0, count: 1, minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      { base: 1, count: 2, minX: 0, minY: 0, maxX: 1, maxY: 1 },
+    ]);
+
+    renderer.render();
+    expect(fake.drawCalls.filter((c) => c.startsWith("instanced-base:"))).toEqual([
+      "instanced-base:4:1:0",
+      "instanced-base:4:2:1",
+    ]);
+    renderer.destroy();
+  });
+
   it("pick decodes the GPU colour id; a black backdrop returns -1", () => {
     const fake = new FakeGL();
     const renderer = new GpuGraphRenderer(makeCanvasWith(fake));
@@ -503,7 +539,8 @@ describe("GpuGraphRenderer (fake WebGL2)", () => {
 
     renderer.destroy();
     expect(fake.deleteCounts.program).toBe(3);
-    expect(fake.deleteCounts.buffer).toBe(6); // quad, quad index, position, meta, 2 edge ibos
+    // quad, quad index, from, to, meta, 2 edge ibos
+    expect(fake.deleteCounts.buffer).toBe(7);
     expect(fake.deleteCounts.vao).toBe(3);
     expect(fake.deleteCounts.texture).toBe(1);
     expect(fake.deleteCounts.fbo).toBe(1);
