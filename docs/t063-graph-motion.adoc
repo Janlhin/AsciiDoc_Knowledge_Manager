@@ -1,0 +1,121 @@
+= T-063 #19 GPU 图谱表现层：运动解耦、GPU 插值、剔除、拾取与可观测
+
+本文记录 Issue #19 在独立 GPU 图谱视图上的**表现层**实现：布局 tick 与渲染帧解耦、GPU 插值、冻结/局部重排交互语义、视口剔除、显示位置拾取、`reduced-motion` 与 HUD 诊断。布局内核（`layout.ts` / `layout-worker.ts`）与多核池不在本次范围；本文只描述视图层如何对接冻结的句柄契约。
+
+== 边界与不改的东西
+
+- 只改 `src/features/graph/gpu/` 视图层；未改 `layout-client.ts`、`layout-worker.ts`、`layout.ts`、`layout-api.ts`、`types.ts`、`vite.config.ts`、`src/core/`、`src/features/attachment/`、`tests/e2e/`、`scripts/`。
+- 一律按 `layout-api.ts` 句柄契约写代码：`targets.x/y` 是只读视图，`version` 每 tick +1；**不假设 `layout.x` 是权威显示位置**。
+- 当前分支为单 Worker；`wake()` 在本分支是 no-op，多核 1–2 跳局部重排在并行分支落地。
+- 生产路径不带任何 bench 覆盖项；bench 参数入口只在 `?gpu-bench=1` 时生效。
+
+== 模块与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `motion.ts` | 运动时钟（纯模块，无 DOM/WebGL/React）：`from`/`to` 两端 + 标量 `t`，rewind 无跳格，reduced-motion 跳位 |
+| `culling.ts` | 分块剔除网格（纯模块）：世界坐标粗粒度分桶、块包围盒、O(blocks) 可见性遍历 |
+| `frameStats.ts` | 帧时间滚动窗口汇总（纯函数）：median / p95 / p99 / 1% low |
+| `renderer.ts` | 双位置缓冲、`rewind()`、`setMotion()`、分块可见性提交、拾取索引回映；后端能力探测 |
+| `shaders.ts` | 节点/边 VS 的 `a_from`/`a_to` 属性与 `u_t`/`uIntro` uniform；属性与 uniform 名表 |
+| `geometry.ts` | 实例打包；边端点经 permutation 重映射到 packed 顺序 |
+| `picking.ts` | CPU 空间索引改读显示位置快照（`PositionSource`），不再依赖 `LayoutState` |
+| `GpuGraphView.tsx` | React 外壳：rAF 循环、指针/拖拽交互、HUD 刷新、bench hook 与参数解析 |
+
+== 显示位置与目标位置分离
+
+- `targets` 是布局权威；`display` 是每帧实际渲染的位置。两者分开存储，布局质量不变，只改显示位置。
+- CPU 每帧只算一个标量 `t` 交给 GPU；顶点着色器 `mix(a_from, a_to, u_t)`。**禁止**在 JS 里对 10 万节点做逐点弹簧或逐点插值。
+- 渲染器维护两套位置缓冲：`from`（rewind 起点）与 `to`（最新目标）；元数据（半径/颜色/拾取 id）静态，不随帧重传。
+
+== 运动参数
+
+| 项 | 值 | 说明 |
+| --- | --- | --- |
+| 收敛窗口 `INTERPOLATION_MS` | 160 ms | 落在 120–200ms 可调带内；ease-out cubic，观感接近临界阻尼 |
+| 渐入窗口 `INTRO_MS` | 240 ms | 硬上限 300ms |
+| 散射系数 | 0.35 | 首屏 `from = target × 0.35`，节点云从中心短距离散开，不直接弹出 |
+| 缓动曲线 | ease-out cubic | `1 - (1-t)³`，起步快、收尾软 |
+
+== 布局低频 tick，渲染高频帧
+
+- 布局以约 5.7Hz 推进；tick 到来时把当前显示位置收成 `from`、新 `targets` 作 `to`、时钟归零，并在收敛窗口内把 `t` 推到 1。
+- 提前到达的 tick 从**当前插值状态**重新起算：先按上一段的混合系数把显示位置收成新的 `from`，再绑新 `to`，中间无跳格。
+- 渲染帧按 rAF 跑；布局 tick 时间不计入帧时间（样本取 rAF 间隔，布局在 Worker 内推进）。
+
+== 首次打开
+
+- 透明度随 `uIntro` 0→1 渐入；位置从中心按散射系数散开；整段 ≤300ms。
+
+== 拖拽与局部重排
+
+- 被拖节点：显示位置直接跟指针；插值两端同时覆写，避免跟手滞后。
+- 指针越过 slop 阈值后，对句柄调一次 `handle.wake([index])` 请求邻域重排；当前单 Worker 下为 no-op，池落地后 1–2 跳邻居在约 100ms 内缓动。
+- 其余节点不动；pin 记录由句柄单独维护，不进显示插值两端之外的状态。
+
+== 拾取与 hover
+
+- 拾取、hover、框选全部基于**显示位置**（world→display 变换），做到「看到哪就点到哪」。
+- CPU 索引从显示快照低频重建；GPU 颜色 id 拾取失败/越界时回落 CPU 索引；渲染器结果经 permutation 回映原始节点索引。
+- hover / 选中只改高亮渐变，不触发全屏重绘或全量重建。
+
+== 视口剔除
+
+- 节点按世界坐标粗粒度分桶成 `CullBlock`：连续 packed 实例区间 + 块包围盒；分块在图构建时做一次。
+- 每帧只遍历块（O(blocks)，不是 O(n)），按相机世界矩形 + 最大节点半径 pad 做相交测试；可见块逐块提交。
+- 剔除命中率由 HUD `visible/total` 与基准 JSON 的 `cullRatio` 给出。
+
+=== 后端能力回退
+
+实测本机 ANGLE/D3D11 构建未暴露 `drawElementsInstancedBaseInstance`（WebGL2 核心入口在该后端被省略）。渲染器在初始化时探测该入口：
+
+- 后端支持：按可见块逐块 `drawElementsInstancedBaseInstance` 提交，屏幕外节点不进 GPU。
+- 后端不支持：退回单次全图 `drawElementsInstanced` 提交；分块网格仍用于 CPU 侧可见性统计与拾取，不影响正确性。
+
+== reduced-motion
+
+- 检测 `prefers-reduced-motion: reduce`：插值直接跳位（`t = 1`）、无散射、无渐入；运行时从普通切到 reduce 立即吸附目标位置。
+- 偏好经 `matchMedia` 读取；测试可注入桩 `matchMedia` 验证跳位行为。
+
+== HUD 与诊断
+
+- 布局行：`workers N · 核 C · SAB on/off · WASM on/off · 档位 (降级原因)`，字段来自 `handle.stats()`。
+- 帧时间行：`med / p95 / p99 / 1% low`（1% low = 最慢 1% 帧的均值，不是 p99）· `visible/total`。
+- 帧样本走 120 帧滚动窗口；HUD 按 500ms 节奏刷新，样本在两次刷新之间持续累积。
+- bench hook：仅 `?gpu-bench=1` 挂载。URL 参数 `benchWorkerCount`（数字）、`benchTier`（S/A/B/C）、`benchSab=off` 组装成 `LayoutClientOptions`，作为 `createAsyncLayout` 第三参数传入；生产路径不带覆盖。
+
+== 实测证据
+
+环境（基准 JSON 自动写入）：Windows 11、有头 Edge `Edg/159.0.4402.13`、WebGL2、GPU = `ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)`、dpr = 1、`visibilityState = visible`、非软件渲染。原始逐帧样本与环境事实见仓外 `t063-tools/p063-motion/motion-bench.json`。
+
+[cols="a,a,a,a,a,a,a,a",options="header",]
+|===
+|图 |节点 / 边 |采样帧 |median |p95 |p99 |1% low |fps
+|大图 |100 000 / 200 000 |120 |6.30ms |7.00ms |7.50ms |7.70ms |159
+|===
+
+- 判定：`fps ≥ 60` 且 `p95 ≤ 16.7ms`（验收口径 ≤20ms）→ **达标**；120 帧样本无长尾毛刺。
+- 剔除：默认相机缩放下 `visible 688 / 100000`，`cullRatio ≈ 0.0069`（约 99.3% 节点在屏幕外）。
+- 运动收敛：配置窗口 160ms（120–200ms 可调带）；首屏渐入 240ms。收敛时间为配置口径，帧样本在收敛结束后的稳定段采集。
+
+=== 复跑方式
+
+[source,bash]
+----
+# dev server 需已在本线端口 1421 运行；驱动用 CDP 9401 + 独立 Edge profile
+node t063-tools/p063-motion/motion-bench.mjs
+----
+
+驱动与证据均在仓外 `t063-tools/p063-motion/`，不进仓库提交。
+
+== 测试覆盖
+
+- `tests/t063-graph-motion.test.tsx`（13 例）：显示位置从 targets 收敛、reduced-motion 直接跳位、rewind 无跳格、pin 跟手、分块剔除、帧汇总统计、拾取按显示位置（显示与目标故意错开时命中按显示位置）、壳层 HUD 文案含 worker/核/SAB、拖拽只唤醒自身一次、按下未拖不调 wake。
+- 既有测试更新：渲染器 fake GL 桩补 `uniform1f` / base-instance 方法与缓冲计数；未删测试、未降阈值。
+
+== 已知缺口与后续
+
+. **边未做视口剔除**：普通边与断链边仍是两条全量 `LINES` 提交；线段开销低，留待后续瓦片化阶段一起处理。
+. **邻居 100ms 缓动**依赖并行分支的多核池；本分支 `wake()` 为 no-op，邻域重排语义尚未端到端生效。
+. **按块 GPU 提交**在省略 base-instance 入口的后端上回退为全图单次实例绘制；待后端/驱动暴露入口后再启用逐块提交。
+. 200k 节点档未在本 dev 会话出帧时间样本；门禁口径以 100k 档为准。
