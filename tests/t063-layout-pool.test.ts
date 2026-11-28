@@ -219,7 +219,9 @@ function replyZeroForce(handle: PoolLayoutHandle, fakes: FakeWorker[]): void {
       epoch: step.epoch,
       fx: new Float32Array(end - start),
       fy: new Float32Array(end - start),
-      remote: [],
+      remoteIndex: new Uint32Array(0),
+      remoteFx: new Float32Array(0),
+      remoteFy: new Float32Array(0),
       stageMs: { buildGridMs: 0, repulsionMs: 0, springsMs: 0 },
     });
   }
