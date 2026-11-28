@@ -79,6 +79,10 @@ export interface LayoutStats {
     springsMs: number;
     integrateMs: number;
     totalMs: number;
+    /** coordinator-side barrier merge of worker slices (pool path only). */
+    mergeMs?: number;
+    /** coordinator-side shard summary recomputation (pool path only). */
+    summaryMs?: number;
   };
 }
 
