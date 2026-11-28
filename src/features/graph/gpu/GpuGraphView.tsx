@@ -29,6 +29,7 @@ import { loadPrefs, savePrefs, type GraphPrefs } from "../graphPrefs";
 import { GraphView } from "../GraphView";
 import { buildGpuGraph, countsOf, isNoteNodeId } from "./model";
 import { createAsyncLayout, type AsyncLayoutHandle } from "./layout-client";
+import type { LayoutMode } from "./layout-api";
 import { createPickIndex } from "./picking";
 import {
   fitBounds,
@@ -119,7 +120,7 @@ export interface BenchResult {
   dpr: number;
   width: number;
   height: number;
-  mode: "worker" | "main";
+  mode: LayoutMode;
 }
 
 /** Synthetic-graph benchmark API attached only when `gpu-bench=1` is set. */
