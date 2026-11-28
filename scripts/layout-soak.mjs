@@ -48,7 +48,6 @@ import {
   connectCdp,
   waitForCdp,
   ENV_PROBE_EXPR,
-  HANDLE_EXPR,
   SOFTWARE_RE,
   probeMemory,
   benchUrl,
@@ -160,11 +159,55 @@ async function panDrag(c, center) {
   });
 }
 
+/**
+ * In-page handle init: the bench hook keeps its handle internal, so soak
+ * drives a layout client directly (same path as the matrix sweep) and keeps it
+ * on `window.__benchSoak` for the sample loop.
+ */
+function soakInitExpr({ nodes, edges, seed, workers, sab }) {
+  return `(async () => {
+    function rng(seed) {
+      let s = (seed >>> 0) || 1;
+      return () => {
+        s ^= (s << 13) >>> 0; s ^= s >>> 17; s ^= (s << 5) >>> 0; s >>>= 0;
+        return s / 4294967296;
+      };
+    }
+    function makeGraph(n, e, seed) {
+      const rnd = rng(seed);
+      const deg = new Array(n).fill(0);
+      const nodes = Array.from({ length: n }, (_, i) => ({ id: 'n' + i, label: 'n' + i, resolved: true, degree: 0 }));
+      const edges = [];
+      for (let k = 0; k < e; k++) {
+        const a = Math.floor(rnd() * n);
+        let b = Math.floor(rnd() * n);
+        if (b === a) b = (b + 1) % n;
+        edges.push({ source: a, target: b, broken: false });
+        deg[a]++; deg[b]++;
+      }
+      nodes.forEach((nd, i) => { nd.degree = deg[i]; });
+      return { nodes, edges };
+    }
+    const client = await import('/src/features/graph/gpu/layout-client.ts');
+    const graph = makeGraph(${nodes}, ${edges}, ${seed});
+    const handle = client.createAsyncLayout(graph, undefined, { forceWorkers: ${workers}, sab: ${sab === "on"} });
+    handle.start();
+    window.__benchSoak = { handle };
+    return { ok: true, mode: handle.mode };
+  })()`;
+}
+
+const SOAK_SAMPLE_EXPR = `(() => {
+  const h = window.__benchSoak?.handle;
+  if (!h) return { available: false, reason: 'soak handle not initialized', stats: null, version: null };
+  return { available: true, reason: null, stats: h.stats(), version: h.targets?.version ?? null };
+})()`;
+
 /** One sample: memory snapshot + handle stats snapshot. */
 async function sample(c, profileDir, tSec) {
   const memory = await probeMemory(c, cfg.cdpPort, profileDir);
-  const handle = await c.evaluate(HANDLE_EXPR);
-  const stats = handle.stats ?? null;
+  const snap = await c.evaluate(SOAK_SAMPLE_EXPR);
+  const stats = snap?.stats ?? null;
   return {
     tSec: Math.round(tSec * 100) / 100,
     heapUsedBytes: memory.pageHeap?.usedJSHeapSize ?? null,
@@ -173,7 +216,7 @@ async function sample(c, profileDir, tSec) {
     threads: memory.os.threads,
     cdpHeapUsedSize: memory.cdpMetrics.metrics?.HeapUsedSize ?? null,
     tickCount: stats?.tickCount ?? null,
-    tickVersion: handle.targets?.version ?? null,
+    tickVersion: snap?.version ?? null,
     workers: stats?.workers ?? null,
     tier: stats?.tier ?? null,
     tierReason: stats?.tierReason ?? null,
@@ -275,7 +318,7 @@ async function main() {
     }
 
     const edges = cfg.edges > 0 ? cfg.edges : cfg.nodes * 2;
-    await c.evaluate(`window.__adkmGpuBench.load(${cfg.nodes}, ${edges}, ${cfg.seed})`);
+    await c.evaluate(soakInitExpr({ nodes: cfg.nodes, edges, seed: cfg.seed, workers: cfg.workers, sab: cfg.sab }));
     await sleep(4000);
 
     const samples = [];
@@ -301,6 +344,10 @@ async function main() {
       if (remain <= 0) break;
       await sleep(Math.min(cfg.intervalSec * 1000, remain));
     }
+
+    await c
+      .evaluate(`(() => { const h = window.__benchSoak?.handle; if (h) { try { h.stop(); } catch {}; try { h.destroy(); } catch {}; } window.__benchSoak = null; return true; })()`)
+      .catch(() => {});
 
     const series = {
       heapUsedBytes: regression(samples.map((s) => s.heapUsedBytes), cfg.intervalSec),
@@ -351,6 +398,7 @@ async function main() {
         tier: cfg.tier,
         sab: cfg.sab,
       },
+      durationSec: samples.length ? Math.round(samples.at(-1).tSec * 100) / 100 : 0,
       samples,
       regression: series,
       verdicts,
