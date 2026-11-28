@@ -25,6 +25,7 @@ import { Explorer } from "@features/explorer/Explorer";
 import { SearchPanel } from "@features/search/SearchPanel";
 import { EditorPane } from "@features/editor/EditorPane";
 import { GraphView } from "@features/graph/GraphView";
+import { GpuGraphView } from "@features/graph/gpu/GpuGraphView";
 import { AttachmentView } from "@features/attachment/AttachmentView";
 import { AllPropertiesPanel } from "@features/allproperties/AllPropertiesPanel";
 import { BacklinksPanel } from "@features/backlinks/BacklinksPanel";
@@ -335,6 +336,12 @@ export function App() {
         name: () => t("cmd.openGraph"),
         hotkey: "Mod+G",
         callback: () => workspace.openGraph(),
+      }),
+      commands.register({
+        // T-063: standalone GPU-accelerated graph view (separate singleton tab).
+        id: "app:open-gpu-graph",
+        name: () => t("cmd.openGpuGraph"),
+        callback: () => workspace.openGpuGraph(),
       }),
       commands.register({
         // R240: open the graph anchored to the active note (Obsidian "Open local graph").
@@ -1451,6 +1458,7 @@ export function App() {
             }
           />
           <RibbonButton icon="graph" title={t("app.ribbonGraph")} onClick={() => app.workspace.openGraph()} />
+          <RibbonButton icon="graph" title={t("app.ribbonGpuGraph")} onClick={() => app.workspace.openGpuGraph()} />
           <RibbonButton
             icon="command"
             title={t("app.ribbonPalette")}
@@ -2065,6 +2073,8 @@ function PaneLeafView({ leaf }: { leaf: PaneLeaf }) {
   const renderTab = (tab: TabState, autoFocus: boolean) =>
     tab.viewType === "graph" ? (
       <GraphView />
+    ) : tab.viewType === "graphgpu" ? (
+      <GpuGraphView />
     ) : tab.viewType === "backlinks" ? (
       <div className="main-backlinks-view markdown-reading-view"><BacklinksPanel /></div>
     ) : tab.viewType === "outgoinglinks" ? (
@@ -2286,6 +2296,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
            file tabs keep the basename verbatim */
         const title =
           tab.viewType === "graph" ? t("app.graphTab")
+          : tab.viewType === "graphgpu" ? t("app.gpuGraphTab")
           : tab.viewType === "backlinks" ? t("app.backlinksTab")
           : tab.viewType === "outgoinglinks" ? t("app.outgoingLinksTab")
           : tab.viewType === "outline" ? t("app.outlineTab")
@@ -2321,6 +2332,7 @@ function TabBar({ leaf }: { leaf: PaneLeaf }) {
           title={tab.filePath ?? title}
         >
           {tab.viewType === "graph" && <Icon name="graph" size={14} />}
+          {tab.viewType === "graphgpu" && <Icon name="graph" size={14} />}
           {tab.viewType === "backlinks" && <Icon name="link" size={14} />}
           {tab.viewType === "outgoinglinks" && <Icon name="external-link" size={14} />}
           {tab.viewType === "outline" && <Icon name="list" size={14} />}
@@ -2493,6 +2505,7 @@ function EmptyState() {
           <button onClick={() => app.commands.execute("app:new-note")}>{t("app.emptyNewNote")}</button>
           <button onClick={() => app.workspace.openModal("switcher")}>{t("app.emptySwitcher")}</button>
           <button onClick={() => app.workspace.openGraph()}>{t("app.emptyGraph")}</button>
+          <button onClick={() => app.workspace.openGpuGraph()}>{t("app.emptyGpuGraph")}</button>
         </div>
       </div>
     </div>

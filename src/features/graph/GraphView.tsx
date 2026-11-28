@@ -1122,6 +1122,15 @@ export function GraphView() {
         </button>
         <button
           type="button"
+          className="graph-gpu-btn"
+          data-testid="graph-open-gpu"
+          onClick={() => app.workspace.openGpuGraph()}
+          title={t("app.gpuOpenGpuView")}
+        >
+          {t("app.gpuOpenGpuView")}
+        </button>
+        <button
+          type="button"
           className={"graph-settings-btn" + (settingsOpen ? " is-active" : "")}
           data-testid="graph-settings-toggle"
           onClick={() => setSettingsOpen((o) => !o)}
