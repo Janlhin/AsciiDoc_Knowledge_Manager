@@ -64,6 +64,22 @@ export interface LayoutStats {
   readonly queueDepth: number;
   /** ticks skipped because an in-flight tick overran its budget. */
   readonly droppedTicks: number;
+
+  // --- optional pool diagnostics (#20); absent on legacy single/main handles ---
+
+  /** shard count the pool split the graph into; undefined when not pooled. */
+  readonly shardCount?: number;
+  /** owned buffer footprint per worker, bytes (best-effort estimate). */
+  readonly workerBytes?: readonly number[];
+  /** last-tick kernel phase wall time, ms; undefined until the first tick lands. */
+  readonly stageMs?: {
+    buildGridMs: number;
+    buildQuadtreeMs: number;
+    repulsionMs: number;
+    springsMs: number;
+    integrateMs: number;
+    totalMs: number;
+  };
 }
 
 /** Per-handle overrides; benchmark runs use these to sweep the hardware matrix. */
