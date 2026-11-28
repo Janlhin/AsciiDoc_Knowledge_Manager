@@ -102,6 +102,9 @@ interface StageAccum {
   buildGridMs: number;
   repulsionMs: number;
   springsMs: number;
+  mergeMs: number;
+  integrateMs: number;
+  summaryMs: number;
 }
 
 export class PoolLayoutHandle implements AsyncLayoutHandle {
@@ -154,7 +157,14 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
   private queueDepth = 0;
   private readonly samples: number[] = [];
   private alphaVal = 1;
-  private lastStage: StageAccum = { buildGridMs: 0, repulsionMs: 0, springsMs: 0 };
+  private lastStage: StageAccum = {
+    buildGridMs: 0,
+    repulsionMs: 0,
+    springsMs: 0,
+    mergeMs: 0,
+    integrateMs: 0,
+    summaryMs: 0,
+  };
   private summaries: ShardSummary;
   private pinnedIndex = -1;
   private pinnedX = 0;
@@ -313,7 +323,9 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
         buildQuadtreeMs: 0,
         repulsionMs: this.lastStage.repulsionMs,
         springsMs: this.lastStage.springsMs,
-        integrateMs: 0,
+        integrateMs: this.lastStage.integrateMs,
+        mergeMs: this.lastStage.mergeMs,
+        summaryMs: this.lastStage.summaryMs,
         totalMs: sorted.length > 0 ? sorted[sorted.length - 1] : 0,
       },
     };
@@ -404,6 +416,7 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
   private onTickMessage(wid: number, msg: PoolTickMessage): void {
     if (msg.epoch !== this.epoch || this.inFlight === false) return;
 
+    const tMerge = performance.now();
     const start = this.plan.shardStart[wid];
     const end = this.plan.shardStart[wid + 1];
     for (let k = start; k < end; k++) {
@@ -412,10 +425,12 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
       this.ax[node] += msg.fx[slot];
       this.ay[node] += msg.fy[slot];
     }
-    for (const r of msg.remote) {
-      this.ax[r.index] += r.fx;
-      this.ay[r.index] += r.fy;
+    for (let r = 0; r < msg.remoteIndex.length; r++) {
+      const node = msg.remoteIndex[r];
+      this.ax[node] += msg.remoteFx[r];
+      this.ay[node] += msg.remoteFy[r];
     }
+    this.lastStage.mergeMs = Math.max(this.lastStage.mergeMs, performance.now() - tMerge);
 
     this.lastStage.buildGridMs = Math.max(this.lastStage.buildGridMs, msg.stageMs.buildGridMs);
     this.lastStage.repulsionMs = Math.max(this.lastStage.repulsionMs, msg.stageMs.repulsionMs);
@@ -490,22 +505,30 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
     this.lastWakeSet = this.pendingWake.length > 0 ? Int32Array.from(this.pendingWake) : null;
     this.pendingWake = [];
     this.queueDepth = 0;
+
+    const tSummary = performance.now();
     this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
+    this.lastStage.summaryMs = Math.max(this.lastStage.summaryMs, performance.now() - tSummary);
 
     const summaries = {
       comX: this.summaries.comX,
       comY: this.summaries.comY,
       mass: this.summaries.mass,
     };
+    const sab = this.decision.sab;
     for (const entry of this.workers) {
-      const msg: PoolInMessage = {
-        type: "step",
-        epoch: this.epoch,
-        wakeSet: this.lastWakeSet ?? undefined,
-        summaries,
-        snapshotX: this.x,
-        snapshotY: this.y,
-      };
+      // SAB workers read positions straight from the shared buffers; do not
+      // clone the snapshot arrays into every message.
+      const msg: PoolInMessage = sab
+        ? { type: "step", epoch: this.epoch, wakeSet: this.lastWakeSet ?? undefined, summaries }
+        : {
+            type: "step",
+            epoch: this.epoch,
+            wakeSet: this.lastWakeSet ?? undefined,
+            summaries,
+            snapshotX: this.x,
+            snapshotY: this.y,
+          };
       entry.worker.postMessage(msg);
     }
   }
@@ -532,11 +555,13 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
       this.y[i] += nvy;
     };
 
+    const tIntegrate = performance.now();
     if (active) {
       for (let k = 0; k < active.length; k++) integrateNode(active[k]);
     } else {
       for (let i = 0; i < this.x.length; i++) integrateNode(i);
     }
+    this.lastStage.integrateMs = Math.max(this.lastStage.integrateMs, performance.now() - tIntegrate);
 
     if (this.pinnedIndex >= 0) {
       this.x[this.pinnedIndex] = this.pinnedX;
@@ -545,7 +570,9 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
       this.vy[this.pinnedIndex] = 0;
     }
 
+    const tSummary2 = performance.now();
     this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
+    this.lastStage.summaryMs = Math.max(this.lastStage.summaryMs, performance.now() - tSummary2);
     this.targets.bump();
     this.tickCount += 1;
     for (const cb of this.callbacks) cb();

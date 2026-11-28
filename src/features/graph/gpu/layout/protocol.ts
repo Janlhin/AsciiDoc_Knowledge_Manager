@@ -80,13 +80,6 @@ export type PoolInMessage =
   | { type: "thaw" }
   | { type: "destroy" };
 
-/** Remote-end spring deltas an edge owner records for a node in another shard. */
-export interface RemoteForce {
-  index: number;
-  fx: number;
-  fy: number;
-}
-
 /** Worker → client: ready after `init`. */
 export interface PoolReadyMessage {
   type: "ready";
@@ -101,8 +94,14 @@ export interface PoolTickMessage {
   /** force accumulator for owned nodes, aligned to `shardNodes[workerId]`. */
   fx: Float32Array;
   fy: Float32Array;
-  /** spring deltas owed to remote (other-shard) endpoints. */
-  remote: RemoteForce[];
+  /**
+   * Flat remote-end spring deltas: `remoteIndex[k]` is the other-shard node,
+   * `remoteFx[k]` / `remoteFy[k]` the matching force. Three parallel typed
+   * arrays avoid per-edge object allocation and structured-clone churn.
+   */
+  remoteIndex: Uint32Array;
+  remoteFx: Float32Array;
+  remoteFy: Float32Array;
   stageMs: {
     buildGridMs: number;
     repulsionMs: number;

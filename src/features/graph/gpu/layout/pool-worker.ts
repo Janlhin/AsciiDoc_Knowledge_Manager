@@ -17,7 +17,6 @@ import type {
   PoolInMessage,
   PoolOutMessage,
   PoolTickMessage,
-  RemoteForce,
   ShardSummarySync,
 } from "./protocol";
 
@@ -61,6 +60,10 @@ interface WorkerState {
   cellStart: Int32Array;
   cursor: Int32Array;
   order: Int32Array;
+  /** flat remote spring deltas, reused every tick (no per-tick allocation). */
+  remoteIdx: Uint32Array;
+  remoteFx: Float32Array;
+  remoteFy: Float32Array;
   frozen: boolean;
 }
 
@@ -71,12 +74,17 @@ function nowMs(): number {
 }
 
 function buildGrid(st: WorkerState): void {
-  const n = st.n;
+  // Bounds and buckets cover only this shard's own nodes; the halo comes from
+  // the snapshot read during the 3x3 near-field scan. Building a whole-graph
+  // grid once per worker was pure duplicated O(n) work across the pool.
+  const start = st.shardStart[st.workerId];
+  const end = st.shardStart[st.workerId + 1];
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (let i = 0; i < n; i++) {
+  for (let k = start; k < end; k++) {
+    const i = st.shardNodes[k];
     const xi = st.sx[i];
     const yi = st.sy[i];
     if (xi < minX) minX = xi;
@@ -86,7 +94,8 @@ function buildGrid(st: WorkerState): void {
   }
   const bw = Math.max(maxX - minX, 1e-6);
   const bh = Math.max(maxY - minY, 1e-6);
-  const targetCells = Math.max(1, Math.ceil(n / 3));
+  const own = Math.max(1, end - start);
+  const targetCells = Math.max(1, Math.ceil(own / 3));
   const span = Math.max(bw, bh);
   const cs = Math.max(st.opts.linkDistance * 0.5, span / Math.sqrt(targetCells));
   st.cellSize = cs;
@@ -99,7 +108,8 @@ function buildGrid(st: WorkerState): void {
 
   const cells = st.cols * st.rows;
   st.cellCount.fill(0, 0, cells);
-  for (let i = 0; i < n; i++) {
+  for (let k = start; k < end; k++) {
+    const i = st.shardNodes[k];
     const cx = Math.min(st.cols - 1, Math.floor((st.sx[i] - minX) / cs));
     const cy = Math.min(st.rows - 1, Math.floor((st.sy[i] - minY) / cs));
     st.cellCount[cx + cy * st.cols]++;
@@ -110,7 +120,8 @@ function buildGrid(st: WorkerState): void {
     acc += st.cellCount[c];
   }
   st.cursor.set(st.cellStart.subarray(0, cells));
-  for (let i = 0; i < n; i++) {
+  for (let k = start; k < end; k++) {
+    const i = st.shardNodes[k];
     const cx = Math.min(st.cols - 1, Math.floor((st.sx[i] - minX) / cs));
     const cy = Math.min(st.rows - 1, Math.floor((st.sy[i] - minY) / cs));
     const cell = cx + cy * st.cols;
@@ -184,8 +195,8 @@ function runStep(st: WorkerState, wakeSet: Int32Array | undefined): PoolTickMess
   }
   const tRep = nowMs();
 
-  const remote: RemoteForce[] = [];
   const link = st.opts.linkDistance;
+  let remoteLen = 0;
   for (let k = st.edgeStart[st.workerId]; k < st.edgeStart[st.workerId + 1]; k++) {
     const e = st.edgeByShard[k];
     const s = st.es[e];
@@ -197,7 +208,10 @@ function runStep(st: WorkerState, wakeSet: Int32Array | undefined): PoolTickMess
       st.fy[slot] += sp.fy;
     }
     if (st.shardOf[t] !== st.workerId) {
-      remote.push({ index: t, fx: -sp.fx, fy: -sp.fy });
+      st.remoteIdx[remoteLen] = t;
+      st.remoteFx[remoteLen] = -sp.fx;
+      st.remoteFy[remoteLen] = -sp.fy;
+      remoteLen++;
     }
   }
   const tSprings = nowMs();
@@ -208,7 +222,9 @@ function runStep(st: WorkerState, wakeSet: Int32Array | undefined): PoolTickMess
     epoch: 0,
     fx: st.fx,
     fy: st.fy,
-    remote,
+    remoteIndex: st.remoteIdx.subarray(0, remoteLen),
+    remoteFx: st.remoteFx.subarray(0, remoteLen),
+    remoteFy: st.remoteFy.subarray(0, remoteLen),
     stageMs: {
       buildGridMs: tGrid - t0,
       repulsionMs: tRep - tGrid,
@@ -250,6 +266,7 @@ ctx.onmessage = (event: MessageEvent<PoolInMessage>) => {
         opts.gridTarget * opts.gridTarget,
         Math.ceil(msg.shardOf.length / 3) + 32,
       );
+      const edgeCount = msg.edgeStart[msg.workerId + 1] - msg.edgeStart[msg.workerId];
       state = {
         workerId: msg.workerId,
         n: msg.shardOf.length,
@@ -280,6 +297,9 @@ ctx.onmessage = (event: MessageEvent<PoolInMessage>) => {
         cellStart: new Int32Array(cellSlots),
         cursor: new Int32Array(cellSlots),
         order: new Int32Array(msg.shardOf.length),
+        remoteIdx: new Uint32Array(edgeCount),
+        remoteFx: new Float32Array(edgeCount),
+        remoteFy: new Float32Array(edgeCount),
         frozen: false,
       };
       ctx.postMessage({ type: "ready", workerId: msg.workerId });
