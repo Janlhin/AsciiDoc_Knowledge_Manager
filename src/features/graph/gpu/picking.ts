@@ -1,15 +1,24 @@
 /**
  * T-063 GPU graph view — CPU-side spatial index for hover / click / box select.
  *
- * A uniform grid buckets nodes by world position. The grid is built from the
- * layout positions captured at construction; after the layout advances, callers
- * rebuild the index (cheap, O(n)) before picking again. This index is also the
- * documented fallback when GPU colour-id read-back is unavailable.
+ * A uniform grid buckets nodes by **display position** (the interpolated
+ * position the user actually sees), not the layout target arrays. The grid is
+ * built from a display snapshot captured at construction; after the motion
+ * controller advances, callers rebuild the index (cheap, O(n)) at low
+ * frequency before picking again. This index is also the documented fallback
+ * when GPU colour-id read-back is unavailable.
  *
  * Node radius follows the ordinary GraphView degree mapping (4–18 px at k = 1):
  * `4 + 2·sqrt(degree)`, clamped to that band and scaled by `nodeSize`.
  */
-import type { GpuGraph, LayoutState, PickIndex } from "./types";
+import type { GpuGraph, PickIndex } from "./types";
+
+/** Structural position source: anything with `count` + `x` / `y` arrays. */
+export interface PositionSource {
+  readonly count: number;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+}
 
 const MIN_RADIUS = 4;
 const MAX_RADIUS = 18;
@@ -21,7 +30,7 @@ function degreeRadius(degree: number, nodeSize: number): number {
 
 class PickIndexImpl implements PickIndex {
   readonly count: number;
-  private readonly layout: LayoutState;
+  private readonly positions: PositionSource;
   private readonly graph: GpuGraph;
   private readonly nodeSize: number;
 
@@ -33,11 +42,11 @@ class PickIndexImpl implements PickIndex {
   private readonly head: Int32Array;
   private readonly next: Int32Array;
 
-  constructor(layout: LayoutState, graph: GpuGraph, nodeSize = 1) {
-    this.layout = layout;
+  constructor(positions: PositionSource, graph: GpuGraph, nodeSize = 1) {
+    this.positions = positions;
     this.graph = graph;
     this.nodeSize = nodeSize;
-    this.count = layout.count;
+    this.count = positions.count;
 
     if (this.count === 0) {
       this.head = new Int32Array(1);
@@ -51,8 +60,8 @@ class PickIndexImpl implements PickIndex {
     let maxY = -Infinity;
     let maxRadius = MIN_RADIUS * nodeSize;
     for (let i = 0; i < this.count; i++) {
-      const xi = layout.x[i];
-      const yi = layout.y[i];
+      const xi = positions.x[i];
+      const yi = positions.y[i];
       if (xi < minX) minX = xi;
       if (xi > maxX) maxX = xi;
       if (yi < minY) minY = yi;
@@ -73,7 +82,7 @@ class PickIndexImpl implements PickIndex {
     this.head = new Int32Array(this.cols * this.rows).fill(-1);
     this.next = new Int32Array(this.count).fill(-1);
     for (let i = 0; i < this.count; i++) {
-      const cell = this.cellOf(layout.x[i], layout.y[i]);
+      const cell = this.cellOf(positions.x[i], positions.y[i]);
       this.next[i] = this.head[cell];
       this.head[cell] = i;
     }
@@ -97,8 +106,8 @@ class PickIndexImpl implements PickIndex {
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         for (let j = this.head[cx + cy * this.cols]; j >= 0; j = this.next[j]) {
-          const dx = this.layout.x[j] - wx;
-          const dy = this.layout.y[j] - wy;
+          const dx = this.positions.x[j] - wx;
+          const dy = this.positions.y[j] - wy;
           const d2 = dx * dx + dy * dy;
           if (d2 > r2) continue;
           if (d2 < bestD2 || (d2 === bestD2 && j < best)) {
@@ -122,8 +131,8 @@ class PickIndexImpl implements PickIndex {
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
         for (let j = this.head[cx + cy * this.cols]; j >= 0; j = this.next[j]) {
-          const xi = this.layout.x[j];
-          const yi = this.layout.y[j];
+          const xi = this.positions.x[j];
+          const yi = this.positions.y[j];
           if (xi >= minX && xi <= maxX && yi >= minY && yi <= maxY) {
             out.push(j);
           }
@@ -140,11 +149,11 @@ class PickIndexImpl implements PickIndex {
   }
 }
 
-/** Build the spatial index for the current layout positions. */
+/** Build the spatial index for the supplied display positions. */
 export function createPickIndex(
-  layout: LayoutState,
+  positions: PositionSource,
   graph: GpuGraph,
   nodeSize?: number,
 ): PickIndex {
-  return new PickIndexImpl(layout, graph, nodeSize ?? 1);
+  return new PickIndexImpl(positions, graph, nodeSize ?? 1);
 }
