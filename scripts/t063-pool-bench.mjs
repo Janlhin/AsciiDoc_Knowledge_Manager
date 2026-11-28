@@ -307,13 +307,22 @@ function pageExpr(configs) {
 }
 
 const CONFIGS = [
+  // 100k / 200k edges: full 1/2/4/8 sweep, SAB on and off.
   { nodes: 100_000, edges: 200_000, workers: 1, sab: true, warmupMs: 2500, sampleMs: 3000 },
   { nodes: 100_000, edges: 200_000, workers: 2, sab: true, warmupMs: 2000, sampleMs: 3000 },
   { nodes: 100_000, edges: 200_000, workers: 4, sab: true, warmupMs: 2000, sampleMs: 3000 },
-  { nodes: 100_000, edges: 200_000, workers: 4, sab: false, warmupMs: 2000, sampleMs: 3000 },
   { nodes: 100_000, edges: 200_000, workers: 8, sab: true, warmupMs: 2000, sampleMs: 3000 },
+  { nodes: 100_000, edges: 200_000, workers: 1, sab: false, warmupMs: 2000, sampleMs: 3000 },
+  { nodes: 100_000, edges: 200_000, workers: 2, sab: false, warmupMs: 2000, sampleMs: 3000 },
+  { nodes: 100_000, edges: 200_000, workers: 4, sab: false, warmupMs: 2000, sampleMs: 3000 },
+  { nodes: 100_000, edges: 200_000, workers: 8, sab: false, warmupMs: 2000, sampleMs: 3000 },
+  // 200k / 400k edges: 1/2/4/8 SAB on; 4/8 transferable off.
+  { nodes: 200_000, edges: 400_000, workers: 1, sab: true, warmupMs: 3000, sampleMs: 3000 },
+  { nodes: 200_000, edges: 400_000, workers: 2, sab: true, warmupMs: 3000, sampleMs: 3000 },
   { nodes: 200_000, edges: 400_000, workers: 4, sab: true, warmupMs: 3000, sampleMs: 3000 },
   { nodes: 200_000, edges: 400_000, workers: 8, sab: true, warmupMs: 3000, sampleMs: 3000 },
+  { nodes: 200_000, edges: 400_000, workers: 4, sab: false, warmupMs: 3000, sampleMs: 3000 },
+  { nodes: 200_000, edges: 400_000, workers: 8, sab: false, warmupMs: 3000, sampleMs: 3000 },
 ];
 
 function quantile(sorted, q) {
