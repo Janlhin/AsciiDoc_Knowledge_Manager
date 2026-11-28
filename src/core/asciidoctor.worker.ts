@@ -15,6 +15,7 @@ interface ConversionResponse {
   id: number;
   html?: string;
   error?: string;
+  computeMs?: number;
 }
 
 interface AdocModule {
@@ -43,6 +44,7 @@ const ctx = self as unknown as {
 ctx.onmessage = (event) => {
   const { id, source } = event.data;
   void (async () => {
+    const t0 = performance.now();
     try {
       const mod = await loadAsciidoctor();
       const raw = await mod.convert(source, {
@@ -56,9 +58,13 @@ ctx.onmessage = (event) => {
           sectanchors: false,
         },
       });
-      ctx.postMessage({ id, html: String(raw) });
+      ctx.postMessage({ id, html: String(raw), computeMs: performance.now() - t0 });
     } catch (err) {
-      ctx.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
+      ctx.postMessage({
+        id,
+        error: err instanceof Error ? err.message : String(err),
+        computeMs: performance.now() - t0,
+      });
     }
   })();
 };

@@ -1,3 +1,5 @@
+import { workerPool } from "./workers/workerPool";
+
 /**
  * ADKM L3: AsciiDoc reading-view renderer.
  *
@@ -13,59 +15,33 @@
  */
 
 /*
- * P1-3: the converter module runs in a dedicated worker. One worker is enough:
- * the editor only renders the ACTIVE preview and stale results are ignored by
- * the caller; requests are routed by id so a slow conversion cannot answer the
- * wrong request. On environments without Worker (unit tests / older webviews)
- * we fall back to the original in-page dynamic import so previews still work.
+ * T-063: the converter module runs through the shared WorkerPool (P1-3). The
+ * editor only renders the ACTIVE preview and stale results are ignored by the
+ * caller; requests are routed by id so a slow conversion cannot answer the
+ * wrong request. On environments without Worker (unit tests / older
+ * webviews) the pool reports tier C and we fall back to the original in-page
+ * dynamic import so previews still work.
  */
-interface WorkerResponse {
-  id: number;
-  html?: string;
-  error?: string;
-}
-
-let worker: Worker | null = null;
-let workerBroken = false;
-let nextId = 1;
-const pending = new Map<number, { resolve: (html: string) => void; reject: (err: Error) => void }>();
-
-function ensureWorker(): Worker | null {
-  if (workerBroken) return null;
-  if (worker) return worker;
-  if (typeof Worker === "undefined") return null;
-  try {
-    worker = new Worker(new URL("./asciidoctor.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const req = pending.get(event.data.id);
-      if (!req) return;
-      pending.delete(event.data.id);
-      if (typeof event.data.html === "string") req.resolve(event.data.html);
-      else req.reject(new Error(event.data.error ?? "AsciiDoc worker returned no HTML"));
-    };
-    worker.onerror = () => {
-      // fail all in-flight conversions; subsequent calls use the in-page fallback
-      workerBroken = true;
-      worker?.terminate();
-      worker = null;
-      for (const req of pending.values()) req.reject(new Error("AsciiDoc worker failed"));
-      pending.clear();
-    };
-    return worker;
-  } catch {
-    workerBroken = true;
-    return null;
-  }
-}
 
 async function convertInWorker(source: string): Promise<string> {
-  const w = ensureWorker();
-  if (!w) throw new Error("worker unavailable");
-  const id = nextId;
-  nextId += 1;
-  return new Promise<string>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    w.postMessage({ id, source });
+  return workerPool.submit<string>({
+    spec: {
+      kind: "adoc",
+      url: new URL("./asciidoctor.worker.ts", import.meta.url),
+      create: () =>
+        new Worker(new URL("./asciidoctor.worker.ts", import.meta.url), { type: "module" }),
+    },
+    payload: { source },
+    priority: "visible",
+    dedupeKey: `adoc:${source}`,
+    decode: (reply) => {
+      if (typeof reply.html === "string") return reply.html;
+      throw new Error(
+        typeof reply.error === "string" && reply.error !== ""
+          ? reply.error
+          : "AsciiDoc worker returned no HTML",
+      );
+    },
   });
 }
 
@@ -174,10 +150,10 @@ export async function renderAsciiDocPreview(
   return { html, elapsedMs: performance.now() - t0 };
 }
 
-/** True when conversions are currently handled by the off-thread worker.
+/** True once a pooled Worker lane for AsciiDoc conversion has been spawned.
  *  Exposed for the perf probe so an E2E case can prove which path ran. */
 export function isAsciiDocWorkerActive(): boolean {
-  return worker !== null && !workerBroken;
+  return workerPool.hasActiveKind("adoc");
 }
 
 /** True when the path should use the AsciiDoc reading-view pipeline. */

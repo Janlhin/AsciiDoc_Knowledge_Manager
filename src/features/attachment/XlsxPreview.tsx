@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
+import { workerPool } from "@core/workers/workerPool";
 // x-data-spreadsheet's source (`src/index.js`, the package `main`) imports its own
 // `.less` stylesheet; `less` is installed as a devDependency so Vite compiles it.
 // No explicit CSS import is needed here.
@@ -79,55 +80,33 @@ function sheetToAoa(sheet: any): unknown[][] {
 }
 
 /*
- * P1-2: SheetJS parsing runs in a Worker; only the x-data-spreadsheet grid and
- * the explicit Save serialization stay on the main thread (DOM / user action).
+ * T-063: SheetJS parsing runs through the shared WorkerPool (P1-2); only the
+ * x-data-spreadsheet grid and the explicit Save serialization stay on the main
+ * thread (DOM / user action).
  */
-interface WorkerResponse {
-  id: number;
-  sheets?: unknown[];
-  error?: string;
-}
-
-let worker: Worker | null = null;
-let workerBroken = false;
-let nextId = 1;
-const pending = new Map<number, { resolve: (sheets: unknown[]) => void; reject: (err: Error) => void }>();
-
-function ensureWorker(): Worker | null {
-  if (workerBroken) return null;
-  if (worker) return worker;
-  if (typeof Worker === "undefined") return null;
-  try {
-    worker = new Worker(new URL("./xlsx.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const req = pending.get(event.data.id);
-      if (!req) return;
-      pending.delete(event.data.id);
-      if (Array.isArray(event.data.sheets)) req.resolve(event.data.sheets);
-      else req.reject(new Error(event.data.error ?? "XLSX worker returned no sheets"));
-    };
-    worker.onerror = () => {
-      workerBroken = true;
-      worker?.terminate();
-      worker = null;
-      for (const req of pending.values()) req.reject(new Error("XLSX worker failed"));
-      pending.clear();
-    };
-    return worker;
-  } catch {
-    workerBroken = true;
-    return null;
-  }
-}
-
 async function parseInWorker(bytes: Uint8Array): Promise<unknown[]> {
-  const w = ensureWorker();
-  if (!w) throw new Error("worker unavailable");
-  const id = nextId;
-  nextId += 1;
-  return new Promise<unknown[]>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    w.postMessage({ id, bytes });
+  // Transfer the buffer only when the view owns the whole backing store; a
+  // view over a larger pooled buffer must stay a structured clone.
+  const backing = bytes.buffer;
+  const transfer: Transferable[] =
+    bytes.byteOffset === 0 && bytes.byteLength === backing.byteLength ? [backing] : [];
+  return workerPool.submit<unknown[]>({
+    spec: {
+      kind: "xlsx",
+      url: new URL("./xlsx.worker.ts", import.meta.url),
+      create: () => new Worker(new URL("./xlsx.worker.ts", import.meta.url), { type: "module" }),
+    },
+    payload: { bytes },
+    transfer,
+    priority: "visible",
+    decode: (reply) => {
+      if (Array.isArray(reply.sheets)) return reply.sheets as unknown[];
+      throw new Error(
+        typeof reply.error === "string" && reply.error !== ""
+          ? reply.error
+          : "XLSX worker returned no sheets",
+      );
+    },
   });
 }
 
@@ -148,7 +127,7 @@ async function parseInPage(bytes: Uint8Array): Promise<unknown[]> {
 }
 
 export function isXlsxWorkerActive(): boolean {
-  return worker !== null && !workerBroken;
+  return workerPool.hasActiveKind("xlsx");
 }
 
 export async function parseXlsx(bytes: Uint8Array, options: { forceInPage?: boolean } = {}): Promise<unknown[]> {

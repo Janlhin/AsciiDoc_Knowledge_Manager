@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@app/AppContext";
 import { useI18n } from "@core/i18n";
-import type { DocxConversionRequest } from "./docxWorkerProtocol";
+import { workerPool } from "@core/workers/workerPool";
 
 /**
  * DOCX preview (ADKM L4) — mammoth converts the .docx OOXML package to semantic
@@ -14,56 +14,30 @@ import type { DocxConversionRequest } from "./docxWorkerProtocol";
  * stays in its own chunk and only downloads when a Word file is opened.
  */
 /*
- * P1-1: mammoth runs in a dedicated Worker. The bridge keeps one pending map
- * (id-routed so overlapping opens cannot cross-answer) and falls back to the
- * original in-page import when Worker is unavailable or fails.
+ * T-063: mammoth runs through the shared WorkerPool (P1-1). The pool keeps the
+ * id-routed pending map, lane reuse and fallback; this bridge only supplies the
+ * worker URL, the payload and the reply decoder. If the pool cannot run
+ * off-thread (tier C / spawn failure) the caller falls back to the in-page
+ * import, exactly like the former dedicated worker.
  */
-interface WorkerResponse {
-  id: number;
-  html?: string;
-  error?: string;
-}
-
-let worker: Worker | null = null;
-let workerBroken = false;
-let nextId = 1;
-const pending = new Map<number, { resolve: (html: string) => void; reject: (err: Error) => void }>();
-
-function ensureWorker(): Worker | null {
-  if (workerBroken) return null;
-  if (worker) return worker;
-  if (typeof Worker === "undefined") return null;
-  try {
-    worker = new Worker(new URL("./docx.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const req = pending.get(event.data.id);
-      if (!req) return;
-      pending.delete(event.data.id);
-      if (typeof event.data.html === "string") req.resolve(event.data.html);
-      else req.reject(new Error(event.data.error ?? "DOCX worker returned no HTML"));
-    };
-    worker.onerror = () => {
-      workerBroken = true;
-      worker?.terminate();
-      worker = null;
-      for (const req of pending.values()) req.reject(new Error("DOCX worker failed"));
-      pending.clear();
-    };
-    return worker;
-  } catch {
-    workerBroken = true;
-    return null;
-  }
-}
-
 async function convertInWorker(arrayBuffer: ArrayBuffer): Promise<string> {
-  const w = ensureWorker();
-  if (!w) throw new Error("worker unavailable");
-  const id = nextId;
-  nextId += 1;
-  return new Promise<string>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    w.postMessage({ id, arrayBuffer } satisfies DocxConversionRequest);
+  return workerPool.submit<string>({
+    spec: {
+      kind: "docx",
+      url: new URL("./docx.worker.ts", import.meta.url),
+      create: () => new Worker(new URL("./docx.worker.ts", import.meta.url), { type: "module" }),
+    },
+    payload: { arrayBuffer },
+    transfer: [arrayBuffer],
+    priority: "visible",
+    decode: (reply) => {
+      if (typeof reply.html === "string") return reply.html;
+      throw new Error(
+        typeof reply.error === "string" && reply.error !== ""
+          ? reply.error
+          : "DOCX worker returned no HTML",
+      );
+    },
   });
 }
 
@@ -74,9 +48,9 @@ async function convertInPage(arrayBuffer: ArrayBuffer): Promise<string> {
   return (await mammoth.convertToHtml({ arrayBuffer })).value;
 }
 
-/** Exposed for the perf probe: is the active converter a Worker? */
+/** Exposed for the perf probe: has a pooled Worker lane for DOCX been spawned? */
 export function isDocxWorkerActive(): boolean {
-  return worker !== null && !workerBroken;
+  return workerPool.hasActiveKind("docx");
 }
 
 /** Probe-only entry point; normal callers use the component effect below. */
