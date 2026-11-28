@@ -236,11 +236,15 @@ async function devAlive(devPort) {
 export async function ensureDevServer(notes, devPort, repoRoot) {
   if (await devAlive(devPort)) return { child: null, reused: true };
   const env = { ...process.env, PATH: `${NODE_DIR};${process.env.PATH}` };
-  const child = spawn(process.env.ComSpec, ["/d", "/s", "/c", "npm", "run", "dev"], {
-    cwd: repoRoot,
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const child = spawn(
+    process.env.ComSpec,
+    ["/d", "/s", "/c", "npm", "run", "dev", "--", "--port", String(devPort)],
+    {
+      cwd: repoRoot,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   child.stdout.on("data", (chunk) => notes.push(String(chunk).trim().slice(0, 300)));
   child.stderr.on("data", (chunk) => notes.push(String(chunk).trim().slice(0, 300)));
   const deadline = Date.now() + 90000;
