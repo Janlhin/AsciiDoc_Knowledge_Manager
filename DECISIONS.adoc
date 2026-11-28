@@ -873,3 +873,56 @@
 * *影响范围*：新增 `src/features/graph/gpu/`（内核 + 渲染器 + 视图 + 入口）、`App.tsx` / `workspace.ts` / `types.ts` / `i18n` / `GraphView.tsx` 的最小入口改动（`GraphView` 只加一个按钮）、7 个 vitest 文件、基准与 E2E 脚本。
 * *遗留与接受的缺口*：纯 JS 单线程布局在 100k 下仍是百毫秒级单 tick（见 `docs/gpu-graph-view.adoc` 实测表），**未达 8ms**；本轮接受「渲染帧达标 + 布局后台推进」，后续路径是 WASM 重写 BH / 多 Worker 空间分片 / 增量预算。其余缺口（行内 `#` 之类与图形无关的不列）逐条写在该文档「已知缺口」。
 * *复审条件*：若后续把布局换成 WASM/并行且 100k 单 tick 进入 8ms 量级，可把 Worker 降级为可选、并把 `RENDER_CAP` 的自动切换重新评估；若 WebView2 在目标机器上稳定超过 200k 节点，再谈视口剔除与 LOD 内存预算。
+
+== D-050 布局多核池：分片 Worker + SAB/transferable 双协议 + CPU 四档，冻结后只做邻域重排（T-063 / #19 #20）
+
+* *日期*：2026-11-28
+* *背景*：D-049 之后布局仍是单 Worker，100k 单 tick 中位约 175ms，与 185fps 的渲染帧差 20 倍；#20 要求「能多核就吃满多核」，不能多核时按 CPU 档位降级且必须可见。
+* *决策*：
+** **先冻结句柄契约**：`layout-api.ts` 定义 `targets`（稳定对象、数组可 swap、`version` 每 tick +1）、`stats()`、`freeze/thaw/wake`、`pin/unpin`、`destroy`。引擎与视图两条并行线都只认这个边界，不再各自演化接口。
+** **空间分片**：节点按序切条带，每个 Worker 只算本片近场（3×3 halo 扫描）与本片触点的边弹簧，跨片远场用每片摘要（质心 / 总质量）。**禁止每个 Worker 各建一份全图网格/四叉树**——首轮实测 8 Worker 反而比 1 Worker 慢，根因正是重复建图。
+** **同步**：SAB 双缓冲 + `postMessage` 完成信号；主线程禁止 `Atomics.wait`，协调者留在主线程做 O(n) 积分。无 SAB（`crossOriginIsolated === false`）退 transferable 路径并如实标 `sab:false`；稳态零 per-tick 大数组分配。
+** **CPU 四档**：S（≥8 核 + SAB + WASM）、A（≥4 核或无 WASM）、B（2–3 核或无 SAB，1–2 Worker + 冻结/局部重排）、C（1 核或 Worker 失败，主线程 8ms 预算 + 2 万节点上限拒绝全量 tick）。降档必须写进 `stats().tierReason`，不许静默变慢。
+** **单个 Worker 失败 → 整池降级到主线程**，而不是丢掉一个分片继续跑：后者会静默让布局变偏，属 P0 正确性问题。
+** **冻结 + 局部重排**：`freeze()` 停循环；`wake(indices)` 合并成 1 跳邻域集，只积分该集合，其余节点目标位移为 0。
+* *被否决的替代方案*：每个 Worker 各建一份全图网格/四叉树（实测反超，见上）；每 tick `new` 两份位置数组回传（旧实现每 tick 800KB×2）；本轮引入 Rust/AssemblyScript WASM BH（新构建链 + 仓库硬边界 #5 未放行，且 S 档不能成为正确性前提）。
+* *实测*（本机 9800X3D 8C/16T、RTX 5080、有头 Edge 159，集成分支，seed 1，600 帧）：100k tick median 1W 62.59 → 2W 37.21 → 4W 28.09 → 8W 22.65ms（三轮中位 21.86，噪声 21.25–22.81）；200k 1W 150.70 → 8W 49.79ms。渲染帧 100k 8W 5.75 / 8.52 / 9.70 / 10.23ms（median/P95/P99/1% low）。
+* *遗留与接受的缺口*：100k 8W 仍是 8ms 目标的 2.73 倍、200k 为 6.15 倍；transferable（SAB off）路径存在秒级 tick P95 尖峰，根因未定位；远场是每片摘要近似、没有全局共享 BH 树；条带分片跨片边占 87.5%，2D/Morton 分片未做；WASM 未落地，S 档不可达；WebView2 打包产物下 SAB 未单独复测。详见 `docs/t063-layout-pool.adoc`。
+* *复审条件*：全局共享 BH 树、2D/Morton 分片、WASM 内核三者任一落地后重跑矩阵；SAB off 尖峰定位后重估 B 档策略。
+
+== D-051 布局与渲染解耦：GPU 插值 + 显示位置拾取 + 分块剔除 + reduced-motion（T-063 / #19）
+
+* *日期*：2026-11-28
+* *背景*：布局约 5.7 tick/s、渲染 185fps，节点会跳格；拾取读目标位置会出现「看到的位置点不到」。
+* *决策*：
+** **目标位置与显示位置分离**：布局只产出 `targets`；视图维护 display 缓冲，顶点属性 `a_from/a_to` + uniform `u_t` 做 GPU 插值（CPU 每帧只写一个标量），收敛 120–200ms 可调；禁止 10 万节点逐点 JS 弹簧/逐点插值（#19 非目标）。
+** **无跳格**：新 tick 提前到达时从当前插值状态重新起算；首次打开 alpha/半径渐入 ≤300ms。
+** **拾取与 hover 一律用显示位置快照**；拖拽被拖节点跟手，只 `wake` 自身邻域（1 跳），其他节点不动。
+** **`prefers-reduced-motion: reduce`** → 关闭插值与渐入，直接跳位。
+** **视口剔除**：分块网格统计 + 可见性过滤，避免每帧逐点全量算；本机 ANGLE/D3D11 后端未暴露 `drawElementsInstancedBaseInstance`，按块 GPU 提交回退为单次全量实例提交，剔除仍用于统计与拾取。
+** **HUD**：`workers / 核 / SAB / WASM / 档位 / 降级原因` + 帧时间 median/P95/P99/1% low，不只显示平均 fps。
+* *实测*：100k 渲染 6.30 / 7.00 / 7.50 / 7.70ms（median/P95/P99/1% low）、159fps；集成后 8W/SAB 配置 5.75 / 8.52ms。详见 `docs/t063-graph-motion.adoc`。
+* *遗留*：边未做视口剔除；按块 GPU 提交待后端支持；邻居 100ms 缓动已接通池的 `wake`，但端到端未单独计时；200k 档渲染 P95 18.74ms，超出 60fps 预算。
+
+== D-052 全应用线程池：统一 WorkerPool + 优先级 + 四档；预览 Worker 收编，重活「先量后搬」（T-063 / #21）
+
+* *日期*：2026-11-28
+* *背景*：现状是「零散单 Worker + 零散专用线程」，没有池、没有优先级、没有核数预算；EPUB 解压、备份 ZIP、反链仍在主线程。
+* *决策*：
+** **单例 WorkerPool**：lane 数按核数并预留 1 核给 UI；优先级 `input > visible > background`，同级 FIFO；同键任务去重；`AbortSignal` 取消且不留孤儿监听；空闲 30s 回收；应用退出 / 视图 dispose 全量 terminate。
+** **大对象只走 transferable**；Worker 只回结构化数据，不回 DOM / 大字符串；每任务记录 queue / transfer / compute / return 四段耗时。
+** **四档与图谱侧同表**；降档可见（`tierReason`），C 档 0 lane + 调用方回退 in-page。
+** **三个预览 Worker 收编**（DOCX / XLSX / AsciiDoc）：保留各自 `new Worker(new URL(...))` 字面量让 Vite 正确产出 chunk，再经工厂闭包交给池；协议不变、补 `computeMs` 回报；失败 / 取消 / 重开行为不变。
+** **重活按「先量后搬」**：EPUB/PPTX 解压与备份 ZIP 因 `zip` crate 未放行 + 结构化克隆税，登记例外留在主线程；元数据索引引用 T-026 数据登记非热点；反链/未链接提及单篇均值 0.117ms 低于 8ms 阈值，登记例外；搜索只确认前端 await IPC、匹配在 Rust FTS5。
+* *实测*（Node 22.23.2，本机）：EPUB 3.4MB 整本解压 30.4ms、首章 7.5ms；备份 13.1MB `generateAsync` 282.3ms（650MB 为线性外推、未实测）；800 篇未链接提及 93.7ms。
+* *遗留*：浏览器内三预览并发 rAF 帧间隔、51MB EPUB 首章、650MB 备份均未实测；B/C 档的排队与超限提示 UI 未做；冷/热启动与线程池侧 soak 未覆盖。详见 `docs/t063-worker-pool.adoc`。
+
+== D-053 性能口径与门禁：帧时间四件套 + Worker/档位矩阵 + 30 分钟 soak + 质量对比 + CI warn-only（T-063）
+
+* *日期*：2026-11-28
+* *决策*：
+** **口径**：帧时间报 median/P95/P99/1% low；布局 tick 单独成列且不计入帧时间；bench JSON 记录 CPU/核数/Worker 数/SAB/WASM/heapUsed/RSS/线程数；改前改后同夹具，无数据不宣称提升（SPES §4.2 / §6.2）。
+** **CI 分工**：GPU 基准不进 CI（runner 无 GPU / 有头浏览器），改为 `workflow_dispatch` 手动任务；CI 只跑纯 TS 内核微基准，**当前 warn-only**，阈值取首轮本机基线 median×1.5（100k ≤300ms、200k ≤680ms），连续两轮越线才考虑升 fail。
+** **矩阵**：4 / 8 / 16 逻辑核三档在本机（16 逻辑核 / 8 物理核）无法真实降核，改用 `benchWorkerCount` 1/2/4/8 **模拟**并在文档与 JSON 里如实标注；SMT 说明同页。
+* *实测*：30 分钟 soak（实际 1788s、59 采样）heap +0.17MiB/min（R² 0.08）、RSS −0.65MiB/min（R² 0.01）、线程 −0.9/min（R² 0.19），三条 R² 均低，判定 stable；布局质量对比（100k / seed 1，未充分收敛、两侧交叉数比较对均截断）8W 的边长 stddev 与近似交叉数高于 1W（交叉数 +12.9%），**尚不能判定多核牺牲质量**。
+* *遗留*：矩阵其余格仍单轮；质量对比需 300+ tick 收敛后按同口径复测；CI 升 fail 的条件未触发。详见 `docs/t063-bench.adoc`。
