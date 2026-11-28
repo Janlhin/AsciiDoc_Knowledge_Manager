@@ -64,7 +64,7 @@ jobs:
         run: |
           echo "GPU 渲染帧、多核矩阵与 30 分钟 soak 不在 CI 运行。"
           echo "请在本机（有真 GPU 的 Windows 机器）按 docs/t063-bench.adoc §复跑命令 执行："
-          echo "  node scripts/layout-bench.mjs --baseline"
-          echo "  node scripts/layout-soak.mjs --minutes=30"
-          echo "  node scripts/layout-quality.mjs --nodes=100000 --edges=200000 --seed=1 --ticks=300 --json"
+          echo "  node scripts/layout-bench.mjs --nodes=100000,200000 --workers=1,2,4,8 --sab=on,off"
+          echo "  node scripts/layout-bench.mjs --quality-only --nodes=100000"
+          echo "  node scripts/layout-soak.mjs --minutes=30 --interval=30"
           echo "证据 JSON 落在仓外 063-tools/p063-bench/，改前/改后必须同夹具复测。"
