@@ -4,16 +4,20 @@
  * Scope (per module contract): renderer only. No React, no entry wiring.
  *
  * Rendering strategy
- * - Nodes: instanced quads (`drawElementsInstanced`), one draw call.
+ * - Nodes: instanced quads (`drawElementsInstanced` / base-instance block
+ *   draws), one call per visible culling block.
  * - Edges: `drawElements(LINES)` against a static uint32 index buffer; normal
  *   and broken edges get separate calls so the broken colour stays visible.
+ * - Positions: two dynamic buffers (`from` / `to`); the vertex shader mixes
+ *   them with the `u_t` uniform. The per-frame CPU upload is one scalar; the
+ *   two position buffers are rewritten only on a layout tick (rewind) or drag.
  * - Picking: an offscreen RGBA8 FBO renders the pick program; one `readPixels`
  *   decodes the 24-bit node id. A miss (or any readback failure) returns -1
  *   and the caller falls back to the CPU `PickIndex`.
  *
- * Per-tick upload: only the position buffer (`bufferSubData`, ~800 KB @100k
- * nodes). Meta (radius / colour / pick id) is static after `setGraph` and is
- * rewritten only when palette or selection changes.
+ * Per-tick upload: only the two position buffers (`bufferSubData`, ~1.6MB at
+ * 100k nodes combined). Meta (radius / colour / pick id) is static after
+ * `setGraph` and is rewritten only when palette or selection changes.
  */
 
 import type {
@@ -26,6 +30,7 @@ import type {
   RendererStats,
   RenderSelection,
 } from "./types";
+import type { BlockLayout, CullBlock } from "./culling";
 import {
   EDGE_FRAGMENT_SRC,
   EDGE_VERTEX_SRC,
@@ -59,6 +64,21 @@ const DEFAULT_BUDGET_BYTES = 256 * 1024 * 1024;
 const QUAD_CORNERS = new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]);
 const QUAD_INDICES = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
+/**
+ * WebGL2 core base-instance draw (absent from the bundled TS DOM lib). The
+ * method is part of the WebGL2 spec; the cast only bridges the type gap.
+ */
+type WebGL2BaseInstance = WebGL2RenderingContext & {
+  drawElementsInstancedBaseInstance(
+    mode: number,
+    count: number,
+    type: number,
+    offset: number,
+    instanceCount: number,
+    baseInstance: number,
+  ): void;
+};
+
 interface CompiledProgram {
   program: WebGLProgram;
   uniforms: Record<string, WebGLUniformLocation | null>;
@@ -67,7 +87,8 @@ interface CompiledProgram {
 interface RendererBuffers {
   quad: WebGLBuffer | null;
   quadIndex: WebGLBuffer | null;
-  position: WebGLBuffer | null;
+  from: WebGLBuffer | null;
+  to: WebGLBuffer | null;
   meta: WebGLBuffer | null;
   normalEdge: WebGLBuffer | null;
   brokenEdge: WebGLBuffer | null;
@@ -107,7 +128,8 @@ export class GpuGraphRenderer {
   private buffers: RendererBuffers = {
     quad: null,
     quadIndex: null,
-    position: null,
+    from: null,
+    to: null,
     meta: null,
     normalEdge: null,
     brokenEdge: null,
@@ -119,6 +141,14 @@ export class GpuGraphRenderer {
   private pack: NodePack | null = null;
   private nodes: GpuNode[] = [];
   private layout: LayoutState | null = null;
+  /** `to` position mirror, kept alongside `pack.positions` (the `from` mirror). */
+  private toPositions: Float32Array = new Float32Array(0);
+  private blockLayout: BlockLayout | null = null;
+  private visibleBlocks: readonly CullBlock[] | null = null;
+  /** base-instance draw exposed by this GL backend (some ANGLE builds omit it). */
+  private supportsBaseInstance: boolean = false;
+  private motionT = 1;
+  private introAlpha = 1;
   private camera: CameraState = { x: 0, y: 0, k: 1 };
   private selection: RenderSelection = { ...EMPTY_SELECTION, boxed: [] };
   private palette: GraphPalette = { ...FALLBACK_PALETTE };
@@ -154,6 +184,8 @@ export class GpuGraphRenderer {
     }
 
     this.gl = gl;
+    this.supportsBaseInstance =
+      typeof (gl as WebGL2BaseInstance).drawElementsInstancedBaseInstance === "function";
     const renderer = probeRenderer(gl);
     const maxTexture = readIntParameter(gl, gl.MAX_TEXTURE_SIZE);
     this.capability = {
@@ -235,7 +267,7 @@ export class GpuGraphRenderer {
     }
 
     const uniforms: Record<string, WebGLUniformLocation | null> = {};
-    for (const name of [UNIFORM.camera, UNIFORM.viewport, UNIFORM.tint]) {
+    for (const name of [UNIFORM.camera, UNIFORM.viewport, UNIFORM.tint, UNIFORM.t, UNIFORM.intro]) {
       uniforms[name] = gl.getUniformLocation(program, name);
     }
     return { program, uniforms };
@@ -260,7 +292,8 @@ export class GpuGraphRenderer {
 
   setGraph(g: GpuGraph): void {
     this.nodes = g.nodes.slice();
-    this.pack = packNodeInstances(g);
+    this.pack = packNodeInstances(g, { perm: this.blockLayout?.perm });
+    this.toPositions = new Float32Array(this.pack.positions.length);
     if (!this.gl || !this.available || this.contextLost) return;
 
     const bytes = estimateBytes(this.pack);
@@ -272,6 +305,11 @@ export class GpuGraphRenderer {
     }
     this.uploadGraphBuffers();
     this.refillMetaColors();
+  }
+
+  /** Attach the culling block layout (permutation + packed ranges). */
+  setBlockLayout(layout: BlockLayout | null): void {
+    this.blockLayout = layout;
   }
 
   setLayout(layout: LayoutState): void {
@@ -310,25 +348,87 @@ export class GpuGraphRenderer {
     this.destroyPickTarget();
   }
 
-  /** Push the latest layout positions into the dynamic position buffer (per-tick). */
-  syncPositions(): void {
+  /** Per-frame motion state: interpolation factor 0..1 and intro alpha 0..1. */
+  setMotion(t: number, introAlpha: number): void {
+    this.motionT = Math.min(1, Math.max(0, t));
+    this.introAlpha = Math.min(1, Math.max(0, introAlpha));
+  }
+
+  /**
+   * Visible packed blocks for this frame. `null` means "no culling" (submit the
+   * whole instance set); an empty array submits no nodes.
+   */
+  setVisibleBlocks(blocks: readonly CullBlock[] | null): void {
+    this.visibleBlocks = blocks;
+  }
+
+  /**
+   * Rewind the interpolation: `from` = current display arrays, `to` = latest
+   * targets. Arrays are in original node order; the block permutation remaps
+   * them onto packed instance order. Called from the tick subscriber only.
+   */
+  rewind(fromX: Float32Array, fromY: Float32Array, toX: Float32Array, toY: Float32Array): void {
+    const pack = this.pack;
+    if (!pack) return;
+    this.fillPacked(pack.positions, fromX, fromY);
+    this.fillPacked(this.toPositions, toX, toY);
+    this.uploadPositionBuffers();
+  }
+
+  /** Pin one node's both ends to the pointer position (drag follow). */
+  pinDisplay(originalIndex: number, x: number, y: number): void {
     const gl = this.gl;
     const pack = this.pack;
+    const perm = this.blockLayout?.perm;
+    if (!gl || !pack || originalIndex < 0 || originalIndex >= this.nodes.length) return;
+    const packed = perm ? perm[originalIndex] : originalIndex;
+    if (packed < 0 || packed >= pack.nodeCount) return;
+    pack.positions[packed * POS_STRIDE] = x;
+    pack.positions[packed * POS_STRIDE + 1] = y;
+    this.toPositions[packed * POS_STRIDE] = x;
+    this.toPositions[packed * POS_STRIDE + 1] = y;
+    const byteOffset = packed * POS_STRIDE * 4;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.from);
+    gl.bufferSubData(gl.ARRAY_BUFFER, byteOffset, pack.positions, packed * POS_STRIDE, POS_STRIDE);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.to);
+    gl.bufferSubData(gl.ARRAY_BUFFER, byteOffset, this.toPositions, packed * POS_STRIDE, POS_STRIDE);
+  }
+
+  /** Push the latest layout positions into both dynamic position buffers (per-tick). */
+  syncPositions(): void {
+    const pack = this.pack;
     const layout = this.layout;
-    if (!gl || !pack || !layout || !this.buffers.position) return;
-    const n = Math.min(pack.nodeCount, layout.count);
-    for (let i = 0; i < n; i++) {
-      pack.positions[i * POS_STRIDE] = layout.x[i];
-      pack.positions[i * POS_STRIDE + 1] = layout.y[i];
+    if (!pack || !layout) return;
+    this.fillPacked(pack.positions, layout.x, layout.y);
+    this.fillPacked(this.toPositions, layout.x, layout.y);
+    this.uploadPositionBuffers();
+  }
+
+  /** Remap original-order source arrays onto packed instance order. */
+  private fillPacked(
+    out: Float32Array,
+    srcX: Float32Array,
+    srcY: Float32Array,
+  ): void {
+    const pack = this.pack;
+    if (!pack) return;
+    const invPerm = this.blockLayout?.invPerm;
+    const n = Math.min(pack.nodeCount, srcX.length, srcY.length);
+    for (let p = 0; p < n; p++) {
+      const orig = invPerm ? invPerm[p] : p;
+      out[p * POS_STRIDE] = srcX[orig] ?? 0;
+      out[p * POS_STRIDE + 1] = srcY[orig] ?? 0;
     }
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
-    gl.bufferSubData(
-      gl.ARRAY_BUFFER,
-      0,
-      pack.positions,
-      0,
-      n * POS_STRIDE,
-    );
+  }
+
+  private uploadPositionBuffers(): void {
+    const gl = this.gl;
+    const pack = this.pack;
+    if (!gl || !pack || !this.buffers.from || !this.buffers.to) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.from);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, pack.positions);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.to);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.toPositions);
   }
 
   // ----------------------------------------------------------------- render
@@ -379,20 +479,50 @@ export class GpuGraphRenderer {
         gl.useProgram(program.program);
         this.uploadCommonUniforms(program);
         gl.bindVertexArray(this.vaos.node);
-        gl.drawElementsInstanced(
-          gl.TRIANGLES,
-          QUAD_INDICES.length,
-          gl.UNSIGNED_SHORT,
-          0,
-          this.pack.nodeCount,
-        );
-        drawCalls++;
+        drawCalls += this.drawNodeInstances(program);
       }
     }
 
     stats.drawCalls = drawCalls;
     stats.frameMs = performance.now() - t0;
     return stats;
+  }
+
+  /**
+   * Node submission: one instanced draw per visible block when the backend
+   * exposes base-instance draws; otherwise a single full-graph instanced pass
+   * (the block grid still drives CPU-side visibility counts / picking).
+   */
+  private drawNodeInstances(program: CompiledProgram): number {
+    const gl = this.gl;
+    const pack = this.pack;
+    if (!gl || !pack) return 0;
+    const blocks = this.visibleBlocks;
+    if (blocks === null || !this.supportsBaseInstance) {
+      gl.drawElementsInstanced(
+        gl.TRIANGLES,
+        QUAD_INDICES.length,
+        gl.UNSIGNED_SHORT,
+        0,
+        pack.nodeCount,
+      );
+      return 1;
+    }
+    let calls = 0;
+    const gl2 = gl as WebGL2BaseInstance;
+    for (const block of blocks) {
+      if (block.count <= 0) continue;
+      gl2.drawElementsInstancedBaseInstance(
+        gl.TRIANGLES,
+        QUAD_INDICES.length,
+        gl.UNSIGNED_SHORT,
+        0,
+        block.count,
+        block.base,
+      );
+      calls++;
+    }
+    return calls;
   }
 
   private drawEdgePass(
@@ -407,6 +537,8 @@ export class GpuGraphRenderer {
     this.uploadCommonUniforms(program);
     const tint = program.uniforms[UNIFORM.tint];
     if (tint) gl.uniform4f(tint, color[0], color[1], color[2], color[3]);
+    const tLoc = program.uniforms[UNIFORM.t];
+    if (tLoc) gl.uniform1f(tLoc, this.motionT);
     gl.bindVertexArray(this.vaos.edge);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.drawElements(gl.LINES, indexCount, gl.UNSIGNED_INT, 0);
@@ -417,6 +549,7 @@ export class GpuGraphRenderer {
   /**
    * Read the node id under a CSS-pixel point. Returns -1 on a miss, when the
    * context is lost, or if the GPU readback fails (caller then uses CPU index).
+   * The id is mapped back from packed instance order to the original graph index.
    */
   pick(cssX: number, cssY: number): number {
     const gl = this.gl;
@@ -436,13 +569,7 @@ export class GpuGraphRenderer {
       gl.useProgram(program.program);
       this.uploadCommonUniforms(program);
       gl.bindVertexArray(this.vaos.pick);
-      gl.drawElementsInstanced(
-        gl.TRIANGLES,
-        QUAD_INDICES.length,
-        gl.UNSIGNED_SHORT,
-        0,
-        pack.nodeCount,
-      );
+      this.drawNodeInstances(program);
 
       const px = Math.min(this.canvas.width - 1, Math.round(cssX * this.view.dpr));
       const py = Math.min(
@@ -454,7 +581,11 @@ export class GpuGraphRenderer {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
       const raw = decodePickColor(buf[0], buf[1], buf[2]);
-      return raw === 0 ? -1 : raw - 1;
+      if (raw === 0) return -1;
+      const packed = raw - 1;
+      const invPerm = this.blockLayout?.invPerm;
+      const original = invPerm ? invPerm[packed] : packed;
+      return original >= 0 && original < this.nodes.length ? original : -1;
     } catch {
       if (gl) gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       return -1;
@@ -544,9 +675,13 @@ export class GpuGraphRenderer {
     const pack = this.pack;
     if (!gl || !pack) return;
 
-    this.buffers.position = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+    this.buffers.from = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.from);
     gl.bufferData(gl.ARRAY_BUFFER, pack.positions, gl.DYNAMIC_DRAW);
+
+    this.buffers.to = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.to);
+    gl.bufferData(gl.ARRAY_BUFFER, this.toPositions, gl.DYNAMIC_DRAW);
 
     this.buffers.meta = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.meta);
@@ -567,17 +702,22 @@ export class GpuGraphRenderer {
 
   private bindNodeVao(vao: WebGLVertexArrayObject | null): void {
     const gl = this.gl;
-    if (!gl || !vao || !this.buffers.quad || !this.buffers.position || !this.buffers.meta) return;
+    if (!gl || !vao || !this.buffers.quad || !this.buffers.from || !this.buffers.to || !this.buffers.meta) return;
     gl.bindVertexArray(vao);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.quad);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.from);
     gl.enableVertexAttribArray(1);
     gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
     gl.vertexAttribDivisor(1, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.to);
+    gl.enableVertexAttribArray(6);
+    gl.vertexAttribPointer(6, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(6, 1);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.meta);
     gl.enableVertexAttribArray(2);
@@ -595,11 +735,14 @@ export class GpuGraphRenderer {
 
   private bindEdgeVao(vao: WebGLVertexArrayObject | null): void {
     const gl = this.gl;
-    if (!gl || !vao || !this.buffers.position) return;
+    if (!gl || !vao || !this.buffers.from || !this.buffers.to) return;
     gl.bindVertexArray(vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.from);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.to);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
   }
 
@@ -631,6 +774,10 @@ export class GpuGraphRenderer {
     if (cam) gl.uniform3f(cam, this.camera.x, this.camera.y, this.camera.k);
     const view = program.uniforms[UNIFORM.viewport];
     if (view) gl.uniform2f(view, this.view.w, this.view.h);
+    const tLoc = program.uniforms[UNIFORM.t];
+    if (tLoc) gl.uniform1f(tLoc, this.motionT);
+    const introLoc = program.uniforms[UNIFORM.intro];
+    if (introLoc) gl.uniform1f(introLoc, this.introAlpha);
   }
 
   private attachContextListeners(): void {
@@ -655,7 +802,8 @@ export class GpuGraphRenderer {
   private releaseGraphBuffers(): void {
     const gl = this.gl;
     if (!gl) return;
-    this.deleteBuffer("position");
+    this.deleteBuffer("from");
+    this.deleteBuffer("to");
     this.deleteBuffer("meta");
     this.deleteBuffer("normalEdge");
     this.deleteBuffer("brokenEdge");
