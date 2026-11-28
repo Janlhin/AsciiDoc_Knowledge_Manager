@@ -18,6 +18,7 @@ import { resolveAttachmentDeletion } from "@core/attachmentDeletion";
 import { MIN_PANE_FRACTION, allTabs, findTabLeaf, isFilelessSingletonView } from "@core/workspace";
 import { getCommandName } from "@core/commands";
 import { startSearchIndex } from "@core/indexer";
+import { workerPool } from "@core/workers/workerPool";
 import type { PaneLeaf, PaneNode, PaneSplit, TabState } from "@core/types";
 import type { SidebarPanelContribution } from "@core/plugins";
 import { Icon } from "./icons";
@@ -1318,7 +1319,12 @@ export function App() {
 
   /* ---- flush pending editor saves on close ---- */
   useEffect(() => {
-    const flush = () => void app.workspace.flushAll();
+    const flush = () => {
+      void app.workspace.flushAll();
+      // T-063: release every pooled worker when the app goes away; in-flight
+      // tasks are rejected so no message listener is left orphaned.
+      workerPool.terminateAll();
+    };
     window.addEventListener("beforeunload", flush);
     window.addEventListener("pagehide", flush);
 
