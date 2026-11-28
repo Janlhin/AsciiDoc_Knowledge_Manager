@@ -56,6 +56,10 @@
 | [`docs/technical-decisions/ADR-0005-reference-status-boundary.adoc`](docs/technical-decisions/ADR-0005-reference-status-boundary.adoc) | T-070 三态引用判定边界、二值歧义根因与锚点不判的已知缺口 |
 | [`docs/release-checklist.adoc`](docs/release-checklist.adoc) | T-072 发版清单：前置检查、五处版本号同步、unsigned/signed 构建命令、产物校验、回滚与 blocked 项 |
 | [`docs/gpu-graph-view.adoc`](docs/gpu-graph-view.adoc) | T-063 独立 GPU 图谱视图：模块边界、数据管线、降级矩阵、基准复跑命令、实测与已知缺口 |
+| [`docs/t063-layout-pool.adoc`](docs/t063-layout-pool.adoc) | T-063 布局多核池：分片协议、SAB/transferable、CPU 四档、冻结/局部重排与实测曲线（#20 / D-050） |
+| [`docs/t063-graph-motion.adoc`](docs/t063-graph-motion.adoc) | T-063 图谱动效：GPU 插值、显示位置拾取、分块剔除、reduced-motion、HUD 口径（#19 / D-051） |
+| [`docs/t063-worker-pool.adoc`](docs/t063-worker-pool.adoc) | T-063 全应用线程池：优先级、四档、预览收编与重活例外台账（#21 / D-052） |
+| [`docs/t063-bench.adoc`](docs/t063-bench.adoc) | T-063 性能基准体系：帧时间四件套、Worker×SAB 矩阵、soak、质量对比、CI 门禁（D-053） |
 
 文档格式：除本文件、`CLAUDE.md`、`.claude/` 约定、`demo-vault/` 与 `compat-fixtures/` 测试载荷、`docs/CONTRIBUTING.md`、`docs/SECURITY.md`、`.github/pull_request_template.md` 外，项目文档一律 AsciiDoc（`.adoc`）；根 `README.md` 只作 GitHub 首页入口指针，因为 GitHub 不渲染 AsciiDoc。迁移理由见 `DECISIONS.adoc` D-048。
 

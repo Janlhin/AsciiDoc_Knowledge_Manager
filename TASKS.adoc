@@ -155,6 +155,13 @@
 ** 渲染帧：见文档实测表（有头 Edge + RTX 5080，`bench-100k.json` 含原始逐帧样本）。
 ** 布局单 tick：100k / 200k 纯 JS 中位 ~175ms、p95 ~198ms（theta 1.15 调参后），**未达 8ms 目标**；本轮靠 Worker 移出主线程，后续路径 = WASM 重写 BH / 多 Worker 空间分片 / 增量预算。
 ** 未做视口剔除、节点大小滑块、多行标签避让；context lost 恢复需手动重试。
+* *第二轮（2026-11-28，多核 / 动效 / 全应用线程池，对应 #19 / #20 / #21）*：
+** 布局句柄契约冻结（`src/features/graph/gpu/layout-api.ts`）：`targets` / `stats()` / `freeze-thaw-wake`，引擎与视图两线共用同一边界（D-050）。
+** 多 Worker 分片池 + SAB/transferable + CPU 四档 + 冻结/局部重排：100k tick median 1W 62.59 → 8W 22.65ms（三轮 21.86），**未达 8ms（2.73 倍）**；200k 8W 49.79ms（6.15 倍）。见 `docs/t063-layout-pool.adoc`。
+** 表现层：GPU from/to 插值（收敛 120–200ms）、显示位置拾取、分块剔除、reduced-motion、HUD 帧时间四件套；100k 6.30 / 7.00 / 7.50 / 7.70ms、159fps。见 `docs/t063-graph-motion.adoc`（D-051）。
+** 全应用 WorkerPool：DOCX/XLSX/AsciiDoc 三个预览 Worker 收编，优先级 / 去重 / 取消 / 30s 回收 / 四档；EPUB 解压、备份 ZIP、元数据索引、反链登记例外。见 `docs/t063-worker-pool.adoc`（D-052）。
+** 基准与门禁：Worker×SAB 矩阵、30 分钟 soak、质量对比、warn-only CI 内核门禁。见 `docs/t063-bench.adoc`（D-053）。
+** 未达标项：100k/200k 的 S 档绝对性能；WASM 内核未落地（S 档不可达）；SAB off 路径秒级 tick P95 尖峰；200k 渲染 P95 18.74ms 超 60fps 预算；浏览器内三预览 rAF、51MB EPUB 首章、650MB 备份未实测；按块 GPU 提交待后端支持；布局质量对比未收敛。
 * *替代收口（原计划，未采用）*：若不做 GPU 生产视图，则 Q-011 按“当前规模不换 WebGL”结案，并把默认 cap 从 3000 收到 800–1000，保留“显示全部”。
 
 === T-064 PR #2 合并收口（待评审）
@@ -171,6 +178,7 @@
 * *分期*：P0-1 二进制 IPC 改原始字节（`tauri::ipc::Response`）；P0-2 EPUB/PPTX 解压移到 Rust；P0-3 备份 ZIP 移到 Rust；P1 docx/xlsx/asciidoctor/索引进 Worker；P2 图谱布局进 Worker + 采样。
 * *完成判据（每期各自）*：改前/改后同夹具的 rAF 帧间隔与阶段耗时；不得恶化 FCP；E2E 增加对应断言。
 * *状态*：*P0-1（D-031）、P1-1/P1-2（D-033）、P1-3（D-032）已实施*；*P1-4 不做*（T-026 实测：索引重建非热点，Worker 会序列化大字符串）；P0-2 因新增 `zip` crate 撞硬边界 #5、待用户放行；P0-3 未实施。Q-011 已完成基准与 GPU 原型（D-036/D-037），生产 T-063 待决。见 `docs/main-thread-audit.adoc`。
+* *2026-11-28 复核*：DOCX / XLSX / AsciiDoc 三个预览 Worker 已收编进统一 WorkerPool；EPUB 解压、备份 ZIP、元数据索引、反链按「先量后搬」登记例外（理由与数字见 `docs/t063-worker-pool.adoc`，D-052）。
 
 === T-061 EPUB 阅读器补全：目录 + 翻页 + 阅读位置（D-030）
 

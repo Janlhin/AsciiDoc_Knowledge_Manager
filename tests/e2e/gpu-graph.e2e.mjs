@@ -16,6 +16,18 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { sleep, waitForCdp, connectCdp } from "./cdp.mjs";
+import {
+  DEV_PORT,
+  CDP_PORT,
+  ensureDevServer,
+  waitForCdp as waitDevCdp,
+  connectCdp as connectDevCdp,
+  killEdgeTree,
+  removeProfile,
+  benchUrl,
+  spawnEdge,
+  openGpuView as openBenchView,
+} from "../../scripts/bench-cdp.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.dirname(path.dirname(HERE));
@@ -446,22 +458,184 @@ async function main() {
   }
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((err) => {
-    console.error("[gpu-e2e] fatal:", err);
-    try {
-      writeFileSync(
-        OUT_JSON,
-        JSON.stringify(
-          { timestamp: new Date().toISOString(), fatal: String(err) },
-          null,
-          2,
-        ),
-        "utf8",
-      );
-    } catch {
-      /* reporting itself failed */
+/* ------------------------------------------------------------------ */
+/* bench Edge phase: pool worker + downgrade visibility (dev server)   */
+/* ------------------------------------------------------------------ */
+
+const BENCH_PROBE_EXPR = ({ nodes, edges, seed, workers, sab }) => `(async () => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function rng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => { s ^= (s << 13) >>> 0; s ^= s >>> 17; s ^= (s << 5) >>> 0; s >>>= 0; return s / 4294967296; };
+  }
+  function makeGraph(n, e, seed) {
+    const rnd = rng(seed);
+    const deg = new Array(n).fill(0);
+    const nodes = Array.from({ length: n }, (_, i) => ({ id: 'n' + i, label: 'n' + i, resolved: true, degree: 0 }));
+    const edges = [];
+    for (let k = 0; k < e; k++) {
+      const a = Math.floor(rnd() * n);
+      let b = Math.floor(rnd() * n);
+      if (b === a) b = (b + 1) % n;
+      edges.push({ source: a, target: b, broken: false });
+      deg[a]++; deg[b]++;
     }
-    process.exit(1);
-  });
+    nodes.forEach((nd, i) => { nd.degree = deg[i]; });
+    return { nodes, edges };
+  }
+  const client = await import('/src/features/graph/gpu/layout-client.ts');
+  const graph = makeGraph(${nodes}, ${edges}, ${seed});
+  const handle = client.createAsyncLayout(graph, undefined, { forceWorkers: ${workers}, sab: ${sab === "on"} });
+  handle.start();
+  window.__benchE2E = { handle };
+  await sleep(1500);
+  return { ok: true, mode: handle.mode, stats: handle.stats() };
+})()`;
+
+const BENCH_TICK_EXPR = `(() => {
+  const h = window.__benchE2E?.handle;
+  if (!h) return null;
+  const s = h.stats();
+  return { tickCount: s.tickCount, frozen: s.frozen, tier: s.tier, tierReason: s.tierReason, workers: s.workers, sab: s.sab, wasm: s.wasm };
+})()`;
+
+const BENCH_HUD_EXPR = `(() => { const el = document.querySelector('[data-testid="gpu-hud-layout"]'); return { text: el ? el.innerText.trim() : null }; })()`;
+
+async function runBenchEdgeCases() {
+  mkdirSync(path.join(TOOLS_DIR, "p063-bench"), { recursive: true });
+  const benchResults = [];
+  const notes = [];
+  let devHandle = null;
+  let edge = null;
+  let profileDir = "";
+  let code = 0;
+
+  const push = async (name, fn) => {
+    try {
+      const detail = await fn();
+      benchResults.push({ name, ok: true, detail: detail || "" });
+      console.log(`  PASS  ${name}${detail ? "  — " + detail : ""}`);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      benchResults.push({ name, ok: false, detail });
+      console.log(`  FAIL  ${name}  — ${detail}`);
+      code = 1;
+    }
+  };
+
+  try {
+    devHandle = await ensureDevServer(notes, DEV_PORT, REPO_ROOT);
+    profileDir = path.join(TOOLS_DIR, `edge-profile-e2e-${Date.now()}`);
+    edge = spawnEdge({
+      cdpPort: CDP_PORT,
+      profileDir,
+      url: benchUrl({ workerCount: 8, tier: "auto", sab: "on" }, DEV_PORT),
+    });
+    await waitDevCdp(CDP_PORT, 30000);
+    const c = await connectDevCdp(CDP_PORT, { marker: "gpu-bench=1" });
+    await c.waitFor(APP_SHELL, 75000, "app shell");
+
+    const openBench = async (params) => {
+      await c.call("Page.navigate", { url: benchUrl(params, DEV_PORT) });
+      await c.waitFor(APP_SHELL, 75000, "app shell");
+      await openBenchView(c);
+      await c.waitFor(`!!window.__adkmGpuBench`, 30000, "bench hook attached");
+      await c.call("Page.bringToFront");
+    };
+
+    // ① 8 workers: observed pool >= 4, HUD shows "workers 8".
+    await push("bench-pool-workers-8", async () => {
+      await openBench({ workerCount: 8, tier: "auto", sab: "on" });
+      await c.evaluate(`window.__adkmGpuBench.load(100000, 200000, 1)`);
+      await sleep(1500);
+      await c.evaluate(`window.__adkmGpuBench.run(120)`);
+      const probe = await c.evaluate(
+        BENCH_PROBE_EXPR({ nodes: 100000, edges: 200000, seed: 1, workers: 8, sab: "on" }),
+      );
+      assert(probe?.ok, "bench probe did not initialize");
+      assert(probe.stats.workers >= 4, `observed workers=${probe.stats.workers}, expected >= 4`);
+      const hud = await c.evaluate(BENCH_HUD_EXPR);
+      const hudText = hud?.text ?? null;
+      assert(hudText && /workers\s+8/.test(hudText), `HUD workers text: ${hudText}`);
+      return `observed workers=${probe.stats.workers} tier=${probe.stats.tier} sab=${probe.stats.sab} hud="${hudText}"`;
+    });
+
+    // ② Downgrade visible: SAB off surfaces a tier reason, no blank/frozen.
+    await push("bench-downgrade-visible", async () => {
+      await openBench({ workerCount: 1, tier: "auto", sab: "off" });
+      await c.evaluate(`window.__adkmGpuBench.load(100000, 200000, 1)`);
+      await sleep(1500);
+      await c.evaluate(`window.__adkmGpuBench.run(120)`);
+      const probe = await c.evaluate(
+        BENCH_PROBE_EXPR({ nodes: 100000, edges: 200000, seed: 1, workers: 1, sab: "off" }),
+      );
+      assert(probe?.ok, "bench probe did not initialize");
+      assert(probe.stats.tierReason, "tier reason missing after SAB off");
+      const hud = await c.evaluate(BENCH_HUD_EXPR);
+      const hudText = hud?.text ?? null;
+      assert(hudText && hudText.includes("("), `downgrade reason not visible in HUD: ${hudText}`);
+      const canvas = await c.evaluate(`!!document.querySelector('[data-testid="gpu-canvas"]')`);
+      assert(canvas, "gpu canvas missing (blank screen)");
+      const first = await c.evaluate(BENCH_TICK_EXPR);
+      await sleep(1200);
+      const second = await c.evaluate(BENCH_TICK_EXPR);
+      assert(first && second, "tick snapshot unavailable");
+      assert(second.tickCount > first.tickCount, `tickCount stalled: ${first.tickCount} -> ${second.tickCount}`);
+      assert(second.frozen !== true, "layout reported frozen");
+      return `tier=${second.tier} reason="${second.tierReason}" tick ${first.tickCount} -> ${second.tickCount}; hud="${hudText}"`;
+    });
+
+    await c
+      .evaluate(`(() => { const h = window.__benchE2E?.handle; if (h) { try { h.stop(); } catch {}; try { h.destroy(); } catch {}; } window.__benchE2E = null; return true; })()`)
+      .catch(() => {});
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const report = {
+      schema: "t063-gpu-e2e-bench/v1",
+      timestamp: new Date().toISOString(),
+      env: { devPort: DEV_PORT, cdpPort: CDP_PORT, headless: false, notes },
+      cases: benchResults.map((r) => ({ name: r.name, ok: r.ok, detail: r.detail })),
+      summary: {
+        total: benchResults.length,
+        passed: benchResults.filter((r) => r.ok).length,
+        failed: benchResults.filter((r) => r.ok === false).length,
+      },
+    };
+    const outJson = path.join(TOOLS_DIR, "p063-bench", `gpu-e2e-bench-${stamp}.json`);
+    writeFileSync(outJson, JSON.stringify(report, null, 2), "utf8");
+    console.log(`\n${report.summary.passed}/${report.summary.total} passed; report ${outJson}`);
+    return code;
+  } finally {
+    if (edge) killEdgeTree(profileDir);
+    if (profileDir) await removeProfile(profileDir);
+  }
+}
+
+if (process.env.ADKM_E2E_MODE === "bench") {
+  runBenchEdgeCases()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error("[gpu-e2e bench] fatal:", err);
+      process.exit(1);
+    });
+} else {
+  main()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error("[gpu-e2e] fatal:", err);
+      try {
+        writeFileSync(
+          OUT_JSON,
+          JSON.stringify(
+            { timestamp: new Date().toISOString(), fatal: String(err) },
+            null,
+            2,
+          ),
+          "utf8",
+        );
+      } catch {
+        /* reporting itself failed */
+      }
+      process.exit(1);
+    });
+}

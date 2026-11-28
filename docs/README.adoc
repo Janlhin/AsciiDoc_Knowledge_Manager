@@ -52,6 +52,18 @@
 |底座差异基线 |相对 geode 底座的差异基线 |link:geode-baseline.adoc[geode-baseline.adoc]
 |===
 
+== T-063 图谱性能（多核 / 动效 / 线程池 / 基准）
+
+[cols="a,a,a",options="header",]
+|===
+|文档 |用途 |路径
+|GPU 图谱视图 |独立 GPU 图谱/分析视图的模块边界、降级矩阵与实测 |link:gpu-graph-view.adoc[gpu-graph-view.adoc]
+|布局多核池 |分片 Worker 池、SAB/transferable、CPU 四档、冻结/局部重排与实测曲线（#20） |link:t063-layout-pool.adoc[t063-layout-pool.adoc]
+|图谱动效与拾取 |GPU 插值、显示位置拾取、分块剔除、reduced-motion、HUD 口径（#19） |link:t063-graph-motion.adoc[t063-graph-motion.adoc]
+|全应用线程池 |统一 WorkerPool、优先级与四档、预览收编、重活例外台账（#21） |link:t063-worker-pool.adoc[t063-worker-pool.adoc]
+|性能基准体系 |帧时间四件套、Worker×SAB 矩阵、soak、质量对比与 CI 门禁 |link:t063-bench.adoc[t063-bench.adoc]
+|===
+
 == 实施计划与架构决策记录
 
 [cols="a,a,a",options="header",]
