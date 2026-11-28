@@ -16,6 +16,28 @@
 import { LAYOUT_DEFAULTS } from "./types";
 import type { GpuGraph, LayoutOptions, LayoutState, WorldBounds } from "./types";
 
+/**
+ * Wall time of the last tick split by kernel phase, milliseconds. All zeros
+ * when the environment exposes no `performance` timer. Used by the pool (#20)
+ * to see which phase the shard split should target first.
+ */
+export interface StageTiming {
+  buildGridMs: number;
+  buildQuadtreeMs: number;
+  repulsionMs: number;
+  springsMs: number;
+  integrateMs: number;
+  totalMs: number;
+}
+
+function zeroStageTiming(): StageTiming {
+  return { buildGridMs: 0, buildQuadtreeMs: 0, repulsionMs: 0, springsMs: 0, integrateMs: 0, totalMs: 0 };
+}
+
+function nowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : 0;
+}
+
 /** xorshift32 state boxed so the stream never touches `Math.random`. */
 interface Rng {
   s: number;
@@ -59,6 +81,9 @@ class LayoutImpl implements LayoutState {
 
   private alphaVal: number;
   private settledFlag: boolean;
+
+  /** wall time of the most recent tick, split by phase; see {@link StageTiming}. */
+  readonly lastStageMs: StageTiming = zeroStageTiming();
 
   /** force accumulators, zeroed at the start of every tick. */
   private readonly ax: Float32Array;
@@ -217,13 +242,18 @@ class LayoutImpl implements LayoutState {
     this.ax.fill(0);
     this.ay.fill(0);
 
+    const tTotal = nowMs();
+    let t0 = nowMs();
     this.computeBounds();
     this.buildGrid();
+    const tGrid = nowMs();
     this.buildQuadtree();
+    const tTree = nowMs();
 
     for (let i = 0; i < n; i++) {
       this.applyRepulsion(i);
     }
+    const tRep = nowMs();
 
     // edge springs: one pass over the flat edge list, force split to both ends
     for (let e = 0; e < this.es.length; e++) {
@@ -248,6 +278,8 @@ class LayoutImpl implements LayoutState {
       this.ay[t] -= fy;
     }
 
+    const tSprings = nowMs();
+
     // gravity toward the origin, then velocity integration
     const g = o.gravity;
     const damp = DAMPING;
@@ -262,6 +294,15 @@ class LayoutImpl implements LayoutState {
       this.x[i] += vx;
       this.y[i] += vy;
     }
+    const tIntegrate = nowMs();
+
+    const timing = this.lastStageMs;
+    timing.buildGridMs = tGrid - t0;
+    timing.buildQuadtreeMs = tTree - tGrid;
+    timing.repulsionMs = tRep - tTree;
+    timing.springsMs = tSprings - tRep;
+    timing.integrateMs = tIntegrate - tSprings;
+    timing.totalMs = tIntegrate - tTotal;
   }
 
   // ---------------------------------------------------------------- grid --

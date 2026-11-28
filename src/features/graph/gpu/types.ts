@@ -102,6 +102,15 @@ export interface LayoutState {
   bounds(): WorldBounds;
   /** fingerprint of positions rounded to 1e-3 — used by tests to prove determinism */
   fingerprint(): string;
+  /** last-tick phase wall time, ms; absent on lightweight holders. */
+  readonly lastStageMs?: {
+    buildGridMs: number;
+    buildQuadtreeMs: number;
+    repulsionMs: number;
+    springsMs: number;
+    integrateMs: number;
+    totalMs: number;
+  };
 }
 
 /** Spatial index used for hover / click / box select. Rebuildable in O(n). */

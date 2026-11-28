@@ -1,0 +1,171 @@
+= T-063 布局池：多核多线程分片、CPU 分级兜底与冻结局部重排
+
+本文记录 Issue #20（强制多核多线程布局 + CPU 分级兜底）与 Issue #19 A 路线（冻结 + 局部重排）在本分支的实现边界、复跑方式、实测证据与已知缺口。既有布局契约（`AsyncLayoutHandle`、`LayoutStats` 已有字段、视图只读 `count/x/y`）只追加可选字段，不做删改。
+
+== 定位与范围
+
+- 主线程持有唯一权威状态（位置 / 速度 / 力 / 质量），Worker 是力提案者；主线程汇总各分片力切片后统一积分。
+- 双协议：位置走 `SharedArrayBuffer`（SAB）共享；隔离上下文不可用时回退 transferable 快照克隆。
+- 四档 CPU 分级（S/A/B/C），C 档或 Worker 全死时委托主线程兜底 `MainLayoutHandle`。
+- 冻结停循环；wake 合并唤醒队列，只对邻域集做局部积分，其余节点位移为零；再次冻结前补一次本地 tick。
+- 可观测：滚动 64 样本 median/p95、tick 计数、队列深度、丢帧、分片数、每 Worker 缓冲估算、分阶段计时。
+
+== 模块与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `layout/tier.ts` | 纯函数环境探测与分级：`probeEnvironment`、`decideTier`、Worker 数选择、内存预算降档；`MAX_WORKERS=8`、`DEFAULT_MAIN_TICK_NODE_LIMIT=20000` |
+| `layout/shard.ts` | 1D 条带分片规划（长轴投影排序均分）、邻接表、1 跳邻域、分片质心 / 质量摘要 |
+| `layout/forces.ts` | 与内核同公式的纯力助手：`repelPair` / `springPair`，便于 Worker 与主线程复用 |
+| `layout/protocol.ts` | 池消息类型：`init/step/pin/unpin/freeze/thaw/destroy`；`ready/tick/settled/error`；epoch 防陈旧消息；远端弹簧力走三并行扁平数组回传 |
+| `layout/pool-worker.ts` | 单分片 Worker 内核：网格只建本片节点（halo 从快照读），近场精确斥力 + 其他分片摘要远场斥力 + 本分片边弹簧；scratch 与远端缓冲一次分配复用 |
+| `layout/main-handle.ts` | tier-C 主线程兜底：完整内核、8ms 预算节流、超节点限额拒绝全量 tick、`droppedTicks` 可见 |
+| `layout/pool-client.ts` | 协调者 `PoolLayoutHandle`：分片编排、力切片合并、积分、freeze/wake 队列、Worker 摘牌与降级、轻量位置 holder；记录 merge/integrate/summary 分段计时 |
+| `layout-client.ts` | 入口：探测 → 分级 → 池句柄或主线程句柄；构造失败兜底主线程 |
+| `layout.ts` | 内核追加阶段计时（`StageTiming` / `lastStageMs`），力模型与确定性不变 |
+| `types.ts` | `LayoutState` 追加可选 `lastStageMs` |
+| `layout-api.ts` | `LayoutStats` 追加可选 `shardCount?` / `workerBytes?` / `stageMs?`，已有字段含义不动 |
+
+既有单 Worker 实现 `layout-worker.ts` 已删除：池路径 1 Worker 即覆盖 single 模式。
+
+== 环境探测与降级矩阵
+
+探测项：`hardwareConcurrency`、SAB 可构造性且 `crossOriginIsolated === true`（`opts.sab === false` 可显式关闭）、WASM（本轮硬编码 false，见缺口）、`deviceMemory`、`Worker` 构造器可用性。
+
+| 档位 | 判定 | 布局路径 | 用户可见 |
+| --- | --- | --- | --- |
+| S | 核 ≥ 8 + SAB + WASM | 满池 + WASM Barnes–Hut | 本轮不可达（WASM 未落地） |
+| A | 核 ≥ 4（无 SAB 降到 B） | 池；JS 内核 | `tier: A`，`tierReason` 记录缺项 |
+| B | 核 2–3，或无 SAB | 小池 / 保守 Worker 数 | `tier: B` |
+| C | 单核 / Worker 不可用 / 超内存预算 | `MainLayoutHandle` 主线程兜底 | `mode: main`；超 `mainTickNodeLimit` 拒绝全量 tick |
+
+Worker 数：预留 1 核给 UI；≥8 核取 4，其余取 2，clamp 到 [1,8]。内存估算 `perWorker = 28·nodes + 8·edges` 字节；预算 `min(1 GiB, deviceMemory·0.25)`，超限逐档减 Worker，仍超 → C / 主线程。某个 Worker 报错摘牌，全部死亡后委托主线程句柄。
+
+== 分片方案
+
+- 本轮采用 **1D 条带分片**：把节点投影到长轴排序后均分；边按两端所属分片归类为片内 / 跨片。
+- 跨片斥力走分片摘要（质心 + 总质量 + 计数）远场近似；片内边弹簧只在本分片执行，跨片边由两端 Worker 各拉一次。
+- 备选方案（二维网格、Morton 序、四叉树分片）本轮未采用；1D 实现最简单且与现有条带邻域数据结构匹配。
+
+实测跨片边比例（100k 节点 / 200k 边随机图，见证据 JSON `crossEdgeRatio`）：
+
+| Worker 数 | 跨片边比例 |
+| --- | --- |
+| 1 | 0% |
+| 2 | 50.2% |
+| 4 | 74.9% |
+| 8 | 87.5% |
+
+分片越细，跨片边占比越高，远场近似承担的斥力越大；这是 1D 条带方案的已知代价。
+
+== 双协议
+
+- **SAB 路径**：位置缓冲 `x/y` 用 `SharedArrayBuffer` 共享，Worker 直接读共享视图；step 消息只带 epoch、唤醒集、分片摘要，不传位置数组，稳态零快照克隆。需要 COOP `same-origin` + COEP `require-corp`（dev 与 preview 均已加头；应用资源全部同源，无 CDN / 跨域嵌入）。
+- **transferable 路径**：无隔离上下文时，每 tick 把位置快照结构化克隆进 Worker，Worker 刷新本地 `sx/sy` 副本。功能不依赖 SAB；无 SAB 时自动走此路径。远端弹簧力用 `remoteIndex/remoteFx/remoteFy` 三个并行 typed array 回传，避免每边对象分配。
+
+== 冻结与局部重排（#19 A 路线）
+
+- `freeze()`：停掉 tick 循环，不留下在飞 step；`stats.frozen = true`。
+- `wake(nodes)`：唤醒集合并进队列；邻域由 `localNeighborhood` 按 1 跳 BFS 展开（`WAKE_HOPS = 1`）。下一拍只积分邻域集，邻域外节点位移保持为零；队列深度 `queueDepth` 可见。
+- 再次 `freeze()` 前补一次本地 tick；`pin/unpin` 沿用既有契约。
+- 2 跳邻域更自然但成本更高，留作后续。
+
+== 确定性边界
+
+- 单 Worker（JS 内核）路径：同输入 + 同 seed，`x/y` 逐元素一致，`fingerprint()` 逐位哈希；既有确定性测试继续通过。
+- 多 Worker 路径：力累加顺序随回复时序不同，**不要求**与单 Worker 逐位相同；测试与文档按此边界断言。
+
+== 复跑方式
+
+[source,bash]
+----
+# Node 必须用便携版 v22（系统 Node 28 nightly 会让 npm ci 失败）
+export PATH="/d/Projects/_tools/node-v22.23.2:$PATH"   # Windows: $env:PATH 前置该目录
+
+npm run typecheck     # tsc --noEmit，0 错误
+npm test              # vitest run：385 passed / 1 expected fail / 1 skipped
+npm run build         # tsc --noEmit && vite build
+
+# 浏览器基准：dev 1422、CDP 9402、独立 Edge profile
+node scripts/t063-pool-bench.mjs
+----
+
+证据落在仓外：`D:\Projects\ADKM-1127-wt\t063-tools\p063-pool\pool-bench.json`（schema `t063-pool-bench/v1`，含每配置原始样本数、分阶段计时、Worker 缓冲估算、跨片边统计）。
+
+== 实测证据
+
+环境（脚本自动写入 JSON）：Windows 11、有头 Edge `Edg/159.0.0.0`、`hardwareConcurrency = 16`、`crossOriginIsolated = true`、`SharedArrayBuffer` 可构造、dpr = 1、视口 1576×908。图表为随机图（固定 seed），每配置 warmup 后 3s 采样窗口，`onTick` 间隔原始样本在 Node 侧汇总 median / p95 / p99。
+
+既有基线（Node 内采样，`tests/gpu-graph-layout.test.ts` 本轮实跑）：100k / 200k 边单线程 tick median 211.17ms、p95 243.67ms。
+
+### SAB 路径（主路径，1/2/4/8 Worker 完整曲线）
+
+墙钟 median / p95 / p99，样本数；`vs 1W` 为同规模 8W（及各档）median 相对 1 Worker 的比例。
+
+[cols="a,a,a,a,a,a,a,b",options="header",]
+|===
+| 规模 (节点/边) | Worker | median ms | p95 ms | p99 ms | 样本数 | vs 1W median | 跨片边比例
+| 100k/200k | 1 | 71.23 | 81.55 | 84.29 | 74 | 100% | 0%
+| 100k/200k | 2 | 51.66 | 53.92 | 54.85 | 95 | 72.5% | 50.2%
+| 100k/200k | 4 | 42.81 | 44.96 | 46.16 | 114 | 60.1% | 74.9%
+| 100k/200k | 8 | 36.32 | 38.11 | 45.13 | 135 | 51.0% | 87.5%
+| 200k/400k | 1 | 122.44 | 139.31 | 145.66 | 45 | 100% | 0%
+| 200k/400k | 2 | 94.74 | 102.65 | 105.60 | 61 | 77.4% | 50.2%
+| 200k/400k | 4 | 74.14 | 79.85 | 80.85 | 78 | 60.6% | 74.9%
+| 200k/400k | 8 | 61.85 | 65.98 | 75.85 | 94 | 50.5% | 87.5%
+|===
+
+### 与目标对比
+
+- **并行提速（本轮主目标）：达标。** 收敛标准为 100k 上 8W median ≤ 1W 的 70%；实测 100k 8W/1W = 51.0%，200k = 50.5%，曲线随 Worker 数单调下降。第一轮「多 Worker 不提速」的问题已消除：根因是每个 Worker 重复遍历全图网格，本轮改为网格只建本片。
+- **绝对 tick 目标：未达标，如实记录。** Issue #20 目标 100k median ≤ 8ms / p95 ≤ 12ms，200k median ≤ 12ms / p95 ≤ 20ms；实测最好成绩 100k 8W median 36.32ms、200k 8W median 61.85ms，距目标仍有数倍差距。本轮未为凑数调整力模型或放松正确性。
+
+### 分段瓶颈读数（100k SAB，stageMs median，ms）
+
+[cols="a,a,a,a,a,a,a,a",options="header",]
+|===
+| Worker | buildGrid | repulsion | springs | integrate | merge | summary | 协调者小计
+| 1 | 11.02 | 49.93 | 7.05 | 2.52 | 2.42 | 1.61 | 6.55
+| 2 | 4.76 | 30.56 | 5.55 | 2.38 | 1.88 | 0.64 | 4.90
+| 4 | 5.15 | 23.70 | 3.74 | 2.60 | 2.45 | 0.60 | 5.65
+| 8 | 4.17 | 20.68 | 2.67 | 0.68 | 0.92 | 0.72 | 2.32
+|===
+
+- **协调者串行段不是墙钟瓶颈**：integrate（主线程积分）、merge（切片 + 远端力合并）、summary（两处分片摘要）合计 ≤ 6.5ms，8W 时降到 2.3ms，量级与 Worker 数无关，未压成串行墙。
+- **Worker 侧 repulsion 是最大单项**：1W 49.93ms → 8W 20.68ms。构成：近场 3×3 halo 网格扫描 + 远场遍历其余分片摘要。每 Worker 各自遍历全部远场摘要，尚无一份全局共享的 Barnes–Hut 树；分片越细，摘要条目越多、远场遍历重复度越高。
+- **buildGrid 已去重复**：第一轮每 Worker 重建全图 bounds + 分桶（8W 反超 1W）；本轮只遍历本片节点，8W 4.17ms 与 1W 11.02ms 相比随片数下降。
+- **墙钟与 Worker 侧之差**：8W Worker 侧（buildGrid+repulsion+springs）约 27.5ms、协调者 2.3ms，墙钟 36.32ms；差额约 6ms 来自跨线程 barrier 往返与调度抖动，不是某段可直接砍掉的计算。
+
+### 瓶颈归因：算法 / JS·协调 / WASM 推测
+
+- **算法侧**：近场按网格 3×3 扫描成对算斥力；远场用分片质心 + 质量摘要近似，无全局共享树；1D 条带跨片边 87.5%，大部分边落在跨片，远端弹簧与远场近似成本偏高。这部分是算法与分片形状决定的工作量。
+- **JS / 协调侧**：每拍必经主线程 barrier、力切片合并、积分；跨线程消息往返与调度抖动约数毫秒；JS 数值循环本身相对原生代码偏慢。
+- **WASM 能补多少（推测，未实测）**：把斥力 / 弹簧内循环迁到 WASM 通常有数倍提速空间，但具体能否把 100k 压到 8ms 量级、并行段与协调段各占多少，本轮没有 WASM 内核可测，此处仅为方向性推测，不记作实测结论。
+
+### transferable 路径（sab off，兜底，病态长尾未根治）
+
+[cols="a,a,a,a,a,a,a",options="header",]
+|===
+| 规模 | Worker | median ms | p95 ms | 样本数 | repulsion ms（极端拍） | 说明
+| 100k/200k | 1 | 140.51 | 1415.41 | 15 | 1381.46 | 快照克隆 + 副本刷新，样本少长尾重
+| 100k/200k | 2 | 88.51 | 88.51 | 2 | 3626.21 | 样本仅 2，不可作曲线
+| 100k/200k | 4 | 1426.85 | 1694.79 | 3 | 1671.75 | 病态长尾
+| 100k/200k | 8 | 514.06 | 629.19 | 10 | 608.33 | 病态长尾
+| 200k/400k | 4 | 326.29 | 1889.86 | 3 | 2551.13 | 病态长尾
+| 200k/400k | 8 | 1971.55 | 1971.55 | 2 | 2375.05 | 样本仅 2，不可作曲线
+|===
+
+该路径为无隔离上下文时的功能兜底，本就不作性能目标；每拍结构化克隆快照 + 副本刷新在大图上出现千毫秒级单拍，样本稀少、波动极大，本轮未根治，见缺口 3。
+
+== 未达标与已知缺口
+
+1. **绝对 tick 目标未达标**：并行提速已达标（8W ≈ 1W 的 51%），但 100k 最好 median 36.32ms、200k 61.85ms，距 8ms / 12ms 目标仍有数倍差距。当前瓶颈在 Worker 侧 repulsion 与 JS 数值循环，协调者串行段已不是主项。
+2. **WASM Barnes–Hut 未落地**：本轮不引入 Rust wasm-pack / AssemblyScript 新构建链与新依赖；`wasm` 如实记为 false，S 档不可达，不谎报。WASM 提速幅度属推测，未实测。
+3. **transferable 路径病态长尾**：无 SAB 时每拍快照克隆 + 副本刷新，大图上出现 0.6–3.6s 级单拍，样本稀少；需优化快照复用、传输粒度或改 transferable 转移缓冲。该路径为功能兜底，不作性能目标。
+4. **远场无全局共享树**：每 Worker 各自遍历其余分片摘要；尚未构建一份全局 Barnes–Hut 树 / 粗粒度质心表供所有 Worker 共享，总远场工作量随分片数重复。
+5. **积分仍在主线程**：力切片合并与统一积分压在协调者线程；当前读数 ≤3ms 尚小，但节点规模再上一档会成为串行下限，后续可下沉 Worker 并行积分。
+6. **堆峰值为代理估算**：`workerBytes` 按缓冲规模估算；每 Worker 真实堆峰值主线程不可测，仅作容量代理值。
+7. **tier-C 主线程兜底未分片**：主线程路径仍是单线程全量计算，只做预算节流与节点限额。
+8. **wake 邻域 1 跳**：2 跳邻域留作后续。
+9. **分片选型受限**：1D 条带跨片边比例随 Worker 数升到 87.5%；二维网格 / Morton / 四叉树分片为备选，未实现，跨片边占比尚未压到 30% 以下。
+10. **WebView2 SAB 未单独实测**：本轮在有头 Edge 验证隔离上下文与 SAB 可构造；WebView2 宿主环境的隔离头与 SAB 支持待后续在打包产物上复测。功能本身不依赖 SAB。

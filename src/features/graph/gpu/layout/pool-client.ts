@@ -1,0 +1,681 @@
+/**
+ * T-063 (#20) — shard pool coordinator (main thread).
+ *
+ * Owns the canonical layout state and drives one worker per shard. Workers are
+ * force proposers: they post force slices back, the coordinator sums them and
+ * runs the integration pass, so positions and velocity have a single source of
+ * truth. Sync transport follows the tier decision:
+ *
+ *  - SAB: snapshot positions live in `SharedArrayBuffer`s shared with workers;
+ *    completion still arrives via postMessage (the main thread never calls
+ *    `Atomics.wait`).
+ *  - transferable: the snapshot clones out with each `step`; worker force
+ *    slices come back as messages.
+ *
+ * Freeze / local relayout (#19 route A): `freeze()` stops the tick loop;
+ * `wake(indices)` coalesces into one local neighbourhood set (1 hop,
+ * configurable constant below) and a single local tick integrates only that
+ * set. Every other node keeps its target position untouched.
+ */
+import { LAYOUT_DEFAULTS } from "../types";
+import type { GpuGraph, LayoutOptions, LayoutState, WorldBounds } from "../types";
+import type {
+  AsyncLayoutHandle,
+  LayoutClientOptions,
+  LayoutMode,
+  LayoutStats,
+  LayoutTargets,
+} from "../layout-api";
+import { estimatePerWorkerBytes, type TierDecision } from "./tier";
+import {
+  buildAdjacency,
+  buildShardPlan,
+  localNeighborhood,
+  shardSummaries,
+  type Adjacency,
+  type ShardPlan,
+  type ShardSummary,
+} from "./shard";
+import type { PoolInMessage, PoolOutMessage, PoolTickMessage } from "./protocol";
+import { MainLayoutHandle } from "./main-handle";
+
+/** neighbourhood hops for `wake()`; 2 hops are more natural but cost more. */
+const WAKE_HOPS = 1;
+/** frame cadence driving the pool tick loop. */
+const FRAME_MS = 16;
+/** rolling sample window for tick timing statistics. */
+const SAMPLE_WINDOW = 64;
+/** alpha floor; below it the layout is settled. */
+const ALPHA_MIN = 1e-3;
+const DAMPING = 0.9;
+
+/** Worker constructor seam for unit tests; defaults to the real `Worker`. */
+export type WorkerFactory = (url: URL) => Worker;
+
+class TargetsHolder implements LayoutTargets {
+  readonly count: number;
+  x: Float32Array;
+  y: Float32Array;
+  version = 0;
+
+  constructor(x: Float32Array, y: Float32Array) {
+    this.count = x.length;
+    this.x = x;
+    this.y = y;
+  }
+
+  bump(): void {
+    this.version += 1;
+  }
+}
+
+/**
+ * Positions-only {@link LayoutState} for the pooled path. The kernel runs in the
+ * workers, so the main thread keeps the canonical arrays plus state getters and
+ * computes bounds / fingerprint on demand. `step()` is intentionally inert:
+ * the coordinator owns the tick loop, and a caller that stepped here would run
+ * a full 100k tick on the main thread.
+ */
+class PositionsHolder implements LayoutState {
+  readonly count: number;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly vx: Float32Array;
+  readonly vy: Float32Array;
+  readonly options: LayoutOptions;
+  private readonly alphaFn: () => number;
+  private readonly settledFn: () => boolean;
+
+  constructor(
+    x: Float32Array,
+    y: Float32Array,
+    vx: Float32Array,
+    vy: Float32Array,
+    options: LayoutOptions,
+    alphaFn: () => number,
+    settledFn: () => boolean,
+  ) {
+    this.count = x.length;
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.options = options;
+    this.alphaFn = alphaFn;
+    this.settledFn = settledFn;
+  }
+
+  alpha(): number {
+    return this.alphaFn();
+  }
+
+  settled(): boolean {
+    return this.settledFn();
+  }
+
+  /** inert — the pool coordinator drives ticks off the main thread. */
+  step(): void {
+    // intentionally empty; see the class comment
+  }
+
+  stepUntil(_ticks: number): void {
+    // intentionally empty; the pool is paced by the coordinator
+  }
+
+  bounds(): WorldBounds {
+    if (this.count === 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < this.count; i++) {
+      const xi = this.x[i];
+      const yi = this.y[i];
+      if (xi < minX) minX = xi;
+      if (xi > maxX) maxX = xi;
+      if (yi < minY) minY = yi;
+      if (yi > maxY) maxY = yi;
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  /** same 1e-3 rounding as the kernel so a pooled fingerprint stays comparable. */
+  fingerprint(): string {
+    let h1 = 0x811c9dc5;
+    let h2 = 0x01000193;
+    for (let i = 0; i < this.count; i++) {
+      const a = Math.round(this.x[i] * 1000);
+      const b = Math.round(this.y[i] * 1000);
+      h1 = Math.imul(h1 ^ (a >>> 0), 0x01000193) >>> 0;
+      h1 = Math.imul(h1 ^ (b >>> 0), 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ (a >>> 0), 0x85ebca6b) >>> 0;
+      h2 = Math.imul(h2 ^ (b >>> 0), 0x85ebca6b) >>> 0;
+    }
+    return h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
+  }
+}
+
+/** xorshift32 for the seeded disk spread; mirrors the single-thread kernel. */
+function seededPositions(n: number, opts: LayoutOptions): { x: Float32Array; y: Float32Array } {
+  const x = new Float32Array(n);
+  const y = new Float32Array(n);
+  let s = (opts.seed >>> 0) || LAYOUT_DEFAULTS.seed >>> 0;
+  const next = (): number => {
+    s ^= (s << 13) >>> 0;
+    s ^= s >>> 17;
+    s ^= (s << 5) >>> 0;
+    s >>>= 0;
+    return s / 4294967296;
+  };
+  const spread = opts.linkDistance * Math.sqrt(Math.max(n, 1)) * 0.5;
+  const TAU = Math.PI * 2;
+  for (let i = 0; i < n; i++) {
+    const angle = next() * TAU;
+    const radius = spread * Math.sqrt(next());
+    x[i] = Math.cos(angle) * radius;
+    y[i] = Math.sin(angle) * radius;
+  }
+  return { x, y };
+}
+
+function quantile(sorted: readonly number[], q: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * q));
+  return sorted[idx];
+}
+
+interface StageAccum {
+  buildGridMs: number;
+  repulsionMs: number;
+  springsMs: number;
+  mergeMs: number;
+  integrateMs: number;
+  summaryMs: number;
+}
+
+export class PoolLayoutHandle implements AsyncLayoutHandle {
+  get mode(): LayoutMode {
+    if (this.delegate) return "main";
+    return this.workers.length <= 1 ? "single" : "pool";
+  }
+  /** lightweight positions holder; the pool keeps no force kernel on the main thread. */
+  readonly layout: LayoutState;
+  readonly targets: TargetsHolder;
+
+  private readonly graph: GpuGraph;
+  private readonly opts?: Partial<LayoutOptions>;
+  private readonly client?: LayoutClientOptions;
+  private decision: TierDecision;
+  private readonly plan: ShardPlan;
+  private readonly adj: Adjacency;
+  private readonly mass: Float32Array;
+  private readonly es: Int32Array;
+  private readonly et: Int32Array;
+  private readonly x: Float32Array;
+  private readonly y: Float32Array;
+  private readonly vx: Float32Array;
+  private readonly vy: Float32Array;
+  private readonly ax: Float32Array;
+  private readonly ay: Float32Array;
+
+  private workers: { id: number; worker: Worker }[] = [];
+  private readonly workerFactory?: WorkerFactory;
+  private readonly callbacks = new Set<() => void>();
+  private delegate: MainLayoutHandle | null = null;
+  private readonly delegateSubs = new Map<() => void, () => void>();
+
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private running = false;
+  private frozenFlag = false;
+  private refreeze = false;
+  private destroyed = false;
+  private settledFlag = false;
+  private inFlight = false;
+  private epoch = 0;
+  private replies = 0;
+  private stepStart = 0;
+  private readyCount = 0;
+
+  private pendingWake: number[] = [];
+  private lastWakeSet: Int32Array | null = null;
+  private tickCount = 0;
+  private droppedTicks = 0;
+  private queueDepth = 0;
+  private readonly samples: number[] = [];
+  private alphaVal = 1;
+  private lastStage: StageAccum = {
+    buildGridMs: 0,
+    repulsionMs: 0,
+    springsMs: 0,
+    mergeMs: 0,
+    integrateMs: 0,
+    summaryMs: 0,
+  };
+  private summaries: ShardSummary;
+  private pinnedIndex = -1;
+  private pinnedX = 0;
+  private pinnedY = 0;
+
+  constructor(
+    graph: GpuGraph,
+    opts: Partial<LayoutOptions> | undefined,
+    decision: TierDecision,
+    client?: LayoutClientOptions,
+    deps?: { workerFactory?: WorkerFactory },
+  ) {
+    this.graph = graph;
+    this.opts = opts;
+    this.client = client;
+    this.decision = decision;
+    this.workerFactory = deps?.workerFactory;
+
+    const options: LayoutOptions = { ...LAYOUT_DEFAULTS, ...(opts ?? {}) };
+    const n = graph.nodes.length;
+    const initial = seededPositions(n, options);
+
+    this.plan = buildShardPlan(graph, Math.max(1, decision.workers), initial);
+    this.adj = buildAdjacency(graph);
+    this.mass = new Float32Array(n);
+    for (let i = 0; i < n; i++) this.mass[i] = graph.nodes[i].degree + 1;
+    this.es = new Int32Array(graph.edges.map((e) => e.source));
+    this.et = new Int32Array(graph.edges.map((e) => e.target));
+
+    this.x = initial.x;
+    this.y = initial.y;
+    this.vx = new Float32Array(n);
+    this.vy = new Float32Array(n);
+    this.ax = new Float32Array(n);
+    this.ay = new Float32Array(n);
+    this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
+
+    this.targets = new TargetsHolder(this.x, this.y);
+    this.layout = new PositionsHolder(
+      this.x,
+      this.y,
+      this.vx,
+      this.vy,
+      options,
+      () => this.alphaVal,
+      () => this.settledFlag,
+    );
+
+    this.spawnWorkers(options);
+  }
+
+  /* ---------------------------------------------------------- lifecycle -- */
+
+  start(): void {
+    if (this.destroyed) return;
+    this.frozenFlag = false;
+    if (this.delegate) {
+      this.delegate.start();
+      return;
+    }
+    if (this.running) return;
+    this.running = true;
+    // Do not dispatch the first step until every worker has acknowledged init;
+    // a still-initializing worker would drop the epoch and hang finalizeTick.
+    if (this.readyCount === this.workers.length) this.schedule();
+  }
+
+  stop(): void {
+    this.running = false;
+    this.clearTimer();
+    if (this.delegate) this.delegate.stop();
+  }
+
+  freeze(): void {
+    this.frozenFlag = true;
+    this.stop();
+  }
+
+  thaw(): void {
+    this.start();
+  }
+
+  wake(indices: readonly number[]): void {
+    if (this.destroyed) return;
+    if (this.delegate) {
+      this.delegate.wake(indices);
+      return;
+    }
+    const neigh = localNeighborhood(this.adj, indices, WAKE_HOPS);
+    const merged = new Set(this.pendingWake);
+    for (const i of neigh) merged.add(i);
+    this.pendingWake = [...merged].sort((a, b) => a - b);
+    this.queueDepth = this.pendingWake.length;
+
+    if (this.frozenFlag) {
+      // local tick only: run one narrowed pass, then freeze again (#19 route A)
+      this.refreeze = true;
+      this.frozenFlag = false;
+      this.running = true;
+    }
+    this.schedule();
+  }
+
+  pin(index: number, x: number, y: number): void {
+    this.pinnedIndex = index;
+    this.pinnedX = x;
+    this.pinnedY = y;
+    this.x[index] = x;
+    this.y[index] = y;
+    this.vx[index] = 0;
+    this.vy[index] = 0;
+    if (this.delegate) this.delegate.pin(index, x, y);
+  }
+
+  unpin(index: number): void {
+    if (this.pinnedIndex === index) this.pinnedIndex = -1;
+    if (this.delegate) this.delegate.unpin(index);
+  }
+
+  onTick(cb: () => void): () => void {
+    this.callbacks.add(cb);
+    if (this.delegate) {
+      this.delegateSubs.set(cb, this.delegate.onTick(cb));
+    }
+    return () => {
+      this.callbacks.delete(cb);
+      const sub = this.delegateSubs.get(cb);
+      if (sub) {
+        sub();
+        this.delegateSubs.delete(cb);
+      }
+    };
+  }
+
+  settled(): boolean {
+    if (this.delegate) return this.delegate.settled();
+    return this.settledFlag || this.alphaVal <= ALPHA_MIN;
+  }
+
+  stats(): LayoutStats {
+    if (this.delegate) return this.delegate.stats();
+    const sorted = [...this.samples].sort((a, b) => a - b);
+    const perWorker = estimatePerWorkerBytes({
+      nodes: this.graph.nodes.length,
+      edges: this.graph.edges.length,
+    });
+    return {
+      workers: this.workers.length,
+      cores: Math.max(1, Math.floor(typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 1 : 1)),
+      tier: this.decision.tier,
+      tierReason: this.decision.tierReason,
+      sab: this.decision.sab,
+      wasm: this.decision.wasm,
+      frozen: this.frozenFlag,
+      tickMedianMs: quantile(sorted, 0.5),
+      tickP95Ms: quantile(sorted, 0.95),
+      tickCount: this.tickCount,
+      queueDepth: this.queueDepth,
+      droppedTicks: this.droppedTicks,
+      shardCount: this.plan.shardCount,
+      workerBytes: this.workers.map(() => perWorker),
+      stageMs: {
+        buildGridMs: this.lastStage.buildGridMs,
+        buildQuadtreeMs: 0,
+        repulsionMs: this.lastStage.repulsionMs,
+        springsMs: this.lastStage.springsMs,
+        integrateMs: this.lastStage.integrateMs,
+        mergeMs: this.lastStage.mergeMs,
+        summaryMs: this.lastStage.summaryMs,
+        totalMs: sorted.length > 0 ? sorted[sorted.length - 1] : 0,
+      },
+    };
+  }
+
+  /** internal coordinator state for benchmark diagnostics; not part of the frozen contract. */
+  get debugState(): { ready: number; replies: number; inFlight: boolean; workers: number; epoch: number } {
+    return { ready: this.readyCount, replies: this.replies, inFlight: this.inFlight, workers: this.workers.length, epoch: this.epoch };
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.stop();
+    this.callbacks.clear();
+    for (const entry of this.workers) {
+      try {
+        entry.worker.terminate();
+      } catch {
+        // already gone
+      }
+    }
+    this.workers = [];
+    if (this.delegate) this.delegate.destroy();
+  }
+
+  /* --------------------------------------------------------- internals -- */
+
+  private spawnWorkers(options: LayoutOptions): void {
+    const url = new URL("./pool-worker.ts", import.meta.url);
+    const n = this.graph.nodes.length;
+    const sab = this.decision.sab;
+    let sabX: ArrayBuffer | undefined;
+    let sabY: ArrayBuffer | undefined;
+    if (sab) {
+      sabX = new ArrayBuffer(n * 4);
+      sabY = new ArrayBuffer(n * 4);
+      new Float32Array(sabX).set(this.x);
+      new Float32Array(sabY).set(this.y);
+    }
+
+    for (let wid = 0; wid < this.decision.workers; wid++) {
+      const worker = this.workerFactory
+        ? this.workerFactory(url)
+        : new Worker(url, { type: "module" });
+      this.attachWorker(worker, wid);
+      this.workers.push({ id: wid, worker });
+      const init: PoolInMessage = {
+        type: "init",
+        workerId: wid,
+        shardCount: this.plan.shardCount,
+        shardOf: this.plan.shardOf,
+        shardStart: this.plan.shardStart,
+        shardNodes: this.plan.shardNodes,
+        edgeStart: this.plan.edgeStart,
+        edgeByShard: this.plan.edgeByShard,
+        es: this.es,
+        et: this.et,
+        mass: this.mass,
+        opts: this.opts ?? {},
+        hops: WAKE_HOPS,
+        x: this.x,
+        y: this.y,
+        sab,
+        sabX,
+        sabY,
+      };
+      worker.postMessage(init);
+    }
+  }
+
+  private attachWorker(worker: Worker, wid: number): void {
+    worker.onmessage = (event: MessageEvent<PoolOutMessage>) => {
+      if (this.delegate || this.destroyed) return;
+      const msg = event.data;
+      if (msg.type === "ready") {
+        this.readyCount += 1;
+        if (this.readyCount === this.workers.length && this.running) this.schedule();
+      } else if (msg.type === "tick") {
+        this.onTickMessage(wid, msg);
+      } else if (msg.type === "error") {
+        this.onWorkerError(wid, msg.message);
+      }
+    };
+    worker.onerror = () => this.onWorkerError(wid, "worker error event");
+  }
+
+  private onTickMessage(wid: number, msg: PoolTickMessage): void {
+    if (msg.epoch !== this.epoch || this.inFlight === false) return;
+
+    const tMerge = performance.now();
+    const start = this.plan.shardStart[wid];
+    const end = this.plan.shardStart[wid + 1];
+    for (let k = start; k < end; k++) {
+      const node = this.plan.shardNodes[k];
+      const slot = k - start;
+      this.ax[node] += msg.fx[slot];
+      this.ay[node] += msg.fy[slot];
+    }
+    for (let r = 0; r < msg.remoteIndex.length; r++) {
+      const node = msg.remoteIndex[r];
+      this.ax[node] += msg.remoteFx[r];
+      this.ay[node] += msg.remoteFy[r];
+    }
+    this.lastStage.mergeMs = Math.max(this.lastStage.mergeMs, performance.now() - tMerge);
+
+    this.lastStage.buildGridMs = Math.max(this.lastStage.buildGridMs, msg.stageMs.buildGridMs);
+    this.lastStage.repulsionMs = Math.max(this.lastStage.repulsionMs, msg.stageMs.repulsionMs);
+    this.lastStage.springsMs = Math.max(this.lastStage.springsMs, msg.stageMs.springsMs);
+
+    this.replies += 1;
+    if (this.replies === this.workers.length) this.finalizeTick();
+  }
+
+  private onWorkerError(wid: number, message: string): void {
+    if (this.destroyed || this.delegate) return;
+    // One dead worker means one shard's forces would be silently dropped, which
+    // biases the layout without anyone noticing. Degrade the whole pool instead:
+    // the main-thread handle refuses oversized graphs (tier C, visible reason)
+    // rather than running a 175ms tick on the UI thread.
+    this.goMain(`worker-${wid} failed (${message})`);
+  }
+
+  private goMain(reason: string): void {
+    if (this.delegate) return;
+    for (const entry of this.workers) {
+      try {
+        entry.worker.terminate();
+      } catch {
+        // already gone
+      }
+    }
+    this.workers = [];
+    this.delegate = new MainLayoutHandle(this.graph, this.opts, this.client, reason);
+    for (const cb of this.callbacks) {
+      this.delegateSubs.set(cb, this.delegate.onTick(cb));
+    }
+    if (this.running) this.delegate.start();
+  }
+
+  private schedule(): void {
+    if (this.destroyed || this.frozenFlag || !this.running) return;
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.step(), FRAME_MS);
+  }
+
+  private step(): void {
+    if (this.destroyed || this.frozenFlag || this.delegate) return;
+    if (this.readyCount < this.workers.length) {
+      this.schedule();
+      return;
+    }
+    if (this.inFlight) {
+      this.droppedTicks += 1;
+      this.schedule();
+      return;
+    }
+    this.inFlight = true;
+    this.epoch += 1;
+    this.replies = 0;
+    this.stepStart = performance.now();
+    this.ax.fill(0);
+    this.ay.fill(0);
+
+    this.lastWakeSet = this.pendingWake.length > 0 ? Int32Array.from(this.pendingWake) : null;
+    this.pendingWake = [];
+    this.queueDepth = 0;
+
+    const tSummary = performance.now();
+    this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
+    this.lastStage.summaryMs = Math.max(this.lastStage.summaryMs, performance.now() - tSummary);
+
+    const summaries = {
+      comX: this.summaries.comX,
+      comY: this.summaries.comY,
+      mass: this.summaries.mass,
+    };
+    const sab = this.decision.sab;
+    for (const entry of this.workers) {
+      // SAB workers read positions straight from the shared buffers; do not
+      // clone the snapshot arrays into every message.
+      const msg: PoolInMessage = sab
+        ? { type: "step", epoch: this.epoch, wakeSet: this.lastWakeSet ?? undefined, summaries }
+        : {
+            type: "step",
+            epoch: this.epoch,
+            wakeSet: this.lastWakeSet ?? undefined,
+            summaries,
+            snapshotX: this.x,
+            snapshotY: this.y,
+          };
+      entry.worker.postMessage(msg);
+    }
+  }
+
+  private finalizeTick(): void {
+    this.inFlight = false;
+    const elapsed = performance.now() - this.stepStart;
+    this.samples.push(elapsed);
+    if (this.samples.length > SAMPLE_WINDOW) this.samples.shift();
+
+    const options = { ...LAYOUT_DEFAULTS, ...(this.opts ?? {}) };
+    this.alphaVal = Math.max(this.alphaVal * (1 - options.alphaDecay), ALPHA_MIN);
+    if (this.alphaVal <= ALPHA_MIN) this.settledFlag = true;
+
+    const active = this.lastWakeSet;
+    const integrateNode = (i: number): void => {
+      this.ax[i] -= options.gravity * this.x[i];
+      this.ay[i] -= options.gravity * this.y[i];
+      const nvx = this.vx[i] * DAMPING + this.ax[i] * this.alphaVal;
+      const nvy = this.vy[i] * DAMPING + this.ay[i] * this.alphaVal;
+      this.vx[i] = nvx;
+      this.vy[i] = nvy;
+      this.x[i] += nvx;
+      this.y[i] += nvy;
+    };
+
+    const tIntegrate = performance.now();
+    if (active) {
+      for (let k = 0; k < active.length; k++) integrateNode(active[k]);
+    } else {
+      for (let i = 0; i < this.x.length; i++) integrateNode(i);
+    }
+    this.lastStage.integrateMs = Math.max(this.lastStage.integrateMs, performance.now() - tIntegrate);
+
+    if (this.pinnedIndex >= 0) {
+      this.x[this.pinnedIndex] = this.pinnedX;
+      this.y[this.pinnedIndex] = this.pinnedY;
+      this.vx[this.pinnedIndex] = 0;
+      this.vy[this.pinnedIndex] = 0;
+    }
+
+    const tSummary2 = performance.now();
+    this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
+    this.lastStage.summaryMs = Math.max(this.lastStage.summaryMs, performance.now() - tSummary2);
+    this.targets.bump();
+    this.tickCount += 1;
+    for (const cb of this.callbacks) cb();
+
+    if (this.refreeze) {
+      this.refreeze = false;
+      this.frozenFlag = true;
+      this.running = false;
+      return;
+    }
+    if (this.settledFlag) {
+      this.running = false;
+      return;
+    }
+    this.schedule();
+  }
+
+  private clearTimer(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+}
