@@ -6,6 +6,11 @@
  * `x`/`y` are overwritten from every worker `tick` message; the holder is what
  * the renderer / picking / LOD read on the main thread.
  *
+ * This file also owns the public surface of the layout boundary: `layout-api.ts`
+ * declares the contract, and both implementations below satisfy it. Target
+ * positions are published through a stable `targets` object whose arrays the
+ * engine may swap; `stats()` reports the engine state the HUD displays.
+ *
  * Degradation: if `Worker` is unavailable, the constructor throws, or the worker
  * errors at runtime, the handle silently switches to `mode: "main"`: ticks run
  * on the main thread on a frame timer, at most one tick per frame, and a tick
@@ -16,22 +21,17 @@
  */
 import { createLayout } from "./layout";
 import type { WorkerEdgeInit, WorkerInMessage, WorkerNodeInit, WorkerOutMessage } from "./layout-worker";
+import type {
+  AsyncLayoutHandle,
+  CpuTier,
+  LayoutClientOptions,
+  LayoutMode,
+  LayoutStats,
+  LayoutTargets,
+} from "./layout-api";
 import type { GpuGraph, LayoutOptions, LayoutState } from "./types";
 
-export interface AsyncLayoutHandle {
-  readonly mode: "worker" | "main";
-  /** main-thread holder; `x`/`y` are refreshed from each tick message. */
-  readonly layout: LayoutState;
-  start(): void;
-  stop(): void;
-  pin(index: number, x: number, y: number): void;
-  unpin(index: number): void;
-  /** subscribe to tick completion; returns an unsubscribe function. */
-  onTick(cb: () => void): () => void;
-  settled(): boolean;
-  /** idempotent: stops the loop and terminates the worker. */
-  destroy(): void;
-}
+export type { AsyncLayoutHandle, LayoutClientOptions, LayoutStats, LayoutTargets, CpuTier };
 
 /** main-thread tick budget; an over-budget tick defers the next frame. */
 const MAIN_BUDGET_MS = 8;
@@ -44,6 +44,11 @@ function warnFallback(): void {
   if (warnedFallback) return;
   warnedFallback = true;
   console.warn("[gpu-graph] Worker unavailable; layout falls back to throttled main-thread ticks.");
+}
+
+function coresNow(): number {
+  const n = typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 0;
+  return Math.max(1, Math.floor(n || 1));
 }
 
 function serializeGraph(graph: GpuGraph): { nodes: WorkerNodeInit[]; edges: WorkerEdgeInit[] } {
@@ -63,26 +68,58 @@ function serializeGraph(graph: GpuGraph): { nodes: WorkerNodeInit[]; edges: Work
   };
 }
 
+/** Mutable implementation of the read-only {@link LayoutTargets} contract. */
+class TargetsHolder implements LayoutTargets {
+  readonly count: number;
+  x: Float32Array;
+  y: Float32Array;
+  version = 0;
+
+  constructor(x: Float32Array, y: Float32Array) {
+    this.count = x.length;
+    this.x = x;
+    this.y = y;
+  }
+
+  bump(): void {
+    this.version += 1;
+  }
+}
+
+/** Naive tier guess until the pool (#20) computes the real one from a probe. */
+function guessTier(cores: number): CpuTier {
+  if (cores >= 8) return "S";
+  if (cores >= 4) return "A";
+  if (cores >= 2) return "B";
+  return "C";
+}
+
 /** Main-thread fallback: one throttled tick per frame, 8ms budget. */
 class MainLayoutHandle implements AsyncLayoutHandle {
   readonly mode = "main" as const;
   readonly layout: LayoutState;
+  readonly targets: TargetsHolder;
   private readonly graph: GpuGraph;
   private readonly opts?: Partial<LayoutOptions>;
   private readonly callbacks = new Set<() => void>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
+  private frozenFlag = false;
   private settledFlag = false;
   private destroyed = false;
+  private tickCount = 0;
 
   constructor(graph: GpuGraph, opts?: Partial<LayoutOptions>) {
     this.graph = graph;
     this.opts = opts;
     this.layout = createLayout(graph, opts);
+    this.targets = new TargetsHolder(this.layout.x, this.layout.y);
   }
 
   start(): void {
-    if (this.running || this.destroyed) return;
+    if (this.destroyed) return;
+    this.frozenFlag = false;
+    if (this.running) return;
     this.running = true;
     this.schedule();
   }
@@ -90,6 +127,20 @@ class MainLayoutHandle implements AsyncLayoutHandle {
   stop(): void {
     this.running = false;
     this.clearTimer();
+  }
+
+  freeze(): void {
+    this.frozenFlag = true;
+    this.stop();
+  }
+
+  thaw(): void {
+    this.start();
+  }
+
+  /** provider-specific: the single-thread fallback has no neighbourhood pass. */
+  wake(_indices: readonly number[]): void {
+    // no-op; the pool (#20) implements 1–2 hop relayout
   }
 
   pin(index: number, x: number, y: number): void {
@@ -112,6 +163,23 @@ class MainLayoutHandle implements AsyncLayoutHandle {
 
   settled(): boolean {
     return this.settledFlag || this.layout.settled();
+  }
+
+  stats(): LayoutStats {
+    return {
+      workers: 0,
+      cores: coresNow(),
+      tier: "C",
+      tierReason: "main-fallback",
+      sab: false,
+      wasm: false,
+      frozen: this.frozenFlag,
+      tickMedianMs: 0,
+      tickP95Ms: 0,
+      tickCount: this.tickCount,
+      queueDepth: 0,
+      droppedTicks: 0,
+    };
   }
 
   destroy(): void {
@@ -147,6 +215,8 @@ class MainLayoutHandle implements AsyncLayoutHandle {
   }
 
   private notify(): void {
+    this.tickCount += 1;
+    this.targets.bump();
     for (const cb of this.callbacks) cb();
   }
 }
@@ -156,18 +226,22 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
   private delegate: MainLayoutHandle | null = null;
   private readonly worker: Worker;
   readonly layout: LayoutState;
+  readonly targets: TargetsHolder;
   private readonly graph: GpuGraph;
   private readonly opts?: Partial<LayoutOptions>;
   private readonly callbacks = new Set<() => void>();
   private readonly delegateSubs = new Map<() => void, () => void>();
   private settledFlag = false;
   private destroyed = false;
+  private frozenFlag = false;
+  private tickCount = 0;
 
   constructor(graph: GpuGraph, opts: Partial<LayoutOptions> | undefined, worker: Worker) {
     this.graph = graph;
     this.opts = opts;
     this.worker = worker;
     this.layout = createLayout(graph, opts);
+    this.targets = new TargetsHolder(this.layout.x, this.layout.y);
 
     this.worker.onmessage = (event: MessageEvent<WorkerOutMessage>) => {
       if (this.delegate) return;
@@ -175,6 +249,7 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
       if (msg.type === "tick") {
         this.layout.x.set(msg.x);
         this.layout.y.set(msg.y);
+        this.targets.bump();
         this.notify();
       } else if (msg.type === "settled") {
         this.settledFlag = true;
@@ -187,11 +262,12 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
     this.worker.postMessage(init);
   }
 
-  get mode(): "worker" | "main" {
-    return this.delegate ? "main" : "worker";
+  get mode(): LayoutMode {
+    return this.delegate ? "main" : "single";
   }
 
   start(): void {
+    this.frozenFlag = false;
     if (this.delegate) this.delegate.start();
     else this.post({ type: "start" });
   }
@@ -199,6 +275,20 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
   stop(): void {
     if (this.delegate) this.delegate.stop();
     else this.post({ type: "stop" });
+  }
+
+  freeze(): void {
+    this.frozenFlag = true;
+    if (this.delegate) this.delegate.freeze();
+    else this.post({ type: "stop" });
+  }
+
+  thaw(): void {
+    this.start();
+  }
+
+  wake(_indices: readonly number[]): void {
+    // no-op; the pool (#20) implements 1–2 hop relayout
   }
 
   pin(index: number, x: number, y: number): void {
@@ -229,6 +319,25 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
     return this.settledFlag || this.layout.settled();
   }
 
+  stats(): LayoutStats {
+    if (this.delegate) return this.delegate.stats();
+    const cores = coresNow();
+    return {
+      workers: 1,
+      cores,
+      tier: guessTier(cores),
+      tierReason: "",
+      sab: false,
+      wasm: false,
+      frozen: this.frozenFlag,
+      tickMedianMs: 0,
+      tickP95Ms: 0,
+      tickCount: this.tickCount,
+      queueDepth: 0,
+      droppedTicks: 0,
+    };
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -249,6 +358,7 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
   }
 
   private notify(): void {
+    this.tickCount += 1;
     for (const cb of this.callbacks) cb();
   }
 
@@ -271,10 +381,15 @@ class WorkerLayoutHandle implements AsyncLayoutHandle {
 /**
  * Build an async layout: worker-backed when available, throttled main-thread
  * fallback otherwise. The returned handle owns no DOM objects.
+ *
+ * `client` carries per-handle engine overrides (forced worker count, forced tier,
+ * SAB / WASM switches) used by the hardware matrix. This single-worker build
+ * accepts the type and honours `sab: false` by construction: it never uses SAB.
  */
 export function createAsyncLayout(
   graph: GpuGraph,
   opts?: Partial<LayoutOptions>,
+  _client?: LayoutClientOptions,
 ): AsyncLayoutHandle {
   if (typeof Worker === "undefined") {
     warnFallback();
