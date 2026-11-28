@@ -11,6 +11,7 @@ interface ConversionResponse {
   id: number;
   html?: string;
   error?: string;
+  computeMs?: number;
 }
 
 interface MammothModule {
@@ -39,12 +40,17 @@ const ctx = self as unknown as {
 ctx.onmessage = (event) => {
   const { id, arrayBuffer } = event.data;
   void (async () => {
+    const t0 = performance.now();
     try {
       const mammoth = await loadMammoth();
       const result = await mammoth.convertToHtml({ arrayBuffer });
-      ctx.postMessage({ id, html: result.value });
+      ctx.postMessage({ id, html: result.value, computeMs: performance.now() - t0 });
     } catch (err) {
-      ctx.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
+      ctx.postMessage({
+        id,
+        error: err instanceof Error ? err.message : String(err),
+        computeMs: performance.now() - t0,
+      });
     }
   })();
 };

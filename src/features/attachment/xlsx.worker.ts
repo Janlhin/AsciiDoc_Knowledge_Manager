@@ -15,6 +15,7 @@ interface ParseResponse {
   id: number;
   sheets?: unknown[];
   error?: string;
+  computeMs?: number;
 }
 
 interface SheetData {
@@ -59,6 +60,7 @@ const ctx = self as unknown as {
 ctx.onmessage = (event) => {
   const { id, bytes } = event.data;
   void (async () => {
+    const t0 = performance.now();
     try {
       const XLSX = await loadXlsx();
       const wb = XLSX.read(bytes, { type: "array" });
@@ -73,9 +75,13 @@ ctx.onmessage = (event) => {
           }) as unknown[][],
         ),
       );
-      ctx.postMessage({ id, sheets });
+      ctx.postMessage({ id, sheets, computeMs: performance.now() - t0 });
     } catch (err) {
-      ctx.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
+      ctx.postMessage({
+        id,
+        error: err instanceof Error ? err.message : String(err),
+        computeMs: performance.now() - t0,
+      });
     }
   })();
 };

@@ -1,4 +1,5 @@
 import { isAsciiDocWorkerActive, renderAsciiDocPreview } from "@core/asciidoctorPreview";
+import { workerPool } from "@core/workers/workerPool";
 import { convertDocx, isDocxWorkerActive } from "@features/attachment/DocxPreview";
 import { isXlsxWorkerActive, parseXlsx } from "@features/attachment/XlsxPreview";
 import React from "react";
@@ -1552,6 +1553,12 @@ async function bootstrap() {
     settings: () => backupSettings.get(),
     vaultPath: () => vault.getVaultPath(),
   };
+
+  // T-063: pooled-worker diagnostic snapshot for the debug panel / probes.
+  const poolHost = globalThis as typeof globalThis & {
+    __geodePoolStats?: () => ReturnType<typeof workerPool.getPoolStats>;
+  };
+  poolHost.__geodePoolStats = () => workerPool.getPoolStats();
 
   // R50: apply DOM appearance settings (readable line length) on boot + probe.
   applyAppearanceSettings();

@@ -1,0 +1,150 @@
+= T-063 应用级 WorkerPool：多核调度、档位降级与重活处置台账
+
+:日期: 2026-11-28
+:状态: 实施记录（Issue #21，PR 栈 #18 之后）
+
+本文记录 ADKM 全应用线程池的落地边界、调度规则、CPU 四档策略、剩余重活的「先量后搬」结论与复跑方式。背景底账见 `docs/main-thread-audit.adoc`（T-062）。
+
+== 范围
+
+本轮做了什么：
+
+- 新增单例 `WorkerPool`：lane 复用、优先级队列、同键去重、可取消、transferable 透传、四段耗时记录、30 s 空闲回收、退出全量 terminate、诊断快照 `getPoolStats()`。
+- CPU 四档 S/A/B/C：按逻辑核数分配 lane，预留 1 核给 UI；降档带可见 `tierReason`；支持 `forceTier` 注入（测试 / 诊断）。
+- 收编既有三个预览 Worker：DOCX、XLSX、AsciiDoc 全部改走池调度；消息协议、错误上报、in-page 降级、可重开行为保持不变。
+
+本轮**没有**做：DOM / React / CodeMirror 输入 / iframe 排版离主线程（搬不走）；EPUB / PPTX 解压、备份 ZIP 的 Rust 化（`zip` crate 属硬边界 #5，待逐项放行）；图谱布局池化（#20 线，不重叠）。
+
+== 模块与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/core/workers/tier.ts` | 环境探测（核数 / Worker 可用 / SAB 可用）、S/A/B/C 判定、lane 数策略、运行下降档 |
+| `src/core/workers/types.ts` | 优先级、任务记录、耗时四段、池快照等共享类型 |
+| `src/core/workers/workerPool.ts` | 单例池：队列、lane 分配、消息路由、去重、取消、回收、统计；`createPool()` 供测试注入假依赖 |
+| `src/features/attachment/DocxPreview.tsx` | DOCX 转换改走池；in-page mammoth 降级路径保留 |
+| `src/features/attachment/XlsxPreview.tsx` | SheetJS 解析改走池；网格与保存仍在主线程 |
+| `src/core/asciidoctorPreview.ts` | AsciiDoc 转换改走池；链接本地化 / 消毒仍在主线程 |
+| `src/features/attachment/docx.worker.ts` | Worker 入口（协议不变），回报 `computeMs` |
+| `src/features/attachment/xlsx.worker.ts` | 同上 |
+| `src/core/asciidoctor.worker.ts` | 同上 |
+| `tests/t063-worker-pool.test.ts` | 池调度 / 优先级 / 去重 / 取消 / transferable / 回收 / 档位 / 三预览并发 |
+
+`src/core` 保持框架无关：调用方用自己的 `import.meta.url` 构造 Worker 模块 URL，池只负责调度。
+
+== 调度模型
+
+### Lane 与复用
+
+- lane 数由档位决定（见下表）。同种类任务优先复用同种类的空闲 lane，模块保持热状态。
+- 容量未满时为新任务开新 lane；满员后才允许把空闲的异种类 lane 重建为新种类（旧 Worker terminate）。
+- 同类任务**不允许**每次调用 `new Worker`；池内 lane 跨任务复用，Worker 自身模块缓存（mammoth / SheetJS / Asciidoctor）在 lane 内保留。
+
+### 优先级
+
+| 级别 | 用途 | 排队规则 |
+| --- | --- | --- |
+| `input` | 输入阻塞路径（预留；当前预览未占用） | 最高，先于其他两级出队 |
+| `visible` | 打开中的预览 / 可见面板转换 | 次之 |
+| `background` | 后台 / 按需任务 | 最低，让位前两级 |
+
+同级别 FIFO。调度是非抢占式的：已经在 lane 上跑的任务不能被新到的高优先级任务踢下 Worker；高优先级只在排队队列里提前。
+
+### 去重
+
+相同 `dedupeKey` 的排队 / 运行中任务合并到同一个 Promise，第二条调用直接挂到第一条的结果上，不重复 postMessage。当前仅 AsciiDoc 预览按源码内容键去重（短窗口内重复打开同一篇）。
+
+### 取消
+
+- 任务可带 `AbortSignal`：排队中取消 → 直接出队并拒绝 `AbortError`，不创建 Worker；运行中取消 → 标记 canceled，迟到回复被忽略，lane 在回复到达后释放，不留孤儿消息监听。
+- 池 `terminateAll()`：队列全部拒绝、所有 Worker terminate，供应用退出（`beforeunload` / `pagehide`）与视图 dispose 调用。
+
+### 数据边界
+
+- 大对象走 transferable（DOCX 的 ArrayBuffer 直接转移；XLSX 仅在视图独占整块后备缓冲时转移，否则结构化克隆，避免 detach 共享缓冲）。
+- Worker 只回传结构化数据：HTML 字符串 / 单元格数组；不回传 DOM、不回传大对象图。
+- 每个任务记录四段耗时：`queueMs`（排队）、`transferMs`（主线程 outgoing 克隆 / postMessage）、`computeMs`（Worker 内计算，Worker 回报；缺失时用 post→回复间隔兜底）、`returnMs`（回复接收 + 解码），外加 `totalMs`。
+
+### 回收与诊断
+
+- lane 空闲 30 s 自动 terminate；复用即清掉空闲计时。
+- `getPoolStats()` 导出：当前档位、`tierReason`、lane 容量、活跃 Worker（种类 / 忙闲 / 空闲时长）、队列深度与分级分布、最近任务记录（含四段耗时）、降级标记。调试面板经 `window.__geodePoolStats()` 读取。
+
+== CPU 四档
+
+| 档位 | 判定 | lane 数 | 行为 |
+| --- | --- | --- | --- |
+| S | ≥8 逻辑核 | 4–8（核数 −1，封顶 8） | 重活并行；三预览可同时在不同 lane |
+| A | 4–7 核 | 2–3（核数 −1，封顶 3） | 预览 / 导出并行 |
+| B | 2–3 核 | 1 | 串行 lane；后台任务让位输入 |
+| C | 1 核 / Worker 创建失败 / 全程不可用 | 0 | 主线程 + 8 ms 预算；任务回退 in-page 路径；超限走分片 / 延后 |
+
+- 探测一次：`navigator.hardwareConcurrency`、`typeof Worker`、`SharedArrayBuffer` 是否暴露。SAB 仅记录诊断，池本身不依赖它（WebView2 的 COOP/COEP 能否开 SAB 仍是开放问题）。
+- 运行中降档（Worker 构造失败 / lane 报错）：档位往下降一级，`tierReason` 追加失败原因；**不许静默变慢**，快照里可读。
+- `setForceTier(tier | null)` 覆盖硬件判定，专供测试与手动诊断；原因记为 `forced-*`。
+
+== 三预览收编对照
+
+| 预览 | Worker 模块 | 优先级 | 回传 | 失败 / 降级 |
+| --- | --- | --- | --- | --- |
+| DOCX | `docx.worker.ts`（mammoth） | `visible` | HTML 字符串 | 池不可用 / Worker 报错 → 原 in-page mammoth 路径；报错仍上抛到预览占位符 |
+| XLSX | `xlsx.worker.ts`（SheetJS） | `visible` | 单元格对象数组 | 同上；x-data-spreadsheet 网格与保存序列化留在主线程 |
+| AsciiDoc | `asciidoctor.worker.ts`（Asciidoctor） | `visible` | HTML 字符串 + 源码去重键 | 同上；链接本地化与消毒在主线程字符串阶段完成 |
+
+三个预览同一时刻打开：S/A 档各自占 lane 并行；B 档单 lane 串行排队，互不饿死（队列优先级 + FIFO 保证）；C 档全部回退 in-page。既有 `isDocxWorkerActive` / `isXlsxWorkerActive` / `isAsciiDocWorkerActive` 探针语义保留：对应种类的 lane 已被创建才为真。
+
+== 剩余重活处置台账（先量后搬）
+
+测量脚本：`../t063-tools/p063-apppool/measure-heavy-jobs.mjs`（仓库外，复用仓库 JSZip 依赖，未新增包）；原始数字 `baseline.json`，读版 `measurements.md`。本机 16 逻辑核，Node v22.23.2；下列为 Node 主线程同步耗时，不等同 WebView2 帧间隔，只作量级判断。
+
+| 工作 | 现在跑在哪 | 实测 / 引用数字 | 内存 | 降级 | 本轮结论 |
+| --- | --- | --- | --- | --- | --- |
+| EPUB 解压 | 前端主线程（epub.js + JSZip 整本入堆） | 3.4 MB 样本：loadAsync 4.6 ms、首章读取 7.5 ms、整本解压 30.4 ms；51 MB 书按字节线性外推整本 ≈456 ms；T-062 浏览器基线：累计 ≈730 ms、10 次 >50 ms 掉帧 | 样本堆增 1.4 MB；整本入堆随书线性增长 | 正解是 Rust 解压到缓存目录、按章取资源（P0-2）；iframe 排版搬不走 | **保持主线程 + 登记例外**。`zip` crate 待放行；池化整本解压要把整包序列化进 Worker，克隆税不划算（T-026 同类教训） |
+| PPTX 解压 | 前端主线程（JSZip 逐条 `.async`） | 同 JSZip 路径，量级随幻灯片数线性增长，未单独实测 | 随图片条目增长 | 同 EPUB | **保持主线程 + 登记例外**，随 P0-2 一并迁 Rust |
+| 备份 ZIP | 前端主线程（`zip.generateAsync`） | 13.1 MB 样本：生成 282.3 ms；650 MB 库按字节线性外推 ≈13.98 s 主线程占用（未实测大库） | 样本堆增 −0.9 MB（GC 波动）；650 MB 峰值未 exercising | 正解 P0-3：Rust 线程打包，前端收进度事件 | **保持主线程 + 登记例外**。手动触发的后台动作；不新增 Rust `zip` 依赖；逐文件 await 的 IO 交错保留 |
+| 元数据索引 | 主线程（`rebuildAll`，热启动走持久化水合） | T-026 / T-062：415 篇重建 ≈287 ms，其中 69% 是文件读取 | 索引驻留内存，按篇计 | 水合命中时跳过读 + 解析 | **不搬**（例外登记）。Worker 化要把大字符串序列化进出，T-026 已证明反而更慢 |
+| 反链 / 未链接提及 | 主线程逐篇 `vault.read` + `findUnlinkedMentions` | 代理测量 800 篇 ×4 KB：总 93.7 ms，单篇均值 0.117 ms，单篇峰值 1.277 ms；IO 之间让出主线程 | 仅命中片段建 snippet | T-028 候选：面板懒加载 / 分片延后 | **本轮不池化**，登记为 T-028 懒加载候选。单篇 <8 ms；Worker 化的序列化税会吃掉收益 |
+| 搜索 | Rust SQLite FTS5（`index_search` 命令） | 前端只 await IPC promise，无 JS 正则扫描 | — | 命令当前为同步 Tauri command；若 profile 显示命令处理线程争用，再评估 `spawn_blocking` | **不改实现**，确认不堵前端 async runtime |
+| LLM 流式 | 专用 Rust 线程 | 既有 | — | — | 保持不动 |
+| 文件监听 | 专用 Rust 线程 | 既有 | — | — | 保持不动 |
+
+== 例外登记清单
+
+| 例外 | 理由 | 复核条件 |
+| --- | --- | --- |
+| EPUB / PPTX 解压留主线程 | 缺 Rust `zip` 依赖（硬边界 #5）；整本序列化进 Worker 的克隆税高于收益 | P0-2 放行 `zip` crate 后，迁 Rust 解压缓存 + 按章读取 |
+| 备份 ZIP 留主线程 | 同上；650 MB 打包是手动后台动作，非交互路径 | P0-3 迁 Rust 线程打包 + 进度事件 |
+| 元数据索引不 Worker 化 | T-026 实测非热点；序列化大字符串的成本 > 并行收益 | 若未来索引规模使重建进入 >50 ms 帧区间，重新评估 |
+| 未链接提及不池化 | 单篇扫描 <8 ms；逐篇 IO 已让出主线程 | T-028 懒加载落地后再测量；仍超预算再谈 Worker |
+| DOM / React / CodeMirror / iframe 排版 | 平台约束，不可搬 | — |
+
+== 复跑命令
+
+```
+# 类型检查
+npm run typecheck
+
+# 池单测
+npx vitest run tests/t063-worker-pool.test.ts
+
+# 既有预览相关单测（必须继续绿）
+npx vitest run tests/docx-worker.test.ts tests/epub-preview.test.tsx tests/backup.test.ts
+
+# 全量测试 + 构建
+npm test
+npm run build
+
+# 重活基线（仓库外，证据目录）
+node ../t063-tools/p063-apppool/measure-heavy-jobs.mjs
+```
+
+证据文件（仓库外，`../t063-tools/p063-apppool/`）：`baseline.json`（重活基线数字）、`measurements.md`（读版台账）、`pool-bench.json`（池调度 / 档位 / 三预览并发快照）、`measure-heavy-jobs.mjs`（可复跑脚本）。
+
+Node 基线：`D:\Projects\_tools\node-v22.23.2`（PATH 最前）；`node_modules` 为指向 t063 的 junction，不删、不 `npm ci`；构建怪异先删 `node_modules/.vite`。
+
+== 已知缺口 / 未做项
+
+- 浏览器内三预览并发的 rAF 帧间隔 / 长任务实测本轮未跑；池并发与调度由单测假 Worker 桩覆盖，真实 WebView2 帧数据留 E2E 线补。
+- 650 MB 备份、51 MB EPUB 为样本线性外推，未在真实大库上跑。
+- 电池 / 散热状态是否再降一档：开放问题，未实现。
+- 池当前只收编三个预览；图谱布局 Worker 属 #20 线，本轮不接入本池。
