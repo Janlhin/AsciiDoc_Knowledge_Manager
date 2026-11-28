@@ -231,9 +231,10 @@ samples）、`verdicts`、`overall`、`tickProgress`、`bands`。
 
 - **当前 warn-only**：脚本退出码恒 0，越线只在 JSON 与日志标 `warn` /
   `error`，不阻塞合并。
-- 临时带宽（provisional，按 2026-11-28 本机内核基线 ×1.5）：100k median
-  ≤ 300 ms（基线 205.55 ms）、200k median ≤ 680 ms（基线 451.46 ms）；
-  绝对 sanity 护栏 median < 1000 ms（对齐现有 vitest informational 测试）。
+- 临时带宽（provisional，按 2026-11-28 首轮本机内核基线 median ×1.5 取整）：
+  100k median ≤ 300 ms、200k median ≤ 680 ms；绝对 sanity 护栏
+  median < 1000 ms（对齐现有 vitest informational 测试）。带宽是临时值，
+  单轮噪声较大，集成分支合入后按多轮基线重算。
 - 阈值必须来自实测数据，不拍脑袋；集成分支合入后用新基线重算这两组数。
 
 === 升级为 fail 的条件
