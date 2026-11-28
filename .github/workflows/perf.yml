@@ -1,0 +1,70 @@
+name: Perf
+
+# 性能回归门禁（T-063 / Issue #19 #20）。
+#
+# 分两条，不要混在一起：
+#
+# 1. `kernel-bench`：Node 侧纯 TS 布局内核微基准，无 DOM / WebGL / Worker / GPU，
+#    可以进 PR 门禁。当前为 **warn-only**：脚本退出码恒为 0，越线只在 JSON 与
+#    日志里标 `warn`/`error`，不阻塞合并。fail 阈值要等集成分支合入后的本机
+#    基线实测数据再定，升级条件见 `docs/t063-bench.adoc` §CI 门禁。
+#
+# 2. `gpu-bench-manual`：浏览器渲染帧 / 30 分钟 soak / 多核矩阵都需要真 GPU 与
+#    有头 Edge，CI  runner 上跑不了。这个 job 只在 `workflow_dispatch` 手动触发，
+#    作用是留痕与给出复跑命令；真正的 GPU 基准在本机（RTX 5080）按文档命令跑，
+#    证据落在仓外 `063-tools/p063-bench/`。nightly 调度同样只跑内核微基准。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    #  nightly 03:17 UTC，只跑内核微基准；GPU 基准不进定时任务。
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kernel-bench:
+    name: 内核微基准（warn-only）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 内核单 tick 基准（100k / 200k）
+        # 脚本为 warn-only：越线不返回非零退出码；阈值依据与 fail 升级路径见文档。
+        run: node scripts/kernel-bench.mjs --json
+
+  gpu-bench-manual:
+    name: GPU / soak 基准（手动，本机执行）
+    # 该 job 在 CI 上不做任何测量：runner 无 GPU、无有头浏览器。
+    # 保留这个入口是为了在 Actions 页面留痕，并把复跑命令固定下来。
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GPU 基准复跑说明
+        run: |
+          echo "GPU 渲染帧、多核矩阵与 30 分钟 soak 不在 CI 运行。"
+          echo "请在本机（有真 GPU 的 Windows 机器）按 docs/t063-bench.adoc §复跑命令 执行："
+          echo "  node scripts/layout-bench.mjs --baseline"
+          echo "  node scripts/layout-soak.mjs --minutes=30"
+          echo "  node scripts/layout-quality.mjs --nodes=100000 --edges=200000 --seed=1 --ticks=300 --json"
+          echo "证据 JSON 落在仓外 063-tools/p063-bench/，改前/改后必须同夹具复测。"
