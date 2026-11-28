@@ -14,19 +14,20 @@ Worker / 档位矩阵、内存与线程记录方式、30 分钟 soak 与 CI 性�
 
 关联文档：link:gpu-graph-view.adoc[GPU 视图]。
 
-== 并行线接口约定（脚本照此写，不自创）
-
-以下接口由并行的多核池 / 动效线实现；当前基线提交（`1da18b1`）上尚未暴露，
-脚本读到缺失时如实记 `null` / `unknown`，不估算：
+== 接口约定（脚本照此写，不自创）
 
 - `window.__adkmGpuBench`：`load(nodes, edges, seed?)`、`run(frames?)`
-  （返回 `{samples, medianMs, p95Ms, p99Ms, low1Ms?, fps, gpu, dpr, width, height, mode, ...}`）、
-  `stop()`；页面需带 `?gpu-bench=1`。
+  （返回 `{nodes, edges, frames, samples, medianMs, p95Ms, p99Ms, onePercentLowMs,
+  fps, gpu, dpr, width, height, mode}`）、`stop()`；页面需带 `?gpu-bench=1`。
 - URL 参数（仅 `gpu-bench=1` 时生效）：`benchWorkerCount`（数字）、
   `benchTier`（S/A/B/C）、`benchSab=off`。
-- 布局句柄：`handle.targets`、`handle.stats()`
-  （`workers/cores/tier/tierReason/sab/wasm/frozen/tickMedianMs/tickP95Ms/tickCount/queueDepth/droppedTicks`，
-  可能追加可选内存字段）。
+- 布局句柄由池化实现持有，**不挂到 window**；基准脚本在页面内
+  `import('/src/features/graph/gpu/layout-client.ts')` 直接 `createAsyncLayout(...)`
+  采集 `stats()` 与 `stageMs`，渲染帧仍走钩子。`stats()` 字段：
+  `workers/cores/tier/tierReason/sab/wasm/frozen/tickMedianMs/tickP95Ms/tickCount/
+  queueDepth/droppedTicks/shardCount/workerBytes`，可选 `stageMs`
+  （`buildGridMs/buildQuadtreeMs/repulsionMs/springsMs/integrateMs/mergeMs/summaryMs/totalMs`）。
+- 契约暂无 tick p99 字段；`engineTickP99Ms` 记 `null`，不从帧时间或 p95 倒推。
 
 == 统计口径（先读这一节，避免把数字读大）
 
@@ -71,17 +72,22 @@ Edge 用户目录每次新开 `063-tools/edge-profile-*`，不复用别人的目
 
 [source, shell]
 ----
-# 改前基线（单 Worker、SAB off、100k/200k；写 baseline-*.json 并与旧证据交叉核对）
-node scripts/layout-bench.mjs --baseline
+# 全矩阵：100k/200k × W1/2/4/8 × SAB on/off，每格 600 帧
+node scripts/layout-bench.mjs --nodes=100000,200000 --workers=1,2,4,8 --sab=on,off
 
-# 多核 / 档位矩阵（集成分支合入后跑；当前基线传参不生效，脚本如实记录 observed）
-node scripts/layout-bench.mjs --workers=4 --tier=A --sab=off --nodes=100000,200000
+# 头条配置多轮复测（每格 N 轮，summary 取跨轮 median + 最小/最大噪声带）
+node scripts/layout-bench.mjs --nodes=100000 --workers=8 --sab=on --rounds=3
+node scripts/layout-bench.mjs --nodes=100000 --workers=1 --sab=off --rounds=3
+node scripts/layout-bench.mjs --nodes=200000 --workers=8 --sab=on --rounds=3
 
-# 布局质量对比（同 seed：边长方差 + 近似交叉数）
+# 浏览器侧布局质量快照：同 seed 下 1W vs 8W 收敛位置（边长统计 + 近似交叉数）
+node scripts/layout-bench.mjs --quality-only --nodes=100000
+
+# Node 内核侧布局质量（主线程参考路径）
 node scripts/layout-quality.mjs --nodes=100000 --edges=200000 --seed=1 --ticks=300 --json
 
 # 30 分钟 soak；--minutes=3 是 3 分钟冒烟
-node scripts/layout-soak.mjs --minutes=30 --interval=30
+node scripts/layout-soak.mjs --minutes=30 --interval=30 --nodes=100000 --workers=8 --sab=on
 node scripts/layout-soak.mjs --minutes=3
 
 # Node 侧内核单 tick 微基准（CI 跑的就是这条，warn-only）
@@ -122,17 +128,19 @@ unmaskedRenderer / glVersion / ctxType）、`dpr`、`viewport`、`softwareRender
 
 |字段|含义|
 |---|---|
-|`handleAvailable`|句柄是否被当前构建暴露|
-|`reason`|未暴露原因（基线：pool/motion 线未合入）|
+|`handleAvailable`|引擎 stats 采集是否成功|
+|`reason`|采集失败原因|
 |`requested`|页面请求的 workerCount / tier / sab|
-|`observed`|`stats()` 实测的 workers / cores / tier / tierReason / sab / wasm / frozen / tickMedianMs / tickP95Ms / tickCount / queueDepth / droppedTicks|
-|`tick.countDelta`|采样窗口内 tick 数（后 − 前）|
-|`tick.versionDelta`|`targets.version` 前后差值，与 countDelta 交叉校验|
-|`tick.crossCheckMatch`|两者是否一致|
-|`tick.wallMs / ticksPerSec`|窗口墙钟时长（ms）与每秒 tick 数|
+|`observed`|`stats()` 实测 workers / cores / tier / tierReason / sab / wasm / frozen / tickCount / queueDepth / droppedTicks / shardCount / workerBytes|
+|`workersMatch`|实测 `observed.workers` 是否等于请求 Worker 数；不等标 `false`，不抹平|
+|`mode`|`main` / `pool` 运行模式|
+|`tick.deltas`|onTick 墙钟间隔窗口的四件套（median/p95/p99/1% low 等）|
 |`tick.engineTickMedianMs / engineTickP95Ms`|引擎滚动窗口内 tick 分位|
-|`tick.queueDepth / droppedTicks`|队列深度 / 丢 tick 数|
-|`tick.workerPeakHeapBytes`|每 Worker 内存峰值；句柄未暴露时为 `unknown`，不估算|
+|`tick.engineTickP99Ms`|契约暂无，记 `null`|
+|`tick.stageMs`|分段耗时（repulsion/springs/integrate/merge/summary/total 等）|
+
+> 两种 tick 口径不要混：`deltas` 是两次 onTick 之间的墙钟间隔（含背压/空闲），
+> `engineTick*` 是引擎内核 step 的滚动分位；报告里分列。
 
 `memory`：
 
@@ -143,12 +151,25 @@ unmaskedRenderer / glVersion / ctxType）、`dpr`、`viewport`、`softwareRender
 |`cdpMetrics.metrics`|CDP `Performance.getMetrics`（HeapUsedSize 等）|`available:false` + reason|
 |`os.rssBytes / os.threads`|本机 WMI：本运行 Edge 树 WorkingSet64 之和 / 线程数之和|`null` + reason|
 
-=== `quality-<nodes>-seed<seed>.json`
+=== `quality-<nodes>-seed<seed>.json`（Node 内核参考路径）
 
 `fixture`（nodes / edges / seed / ticks / rng）、`positions`（fingerprint /
 settled / alpha / bounds）、`edgeLengths`（count / mean / variance / stddev /
 median / min / max）、`crossings`（approxCount / comparedPairs / cells /
 truncated / method / caveats）、`screenshot`。
+
+=== `quality-browser-n<nodes>-w<workers>.json`（浏览器侧快照）
+
+`fixture`（nodes / edges / seed / workers / sab / rng）、`observed`（workers /
+cores / tier / tierReason / sab / wasm / tickCount）、`edgeLengths`、`crossings`。
+`quality-browser-compare-n<nodes>.json` 并列 1W 与 8W 两组边长与交叉数，
+截断状态不同时不得直接比大小。
+
+=== `matrix-summary-<stamp>.json`
+
+`config`、`cells[]`（每格 render 四件套 + tick + observed + workersMatch +
+错误标记）、`roundSummary[]`（跨轮 median、min/max 噪声带、observed 汇总）、
+`quality[]`、`notes`、`errors`。
 
 === `soak-<nodes>-<minutes>min-<stamp>.json`
 
@@ -165,12 +186,12 @@ samples）、`verdicts`、`overall`、`tickProgress`、`bands`。
 请求的 Worker 数量，**不能关闭 SMT、不能裁物理核**；在本机做的降核对比是
 **模拟**结果，不等同于真实少核机器的表现，报告里必须标注「模拟」。
 
-|档|benchWorkerCount|用途|状态|
+|档|benchWorkerCount|用途|状态（2026-11-28 集成树）|
 |---|---|---|---|
-|W1|1|单 Worker 基线|本轮基线已跑|
-|W2|2|模拟两 Worker|待集成分支|
-|W4|4|模拟四 Worker|待集成分支|
-|W8|8|模拟八 Worker（16 逻辑核上限内）|待集成分支|
+|W1|1|单 Worker 基线|已跑（on/off）|
+|W2|2|模拟两 Worker|已跑（on/off）|
+|W4|4|模拟四 Worker|已跑（on/off）|
+|W8|8|模拟八 Worker（16 逻辑核上限内）|已跑（on/off）|
 
 === 节点 / 开关档
 
@@ -231,16 +252,18 @@ samples）、`verdicts`、`overall`、`tickProgress`、`bands`。
 
 - **当前 warn-only**：脚本退出码恒 0，越线只在 JSON 与日志标 `warn` /
   `error`，不阻塞合并。
-- 临时带宽（provisional，按 2026-11-28 首轮本机内核基线 median ×1.5 取整）：
+- 临时带宽（provisional，按首轮本机内核基线 median ×1.5 取整）：
   100k median ≤ 300 ms、200k median ≤ 680 ms；绝对 sanity 护栏
-  median < 1000 ms（对齐现有 vitest informational 测试）。带宽是临时值，
-  单轮噪声较大，集成分支合入后按多轮基线重算。
-- 阈值必须来自实测数据，不拍脑袋；集成分支合入后用新基线重算这两组数。
+  median < 1000 ms。集成树复跑：100k 251.05 ms、200k 585.37 ms，均在带宽内。
+- **本轮判断：继续保持 warn-only**。内核轮次与改前基本持平、无回归信号；
+  浏览器 tick 距 #20 S 档差距仍大（见达标判定），且浏览器矩阵 / soak 无法在
+  CI runner 复现。fail 升级不靠单轮拍板。
 
 === 升级为 fail 的条件
 
-集成分支合入后，在本机连跑 ≥ 3 轮基线取 median；再把 fail 阈值定为
-基线 median ×1.5（p95 ×1.5），连续两轮越线才 fail。在此之前保持 warn。
+在本机连跑 ≥ 3 轮内核基线取 median；fail 阈值定为基线 median ×1.5
+（p95 ×1.5），连续两轮越线才 fail。浏览器侧回归门禁另议：需要本机定时
+矩阵或固定 GPU 节点，CI 上只留痕。
 
 === 不进 CI 的部分
 
@@ -248,50 +271,120 @@ samples）、`verdicts`、`overall`、`tickProgress`、`bands`。
 跑不了。`gpu-bench-manual` job 只在 `workflow_dispatch` 手动触发，留痕并给出
 本机复跑命令；证据 JSON 落在仓外 `063-tools/p063-bench/`。
 
-== 基线实测表
-
-> 数字以 `p063-bench/baseline-*.json` 为准；本轮为**单轮**采集（每格 600 帧、
-> 预热 4000 ms、seed 1），单轮存在噪声波动，正式基线待集成分支合入后
-> 连跑 ≥3 轮取 median。
+== 改后矩阵实测（2026-11-28，集成树）
 
 机器：AMD 9800X3D（8C/16T）、RTX 5080（ANGLE D3D11）、有头 Edge 159、
-Windows 10.0.26320、Node v22.23.2。
+Windows 10.0.26320、Node v22.23.2。每格 600 帧、预热 4000 ms、seed 1；
+`tick` 为引擎滚动窗口 median / p95（ms）；`obs W` 为实测 Worker 数。
+全矩阵 `wasm=false`、`droppedTicks=0`、`queueDepth=0`、`workersMatch=true`
+（实测 Worker 数等于请求值，forceWorkers 生效）；各格 observed `cores=16`，
+observed SAB 与请求一致（on→true / off→false）。
 
-浏览器渲染帧（W1 / SAB off / seed 1）：
+=== 100k / 200k 边
 
-|夹具|渲染 median|p95|p99|1% low|heapUsed|总堆|RSS|线程数|tick median|tick p95|
-|---|---|---|---|---|---|---|---|---|---|---|
-|100k|5.10 ms|6.40 ms|6.90 ms|7.02 ms|106.6 MB|137.5 MB|803.2 MB|278|n/a|n/a|
-|200k|11.20 ms|12.40 ms|13.40 ms|14.18 ms|207.6 MB|252.5 MB|1178.7 MB|347|n/a|n/a|
+|Worker|SAB|渲染 median|p95|p99|1% low|tick median|tick p95|tier|obs W|
+|---|---|---|---|---|---|---|---|---|---|
+|1|on|6.05|8.33|10.00|11.20|62.59|68.33|A|1|
+|1|off|6.18|7.48|7.83|8.84|162.02|1673.53|B|1|
+|2|on|5.37|7.62|9.55|9.70|37.21|41.75|A|2|
+|2|off|6.12|8.05|8.31|8.52|346.99|3627.22|B|2|
+|4|on|5.74|8.33|10.18|16.15|28.09|32.35|A|4|
+|4|off|6.16|7.71|8.35|8.65|1764.94|2029.42|B|4|
+|8|on|5.75|8.52|9.70|10.23|22.65|25.69|A|8|
+|8|off|6.93|8.89|9.25|9.49|450.76|507.77|B|8|
 
-`tick` 列记 `n/a`：当前基线构建未暴露布局句柄（pool/motion 线未合入），
-浏览器侧 tick 分位本轮不可得，**不从帧时间倒推**。
+=== 200k / 400k 边
 
-Node 内核单 tick 微基准（主线程纯 TS 内核，seed 20261128，warmup 5 / 20 tick；
-以 `kernel-*.json` 为准，单轮噪声较大）：
+|Worker|SAB|渲染 median|p95|p99|1% low|tick median|tick p95|tier|obs W|
+|---|---|---|---|---|---|---|---|---|---|
+|1|on|12.49|15.28|17.75|18.54|150.70|175.77|A|1|
+|1|off|12.76|15.88|16.16|16.47|331.28|862.32|B|1|
+|2|on|12.20|17.76|21.56|32.76|78.54|84.37|A|2|
+|2|off|12.86|17.44|17.73|18.20|107.81|510.50|B|2|
+|4|on|11.84|16.56|22.13|32.24|60.44|68.56|A|4|
+|4|off|13.11|17.68|17.96|18.42|86.25|100.47|B|4|
+|8|on|12.86|18.74|26.88|37.51|49.79|59.15|A|8|
+|8|off|13.10|17.76|18.31|19.07|2270.35|2348.24|B|8|
+
+=== 头条配置多轮复测（3 轮，median [min–max]）
+
+|配置|渲染 median|噪声带|tick median|噪声带|
+|---|---|---|---|---|
+|100k 8W / on|5.75 ms|5.50–5.92|21.86 ms|21.25–22.81|
+|100k 1W / off|5.56 ms|5.29–5.56|154.24 ms|148.01–168.92|
+|200k 8W / on|12.64 ms|12.09–12.77|49.20 ms|48.62–49.89|
+
+== 改前 / 改后同夹具对比（1W / SAB off）
+
+|夹具|改前 median / p95|改后 median / p95|median 差|p95 差|
+|---|---|---|---|---|
+|100k|5.10 / 6.40|5.56 / 7.24（3 轮 median）|+9.0%（首轮单轮 +3.73%）|+13.1%|
+|200k|11.20 / 12.40|12.76 / 15.88|+13.9%|+28.1%|
+
+渲染帧路径未随池化改动；上述差异落在少轮采样噪声与机器占用波动范围内，
+**不据此宣称退化**。改前基线为单轮，改后头条配置为 3 轮、其余格为单轮；
+正式回归判定需同口径多轮复测。
+
+== Node 内核单 tick 微基准（集成树复跑）
+
+主线程纯 TS 内核，seed 20261128，warmup 5 / 20 tick；以 `kernel-*.json` 为准：
 
 |夹具|median|p95|p99|1% low|min|max|
 |---|---|---|---|---|---|---|
-|100k / 200k 边|251.54 ms|285.05 ms|308.12 ms|308.12 ms|206.78 ms|308.12 ms|
-|200k / 400k 边|591.47 ms|681.66 ms|727.82 ms|727.82 ms|460.72 ms|727.82 ms|
+|100k / 200k 边|251.05 ms|283.75 ms|286.82 ms|286.82 ms|205.41 ms|286.82 ms|
+|200k / 400k 边|585.37 ms|665.49 ms|666.22 ms|666.22 ms|463.56 ms|666.22 ms|
 
-布局质量（100k / seed 1 / 300 tick）：边长 mean 195.57、stddev 89.48、
-median 186.81；近似交叉数 12,149,030（比较对数触顶 5000 万，`truncated: true`，
-不与未截断报告比）；位置指纹 `ea6935cacf396ea0`。
+与改前内核轮次（251.54 / 591.47 ms）基本持平，未见内核回归信号。
 
-前序复测参考（PR #18 复测，非本轮脚本采集）：100k 渲染 median 5.40 ms /
-p95 6.20 ms / 185 fps；布局单 tick median 175.5 ms / p95 203.6 ms
-（约 5.7 tick/s）；400 节点渲染 4.50 / 4.60 ms / 222 fps。
+== 布局质量对比（浏览器侧快照，100k / seed 1）
 
-与旧证据 `bench-100k.json` 的交叉核对：旧记录 100k median 5.40 ms /
-p95 6.20 ms / 185 fps / 120 帧；本轮 5.10 / 6.40 / 196 fps / 600 帧。
-median −5.56%、p95 +3.23%。差异方向互有出入且略超 5%，来源包括：采样帧数
-不同（120 vs 600）、预热与冷启动编译、窗口可见性与 GPU 占用；**不据此宣称
-提升或退化**，正式对比以多轮同口径复测为准。200k 无旧证据，首轮数字即基线。
+> 预热 4 s 后取位置快照，**未充分收敛**；两侧比较对数均触顶 5000 万
+> （`truncated: true`），交叉数为部分计数，仅作同口径参考。
 
-== 已知缺口（待集成分支）
+|配置|边长 mean|stddev|median|近似交叉数|compared pairs|truncated|
+|---|---|---|---|---|---|---|
+|1W|103018.91|60118.08|93087.14|18,796,944|50,027,987|true|
+|8W|177534.76|94783.22|165942.81|21,224,350|50,101,907|true|
 
-- 布局句柄未暴露：浏览器侧 tick 分位 / 每 Worker 峰值本轮记 `null` / `unknown`。
-- 契约暂无 tick p99 字段；`engineTickP99Ms` 暂为 `null`。
-- 200k 无旧证据可交叉核对，首轮 200k 数字即基线。
-- 多核 / SAB on / WASM 档位矩阵与 30 分钟 soak 待池化与动效合入后复跑。
+**结论**：早期快照下 8W 边长更散、近似交叉数 +12.9%；但位置未收敛、
+两侧均截断，**暂不能判定多核牺牲了布局质量**。需 300+ tick 收敛后复测
+（同 seed、同 `--cells`、同截断口径）再下结论。
+
+== Soak 结论（100k / 8W / on）
+
+- 实际时长 1788.33 s（29.8 min），59 个采样点，每 30 s 一轮 pan + 两次缩放。
+- 回归（OLS，斜率/分钟，R²）：heap +0.17 MiB/min（R² 0.08）、
+  RSS −0.65 MiB/min（R² 0.011）、线程 −0.9/min（R² 0.19）；
+  三条序列 R² 都很低，斜率不构成统计支持，总体 `stable`。
+- 起止：heap 79.0 → 51.7 MB，RSS 1179.9 → 777.2 MB，线程 408 → 278
+  （初始 GC / 收敛回落，之后走平）；tick 130 → 227 后平台期（布局收敛停步，
+  非冻结，`frozen=false`）。
+
+== 与 #20 验收线的达标判定
+
+S 档目标：100k tick median ≤ 8 ms、p95 ≤ 12 ms。下表倍数 = 实测 ÷ 目标：
+
+|配置|tick median|median 倍数|tick p95|p95 倍数|判定|
+|---|---|---|---|---|---|
+|100k 8W / on（当前最佳）|21.86 ms|2.73×|25.67 ms|2.14×|未达标|
+|200k 8W / on|49.20 ms|6.15×|56.94 ms|4.75×|未达标|
+|100k 1W / off|154.24 ms|19.3×|1232.49 ms|102.7×|未达标|
+
+差距如实上报：即使 8W / SAB on，100k tick median 仍为目标的 2.7 倍；
+200k 为 6.2 倍。不为凑数关闭正确性检查。
+
+== 改前参考（保留，勿与改后混算）
+
+改前单轮基线（句柄未暴露，tick 记 n/a）：100k 渲染 5.10 / 6.40 ms /
+196 fps；200k 11.20 / 12.40 ms。旧证据 `bench-100k.json`：5.40 / 6.20 ms /
+185 fps / 120 帧；与改前基线 median −5.56%、p95 +3.23%，属采样噪声带。
+前序 PR #18 复测：100k 5.40 / 6.20 ms / 185 fps；布局单 tick median 175.5 /
+p95 203.6 ms；400 节点 4.50 / 4.60 ms / 222 fps。
+
+== 已知缺口
+
+- 契约暂无 tick p99 字段；`engineTickP99Ms` 记 `null`，不估算。
+- WASM 内核未启用（`wasm=false`，tierReason `no-wasm-kernel`）；WASM 档为观察项。
+- 浏览器侧质量快照未充分收敛；交叉数两侧均截断，最终质量结论待收敛复测。
+- 矩阵其余格为单轮；头条配置已有 3 轮，后续补全其余格多轮基线。
+- SAB off 在多 Worker 下 tick p95 出现秒级尖峰（B 档），根因待查。
