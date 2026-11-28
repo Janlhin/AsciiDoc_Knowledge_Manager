@@ -289,7 +289,7 @@ describe("t063 pool — coordinator behaviour", () => {
     expect(handle.stats().workers).toBe(0);
   });
 
-  it("drops a failed worker and degrades to main when the pool dies", async () => {
+  it("degrades the whole pool to main when any worker fails", async () => {
     const graph = ring(12);
     const fakes: FakeWorker[] = [];
     const factory = (url: URL): Worker => {
@@ -303,9 +303,16 @@ describe("t063 pool — coordinator behaviour", () => {
     });
     const handle = new PoolLayoutHandle(graph, undefined, decision, undefined, { workerFactory: factory });
 
+    // One dead worker would silently drop one shard's forces, so the pool gives
+    // up as a whole: every worker is terminated and the main handle takes over.
     fakes[0].onerror?.();
-    expect(handle.stats().workers).toBe(1);
-    fakes[1].onerror?.();
+    expect(handle.mode).toBe("main");
+    expect(handle.stats().workers).toBe(0);
+    expect(handle.stats().tierReason).toContain("worker-0 failed");
+    expect(fakes[1].terminated).toBe(true);
+
+    // the delegate is the only live path now; a second error must not panic it
+    fakes[0].onerror?.();
     expect(handle.mode).toBe("main");
     handle.destroy();
   });

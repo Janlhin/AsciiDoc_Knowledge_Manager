@@ -18,7 +18,7 @@
  * set. Every other node keeps its target position untouched.
  */
 import { LAYOUT_DEFAULTS } from "../types";
-import type { GpuGraph, LayoutOptions, LayoutState } from "../types";
+import type { GpuGraph, LayoutOptions, LayoutState, WorldBounds } from "../types";
 import type {
   AsyncLayoutHandle,
   LayoutClientOptions,
@@ -66,6 +66,92 @@ class TargetsHolder implements LayoutTargets {
 
   bump(): void {
     this.version += 1;
+  }
+}
+
+/**
+ * Positions-only {@link LayoutState} for the pooled path. The kernel runs in the
+ * workers, so the main thread keeps the canonical arrays plus state getters and
+ * computes bounds / fingerprint on demand. `step()` is intentionally inert:
+ * the coordinator owns the tick loop, and a caller that stepped here would run
+ * a full 100k tick on the main thread.
+ */
+class PositionsHolder implements LayoutState {
+  readonly count: number;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly vx: Float32Array;
+  readonly vy: Float32Array;
+  readonly options: LayoutOptions;
+  private readonly alphaFn: () => number;
+  private readonly settledFn: () => boolean;
+
+  constructor(
+    x: Float32Array,
+    y: Float32Array,
+    vx: Float32Array,
+    vy: Float32Array,
+    options: LayoutOptions,
+    alphaFn: () => number,
+    settledFn: () => boolean,
+  ) {
+    this.count = x.length;
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.options = options;
+    this.alphaFn = alphaFn;
+    this.settledFn = settledFn;
+  }
+
+  alpha(): number {
+    return this.alphaFn();
+  }
+
+  settled(): boolean {
+    return this.settledFn();
+  }
+
+  /** inert — the pool coordinator drives ticks off the main thread. */
+  step(): void {
+    // intentionally empty; see the class comment
+  }
+
+  stepUntil(_ticks: number): void {
+    // intentionally empty; the pool is paced by the coordinator
+  }
+
+  bounds(): WorldBounds {
+    if (this.count === 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < this.count; i++) {
+      const xi = this.x[i];
+      const yi = this.y[i];
+      if (xi < minX) minX = xi;
+      if (xi > maxX) maxX = xi;
+      if (yi < minY) minY = yi;
+      if (yi > maxY) maxY = yi;
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  /** same 1e-3 rounding as the kernel so a pooled fingerprint stays comparable. */
+  fingerprint(): string {
+    let h1 = 0x811c9dc5;
+    let h2 = 0x01000193;
+    for (let i = 0; i < this.count; i++) {
+      const a = Math.round(this.x[i] * 1000);
+      const b = Math.round(this.y[i] * 1000);
+      h1 = Math.imul(h1 ^ (a >>> 0), 0x01000193) >>> 0;
+      h1 = Math.imul(h1 ^ (b >>> 0), 0x01000193) >>> 0;
+      h2 = Math.imul(h2 ^ (a >>> 0), 0x85ebca6b) >>> 0;
+      h2 = Math.imul(h2 ^ (b >>> 0), 0x85ebca6b) >>> 0;
+    }
+    return h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
   }
 }
 
@@ -203,7 +289,15 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
     this.summaries = shardSummaries(this.plan, this.x, this.y, this.mass);
 
     this.targets = new TargetsHolder(this.x, this.y);
-    this.layout = { count: n, x: this.x, y: this.y } as unknown as LayoutState;
+    this.layout = new PositionsHolder(
+      this.x,
+      this.y,
+      this.vx,
+      this.vy,
+      options,
+      () => this.alphaVal,
+      () => this.settledFlag,
+    );
 
     this.spawnWorkers(options);
   }
@@ -442,26 +536,14 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
 
   private onWorkerError(wid: number, message: string): void {
     if (this.destroyed || this.delegate) return;
-    const entry = this.workers.find((w) => w.id === wid);
-    if (entry) {
-      try {
-        entry.worker.terminate();
-      } catch {
-        // already gone
-      }
-    }
-    this.workers = this.workers.filter((w) => w.id !== wid);
-    if (this.workers.length === 0) {
-      this.goMain();
-      return;
-    }
-    this.decision = {
-      ...this.decision,
-      tierReason: `worker-${wid} failed (${message}); ${this.workers.length} remaining`,
-    };
+    // One dead worker means one shard's forces would be silently dropped, which
+    // biases the layout without anyone noticing. Degrade the whole pool instead:
+    // the main-thread handle refuses oversized graphs (tier C, visible reason)
+    // rather than running a 175ms tick on the UI thread.
+    this.goMain(`worker-${wid} failed (${message})`);
   }
 
-  private goMain(): void {
+  private goMain(reason: string): void {
     if (this.delegate) return;
     for (const entry of this.workers) {
       try {
@@ -471,7 +553,7 @@ export class PoolLayoutHandle implements AsyncLayoutHandle {
       }
     }
     this.workers = [];
-    this.delegate = new MainLayoutHandle(this.graph, this.opts, this.client, "worker-pool-failed");
+    this.delegate = new MainLayoutHandle(this.graph, this.opts, this.client, reason);
     for (const cb of this.callbacks) {
       this.delegateSubs.set(cb, this.delegate.onTick(cb));
     }
